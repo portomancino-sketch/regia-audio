@@ -8,11 +8,10 @@
   /* Sfondo e testo */
   --sfondo: #0a0c10;
   /* Macchie dello sfondo mesh. --sfondo-intensita (0–1) le regola tutte. */
-  --sfondo-intensita: 1;
-  --macchia-1: #244a3f;
-  --macchia-2: #23346b;
-  --macchia-3: #5a3f16;
-  --macchia-4: #2c2749;
+  --sfondo-intensita: 0.55;
+  --macchia-1: #1e3a32;
+  --macchia-2: #3a2d1a;
+  --velo-barra: rgba(10, 12, 16, 0.55);
   --grana-opacita: 0.06;
   --grana-blend: overlay;
   --testo: rgba(255, 255, 255, 0.92);
@@ -72,10 +71,9 @@
   color-scheme: light;
 
   --sfondo: #f7f5f1;
-  --macchia-1: #b6d6c5;
-  --macchia-2: #f6c9a8;
-  --macchia-3: #b5cbee;
-  --macchia-4: #d9cdef;
+  --macchia-1: #cfe2d8;
+  --macchia-2: #f3dfcc;
+  --velo-barra: rgba(255, 255, 255, 0.55);
   --grana-opacita: 0.04;
   --grana-blend: multiply;
   --testo: #111418;
@@ -164,6 +162,10 @@
    (Le utility bg-* di Tailwind non vincono su .vetro: serve questa classe.) */
 .vetro-solido {
   background: var(--menu-fondo);
+}
+/* Barra superiore e controllo segmentato: velo denso, restano bianchi/neutri. */
+.vetro-barra {
+  background: var(--velo-barra);
 }
 
 /* --- Movimento --- */

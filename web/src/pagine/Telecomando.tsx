@@ -403,7 +403,7 @@ export function PaginaTelecomando() {
       )}
       <BarraLive
         telefono
-        extra={<InterruttoreTema chiave="tema-telecomando" />}
+        extra={<InterruttoreTema chiave="tema-telecomando" sopra />}
         attivi={stato?.attivi ?? []}
         master={stato?.master ?? 0.8}
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}

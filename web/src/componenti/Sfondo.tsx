@@ -1,4 +1,4 @@
-// Lo sfondo vivo: tre macchie di colore sfumate + un velo di grana.
+// Lo sfondo vivo: due macchie tenui (salvia e crema) + un velo di grana.
 // La deriva è guidata a ~7 aggiornamenti al secondo: a queste velocità lo
 // spostamento per passo è sotto il pixel (fluido all'occhio), ma il compositing
 // costa un ottavo rispetto a un'animazione CSS a 60 fps.
@@ -30,8 +30,6 @@ export function Sfondo(props: { animato?: boolean }) {
       <div ref={macchie} className="macchie">
         <div className="macchia macchia-1" />
         <div className="macchia macchia-2" />
-        <div className="macchia macchia-3" />
-        <div className="macchia macchia-4" />
       </div>
       <div className="grana" />
     </div>

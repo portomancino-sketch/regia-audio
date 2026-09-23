@@ -144,3 +144,18 @@ fino al 55% del raggio, macchie che coprono la maggior parte dello schermo.
 Verifica con soglia severa: ≥3 zone oltre 45/255 e nessun punto grigio puro
 in entrambi i temi; contrasto card 15,5:1 (chiaro) e 7,9:1 (scuro);
 CPU in Live ferma 2,8–3,1%. Screenshot in docs/screenshots/s4ter/.
+
+## S4-quater — 23 settembre 2026 — sfondo elegante + cursore intensità
+
+Sfondo ridotto a DUE tinte tenui: salvia #cfe2d8 in alto a sinistra (la più
+grande) e crema #f3dfcc in basso a destra; centro e metà schermo quasi bianchi
+(#f7f5f1). Blur 70px, plateau al 40% del raggio, deriva invariata. Scuro:
+verde #1e3a32 e ambra spenta #3a2d1a. `--sfondo-intensita` default 0,55.
+Il sole/luna ora apre un popover: tema Chiaro/Scuro/Auto + cursore
+"Intensità sfondo" 0–100 (scrive la variabile, salvato per dispositivo col
+tema, applicato già dallo script anti-lampo in index.html). Anche sul
+telecomando (popover verso l'alto). Barra superiore e controllo segmentato
+con velo bianco denso al 55%: non si tingono più. Verificato: cursore →
+variabile CSS e localStorage; screenshot a intensità 55 e 100 per entrambi
+i temi in docs/screenshots/s4quater/ (+ scatto del popover); contrasto card
+17,2/16,7 (chiaro) e 12,9/10,9 (scuro); CPU in Live ferma 3,1%.

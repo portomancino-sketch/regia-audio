@@ -20,6 +20,11 @@
               : "chiaro"
             : scelta;
         document.documentElement.dataset.tema = tema;
+        try {
+          var inten = localStorage.getItem(chiave + "-intensita");
+          if (inten !== null)
+            document.documentElement.style.setProperty("--sfondo-intensita", String(Number(inten) / 100));
+        } catch (e) {}
       })();
     </script>
   </head>

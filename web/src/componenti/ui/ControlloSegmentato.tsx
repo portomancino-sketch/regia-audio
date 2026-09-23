@@ -21,7 +21,7 @@ export function ControlloSegmentato(props: {
   const n = segmenti.length || 1;
   return (
     <div
-      className={`vetro vetro-campo relative flex p-1 ${props.className ?? ""}`}
+      className={`vetro vetro-campo vetro-barra relative flex p-1 ${props.className ?? ""}`}
       role="tablist"
     >
       {/* La selezione che scorre */}

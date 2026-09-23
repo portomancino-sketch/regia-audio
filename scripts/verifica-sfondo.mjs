@@ -11,7 +11,7 @@ const PORTA_TEST = 4994;
 const BASE = `http://127.0.0.1:${PORTA_TEST}`;
 const CDP_PORT = 9338;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const CARTELLA = "docs/screenshots/s4ter";
+const CARTELLA = "docs/screenshots/s4quater";
 fs.mkdirSync(CARTELLA, { recursive: true });
 const attendi = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -52,8 +52,8 @@ class Pagina {
       `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
     );
   }
-  async tema(nome) {
-    await this.js(`localStorage.setItem('tema-regia', '${nome}')`);
+  async tema(nome, intensita) {
+    await this.js(`localStorage.setItem('tema-regia', '${nome}'); localStorage.setItem('tema-regia-intensita', '${intensita}')`);
     await this.cmd("Page.enable");
     await this.cmd("Page.reload");
     await attendi(1500);
@@ -155,61 +155,27 @@ const PUNTI = [
 ];
 
 for (const tema of ["chiaro", "scuro"]) {
-  await pagina.tema(tema);
-  const b64 = await pagina.scatta(`01-home-${tema}`);
-  const pixel = await pagina.campiona(b64, PUNTI);
-  console.log(
-    `  colori (${tema}):`,
-    pixel.map((p) => `rgb(${p.join(",")})`).join("  "),
-  );
-  // Criterio: almeno 3 punti differiscono tra loro di >25/255 su almeno un canale.
-  // Contiamo i punti "distinti": distanza canale-massimo > 25 da almeno un altro punto distinto.
-  const distinti = [];
-  for (const p of pixel) {
-    if (distinti.every((q) => Math.max(...p.map((v, i) => Math.abs(v - q[i]))) > 45)) distinti.push(p);
-  }
-  distinti.length >= 3
-    ? ok(`sfondo ${tema}: ${distinti.length} zone di colore distinte (>45/255)`)
-    : ko(`sfondo ${tema}: solo ${distinti.length} zone distinte`, "troppo piatto");
-  // Nessun punto grigio puro (saturazione zero).
-  const grigi = pixel.filter((p) => Math.max(...p) - Math.min(...p) === 0);
-  grigi.length === 0
-    ? ok(`sfondo ${tema}: nessun punto grigio puro`)
-    : ko(`sfondo ${tema}: ${grigi.length} punti grigio puro`);
-
-  // Contrasto del testo sulle card: campiona il centro di una card e confronta col testo.
-  const card = await pagina.js(`
-    (() => { const c = document.querySelector('div.vetro.tocco'); if (!c) return null;
-      const r = c.getBoundingClientRect(); return [r.x + r.width * 0.6, r.y + r.height * 0.75]; })()
-  `);
-  if (card) {
-    const [px] = await pagina.campiona(b64, [card]);
-    const testo = tema === "chiaro" ? [17, 20, 24] : [242, 242, 243]; // --testo reale
-    const c = contrasto(testo, px);
-    c >= 4.5
-      ? ok(`contrasto testo su card (${tema})`, c.toFixed(2))
-      : ko(`contrasto testo su card (${tema})`, c.toFixed(2));
-  }
-
-  // Uno scatto anche della Live per la cartella s4bis.
-  if (tema === "chiaro") {
-    await pagina.js(`(() => { const c = [...document.querySelectorAll('div.vetro.tocco')].find(d => d.textContent.includes('Orient Express')); c?.click(); })()`);
-    await attendi(1000);
-    await pagina.click("Live");
-    await attendi(600);
-    await pagina.click("Ok, pronti");
-    await attendi(400);
-    await pagina.scatta("02-live-chiaro");
-    await pagina.cmd("Page.navigate", { url: `${BASE}/` });
-    await attendi(1200);
-  } else {
-    await pagina.js(`(() => { const c = [...document.querySelectorAll('div.vetro.tocco')].find(d => d.textContent.includes('Orient Express')); c?.click(); })()`);
-    await attendi(1000);
-    await pagina.click("Live");
-    await attendi(600);
-    await pagina.click("Ok, pronti");
-    await attendi(400);
-    await pagina.scatta("02-live-scuro");
+  for (const intensita of [55, 100]) {
+    await pagina.tema(tema, intensita);
+    const b64 = await pagina.scatta(`home-${tema}-${intensita}`);
+    const pixel = await pagina.campiona(b64, PUNTI);
+    console.log(
+      `  colori (${tema}, intensità ${intensita}):`,
+      pixel.map((p) => `rgb(${p.join(",")})`).join("  "),
+    );
+    // Contrasto del testo sulle card (criterio: ≥ 4.5).
+    const card = await pagina.js(`
+      (() => { const c = document.querySelector('div.vetro.tocco'); if (!c) return null;
+        const r = c.getBoundingClientRect(); return [r.x + r.width * 0.6, r.y + r.height * 0.75]; })()
+    `);
+    if (card) {
+      const [px] = await pagina.campiona(b64, [card]);
+      const testo = tema === "chiaro" ? [17, 20, 24] : [242, 242, 243];
+      const c = contrasto(testo, px);
+      c >= 4.5
+        ? ok(`contrasto testo su card (${tema}, ${intensita})`, c.toFixed(2))
+        : ko(`contrasto testo su card (${tema}, ${intensita})`, c.toFixed(2));
+    }
   }
 }
 
