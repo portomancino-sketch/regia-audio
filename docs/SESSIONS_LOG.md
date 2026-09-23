@@ -315,3 +315,50 @@ Solo pacchetto e documenti (zero modifiche a prodotto/UI/server/web).
 - **v1.1.3** → dist-pacchetti/Regia-v1.1.3.zip (80 MB); dentro lo zip
   verificati build web nuova e LEGGIMI di S8. Pacchetto provato solo su Mac
   Intel (x64); arm64 da confermare sul Mac di Valerio.
+
+## S9 — 23 settembre 2026 — v1.2.0: effetto non si duplica, Sempre con preferiti + Altri, card compatte
+
+- **Regola di prodotto (Jacopo)**: "l'effetto si somma agli ALTRI suoni, mai a sé
+  stesso". In regole.ts ripremere un cue già attivo = stop di quel cue, per
+  tutti i tipi (prima valeva solo per sottofondo e brano). Vale da Mac,
+  telefono e tastiera (1–9, Q–T). Test riscritti sul nuovo comportamento
+  (i "due istanze dello stesso effetto" ora usano due effetti diversi) + 4 test
+  nuovi (premi-premi → 0 istanze; premi×3 → una sola istanza; 'abbassa' che
+  risale; due effetti diversi si sommano). Via il contatore "×N" dalle card e
+  dalle pillole. Guida e checklist aggiornate.
+- **Riga Sempre: 4 in evidenza + "Altri (N)"**. Campo `evidenza?: boolean` nel
+  Cue (assente = no; config vecchie compatibili). Regola condivisa in
+  shared/sempre.ts: con 4 caselle o meno sono tutte in evidenza da sole; oltre,
+  solo quelle con la stella, nell'ordine di Modifica, massimo 4. Il server
+  rifiuta la quinta ("Massimo 4 in evidenza"), la stella vale solo nella riga
+  Sempre, la copia di una casella non eredita la stella. In Modifica: stella
+  su ogni casella della riga Sempre, avviso al quinto tentativo, nota sotto la
+  sezione. In Live: pillole/card in evidenza + pillola "Altri (N) ▾" con pallino
+  colorato se uno degli altri suona; telefono → foglio dal basso (righe 52px,
+  icona + titolo + pallino e "finisce tra", "Chiudi", tocco fuori; "Cerca" con
+  più di 8 voci); Mac → pannello sopra il dock, ESC o click fuori (ESC chiude
+  senza arrivare a STOP TUTTO). Q W E R T seguono le pillole in evidenza.
+- **Card compatte sul telefono** (prop `telefono` di PulsanteCue): 96px a
+  riposo, icona 36px a sinistra, titolo 17px e nota 14px su una riga con
+  ellissi, solo il puntino del tipo in alto a destra, durata in basso a destra,
+  padding 12px. Promemoria: stessa altezza, spunta grande a destra. Card che
+  suona: Sfuma / ■ Stop grandi (S8-bis) + "finisce tra". Mac invariato.
+- **Obiettivo "5 card sopra il dock" NON raggiunto, per geometria**: su 390×844
+  la prima card parte a 214px (format, fase, nota della fase) e il dock con 1
+  riga Sempre è alto 324px → restano 306px = 2 card da 96 (3 con la nota della
+  fase chiusa). Per arrivare a 5 servono ~530px: bisognerebbe togliere ~230px
+  al dock (es. dock compatto sul telefono: slider e PARLA/FADE OUT sulla stessa
+  riga, STA SUONANDO su una riga sola) e/o chiudere la nota di default. Decisione
+  da prendere con Jacopo; il controllo end-to-end verifica che le card siano
+  ≤ 96px e che sopra il dock ne stiano tante quante la geometria permette.
+- Verifica: 60 test unitari/API (5 nuovi su shared/sempre.ts, 1 nuovo API sul
+  limite di 4) + typecheck verdi; **83/83 controlli end-to-end** (nuovi: Q di
+  nuovo ferma l'effetto; premi-premi dal telefono → 0 istanze; mai due istanze
+  dello stesso effetto; 7 caselle/3 in evidenza → 3 pillole + "Altri (4)" su
+  telefono e Mac; foglio che si apre, voce che parte e chiude; pallino su
+  "Altri"; API quarta ok/quinta rifiutata; card ≤ 96px e conteggio visibili).
+  `scripts/screenshot-s9.mjs` → docs/screenshots/s9/ (telefono lista compatta
+  chiaro/scuro, foglio Altri, Altri che suona, card che suona; Mac pannello
+  Altri, Modifica con stelle e avviso).
+- **v1.2.0** → dist-pacchetti/Regia-v1.2.0.zip (80 MB); build web nuova e
+  LEGGIMI verificati dentro lo zip. Solo Mac Intel; arm64 da confermare.
