@@ -16,6 +16,7 @@ import {
   FADE_ABBASSA_MS,
   FADE_RIPRISTINO_MS,
   FADE_STOP_TUTTO_MS,
+  guadagnoIstanza,
   type StatoRegole,
   type Azione,
 } from "./regole";
@@ -439,5 +440,96 @@ describe("casi particolari", () => {
   it("'finita' su un'istanza sconosciuta non fa nulla", () => {
     const r = finita(nuovo(), "ix");
     expect(r.azioni).toHaveLength(0);
+  });
+});
+
+describe("guadagno in dB della casella (automatico + ritocco)", () => {
+  const SF_DB = cue({ id: "sfdb", tipo: "sottofondo", volume: 0.8, guadagnoAuto: 6, ritocco: -2 }); // +4 dB
+  const FX_DB = cue({ id: "fxdb", tipo: "effetto", sulSottofondo: "abbassa", guadagnoAuto: -6 });
+
+  it("alla partenza: master × volume × 10^(dB/20)", () => {
+    const r = premi(nuovo(), SF_DB);
+    const avvia = azione(r.azioni, "avvia")[0]!;
+    expect(avvia.guadagno).toBeCloseTo(1 * 0.8 * Math.pow(10, 4 / 20), 4); // ≈ 1.268
+  });
+
+  it("il ritocco negativo abbassa: -6 dB = metà", () => {
+    const r = premi(nuovo(), FX_DB);
+    expect(azione(r.azioni, "avvia")[0]!.guadagno).toBeCloseTo(0.501, 2);
+  });
+
+  it("con 'abbassa' attivo il fattore si applica dopo il guadagno dB; con 'pausa' vale 0", () => {
+    let r = premi(nuovo(), SF_DB);
+    r = premi(r.stato, FX_DB);
+    const cambio = azione(r.azioni, "cambiaGuadagno")[0]!;
+    expect(cambio.guadagno).toBeCloseTo(0.8 * Math.pow(10, 4 / 20) * 0.2, 4);
+    r = premi(r.stato, BRANO_PAUSA);
+    const sf = r.stato.attivi.find((i) => i.cueId === "sfdb")!;
+    expect(sf.inPausa).toBe(true);
+    expect(guadagnoIstanza(r.stato, sf)).toBe(0);
+  });
+
+  it("PARLA e master si combinano col guadagno dB nell'ordine giusto", () => {
+    let r = premi(nuovo(), SF_DB);
+    r = master(r.stato, 0.5);
+    r = parla(r.stato, true);
+    const sf = r.stato.attivi[0]!;
+    // master 0.5 × volume 0.8 × +4 dB × PARLA 0.25
+    expect(guadagnoIstanza(r.stato, sf)).toBeCloseTo(0.5 * 0.8 * Math.pow(10, 4 / 20) * 0.25, 4);
+    const ultimo = azione(r.azioni, "cambiaGuadagno").at(-1)!;
+    expect(ultimo.guadagno).toBeCloseTo(guadagnoIstanza(r.stato, sf), 4);
+  });
+
+  it("senza campi (config vecchie) il guadagno dB è 0: niente cambia", () => {
+    const r = premi(nuovo(), SOTTOFONDO);
+    expect(azione(r.azioni, "avvia")[0]!.guadagno).toBeCloseTo(0.9, 4);
+  });
+});
+
+describe("passaggio morbido tra sottofondi (crossfade)", () => {
+  const SF2 = cue({ id: "sf2", tipo: "sottofondo" });
+  function conCrossfade(ms: number): StatoRegole {
+    return statoIniziale({ master: 1, livelloAbbassa: 0.2, fadeOutMs: 1500, crossfadeMs: ms });
+  }
+
+  it("il nuovo è attivo, il vecchio è 'in uscita' con la sua scadenza; il motore sfuma ed entra nello stesso tempo", () => {
+    let r = premi(conCrossfade(2000), SOTTOFONDO);
+    r = premi(r.stato, SF2);
+    expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["sf2"]);
+    expect(r.stato.uscite).toEqual([{ istanzaId: "i1", cueId: "sf", rampMs: 2000 }]);
+    expect(azione(r.azioni, "ferma")[0]).toMatchObject({ istanzaId: "i1", rampMs: 2000 });
+    expect(azione(r.azioni, "avvia")[0]).toMatchObject({ cueId: "sf2", rampMs: 2000 });
+  });
+
+  it("quando il vecchio ha finito di sfumare esce dall'elenco", () => {
+    let r = premi(conCrossfade(2000), SOTTOFONDO);
+    r = premi(r.stato, SF2);
+    r = finita(r.stato, "i1");
+    expect(r.stato.uscite).toEqual([]);
+    expect(r.stato.attivi).toHaveLength(1);
+  });
+
+  it("STOP TUTTO e FADE OUT chiudono anche il passaggio in corso", () => {
+    let r = premi(conCrossfade(3000), SOTTOFONDO);
+    r = premi(r.stato, SF2);
+    const st = stopTutto(r.stato);
+    expect(azione(st.azioni, "ferma").map((a) => a.istanzaId).sort()).toEqual(["i1", "i2"]);
+    expect(st.stato.uscite).toEqual([]);
+    const fo = fadeOut(r.stato);
+    expect(azione(fo.azioni, "ferma")).toHaveLength(2);
+    for (const f of fo.azioni) expect((f as { rampMs: number }).rampMs).toBe(1500);
+  });
+
+  it("con crossfade 0 il comportamento è quello classico (500 ms di uscita, entrata secca)", () => {
+    let r = premi(conCrossfade(0), SOTTOFONDO);
+    r = premi(r.stato, SF2);
+    expect(azione(r.azioni, "ferma")[0]!.rampMs).toBe(0);
+    expect(azione(r.azioni, "avvia")[0]!.rampMs).toBeUndefined();
+  });
+
+  it("senza crossfade nello stato (config vecchie) resta il fade di 500 ms", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = premi(r.stato, SF2);
+    expect(azione(r.azioni, "ferma")[0]!.rampMs).toBe(FADE_SOSTITUZIONE_SOTTOFONDO_MS);
   });
 });

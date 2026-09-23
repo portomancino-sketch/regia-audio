@@ -24,6 +24,12 @@ export interface Cue {
   evidenza?: boolean;
   /** Quante volte si prevede di usarla in serata (assente = illimitato). */
   usiPrevisti?: number;
+  /** Analisi del file fatta all'importazione (livello medio e picco, in dBFS). */
+  analisi?: { rms: number; picco: number; versione: 1 };
+  /** Guadagno automatico in dB (obiettivo −18 dBFS, −12…+12, picco ≤ −1 dBFS). */
+  guadagnoAuto?: number;
+  /** Ritocco a orecchio in dB (−12…+12, passo 1, default 0). */
+  ritocco?: number;
 }
 
 export interface Fase {
@@ -44,6 +50,8 @@ export interface Format {
   fasi: Fase[];
   /** "Prima di iniziare": promemoria mostrato all'apertura del format in Live. */
   notaInizio?: string;
+  /** Passaggio morbido tra sottofondi, in secondi (0–5, default 2). */
+  crossfade?: number;
 }
 
 export interface Impostazioni {

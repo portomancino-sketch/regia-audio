@@ -166,9 +166,10 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/formats/:id", async (req, reply) => {
     const format = trovaFormat(store.config, (req.params as { id: string }).id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
-    const { nome, notaInizio } = (req.body ?? {}) as { nome?: string; notaInizio?: string };
+    const { nome, notaInizio, crossfade } = (req.body ?? {}) as { nome?: string; notaInizio?: string; crossfade?: number };
     if (typeof nome === "string" && nome.trim()) format.nome = nome.trim();
     if (typeof notaInizio === "string") format.notaInizio = notaInizio;
+    if (typeof crossfade === "number" && Number.isFinite(crossfade)) format.crossfade = Math.round(Math.min(5, Math.max(0, crossfade)) * 10) / 10;
     cambiata();
     return format;
   });
@@ -319,6 +320,24 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       c.sulSottofondo = corpo.sulSottofondo;
     }
     if (corpo.colore === null || typeof corpo.colore === "string") c.colore = corpo.colore ?? null;
+    const limitaDb = (v: number) => Math.round(Math.min(12, Math.max(-12, v)) * 10) / 10;
+    if (typeof corpo.ritocco === "number" && Number.isFinite(corpo.ritocco)) {
+      const r = Math.round(limitaDb(corpo.ritocco));
+      if (r === 0) delete c.ritocco;
+      else c.ritocco = r;
+    }
+    if (typeof corpo.guadagnoAuto === "number" && Number.isFinite(corpo.guadagnoAuto)) c.guadagnoAuto = limitaDb(corpo.guadagnoAuto);
+    if (corpo.analisi === null) {
+      delete c.analisi;
+      delete c.guadagnoAuto;
+    } else if (
+      corpo.analisi &&
+      typeof corpo.analisi === "object" &&
+      typeof corpo.analisi.rms === "number" &&
+      typeof corpo.analisi.picco === "number"
+    ) {
+      c.analisi = { rms: Math.round(corpo.analisi.rms * 10) / 10, picco: Math.round(corpo.analisi.picco * 10) / 10, versione: 1 };
+    }
     if (corpo.usiPrevisti === null || (corpo.usiPrevisti as unknown) === "") delete c.usiPrevisti;
     else if (typeof corpo.usiPrevisti === "number" && Number.isFinite(corpo.usiPrevisti)) {
       const n = Math.round(corpo.usiPrevisti);
@@ -400,6 +419,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     } catch (e) {
       return reply.status(400).send({ errore: e instanceof Error ? e.message : ERRORE_FORMATO });
     }
+    // File nuovo: l'analisi vecchia non vale più (la pagina la rifà).
+    delete trovato.cue.analisi;
+    delete trovato.cue.guadagnoAuto;
     cambiata();
     return trovato.cue;
   });

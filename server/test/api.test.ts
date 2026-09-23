@@ -223,6 +223,30 @@ describe("modalità serata (blocco modifiche)", () => {
   });
 });
 
+describe("livello automatico e crossfade", () => {
+  it("analisi, guadagno automatico e ritocco si salvano con i limiti; crossfade 0–5 s", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Livelli" } })).json();
+    const fase = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Uno" } })).json();
+    const c = (await app.inject({ method: "POST", url: `/api/fasi/${fase.id}/cue`, payload: {} })).json();
+    let r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { analisi: { rms: -30.04, picco: -12, versione: 1 }, guadagnoAuto: 11, ritocco: 3 } });
+    expect(r.json().analisi).toEqual({ rms: -30, picco: -12, versione: 1 });
+    expect(r.json().guadagnoAuto).toBe(11);
+    expect(r.json().ritocco).toBe(3);
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { ritocco: 40, guadagnoAuto: -30 } });
+    expect(r.json().ritocco).toBe(12);
+    expect(r.json().guadagnoAuto).toBe(-12);
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { ritocco: 0, analisi: null } });
+    expect(r.json().ritocco).toBeUndefined();
+    expect(r.json().analisi).toBeUndefined();
+    expect(r.json().guadagnoAuto).toBeUndefined();
+    r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { crossfade: 9 } });
+    expect(r.json().crossfade).toBe(5);
+    r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { crossfade: 1.5 } });
+    expect(r.json().crossfade).toBe(1.5);
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+  });
+});
+
 describe("upload audio", () => {
   it("carica un wav e legge la durata; il file finisce nella cartella audio", async () => {
     const format = (await app.inject({ method: "POST", url: "/api/formats", payload: {} })).json();

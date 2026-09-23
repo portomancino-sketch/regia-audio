@@ -3,6 +3,7 @@
 // e le azioni che il motore deve eseguire.
 
 import type { Cue, SulSottofondo, TipoCue } from "./tipi";
+import { dbALineare, guadagnoCasellaDb } from "./livello";
 
 // Durate dei fade, in millisecondi.
 export const FADE_SOSTITUZIONE_SOTTOFONDO_MS = 500;
@@ -24,6 +25,15 @@ export interface Istanza {
   durataSec: number | null;
   /** Solo per il sottofondo: true se è fermo ma tiene la posizione. */
   inPausa: boolean;
+  /** Guadagno della casella in dB (automatico + ritocco), sopra a volume e master. */
+  guadagnoDb: number;
+}
+
+/** Un sottofondo "in uscita": non è più attivo, ma il motore lo sta sfumando. */
+export interface Uscita {
+  istanzaId: string;
+  cueId: string;
+  rampMs: number;
 }
 
 export interface StatoRegole {
@@ -37,11 +47,15 @@ export interface StatoRegole {
   parla: boolean;
   /** 0..1 — a quanto scende il sottofondo mentre si parla. */
   livelloParla: number;
+  /** Passaggio morbido tra sottofondi, in ms (assente = comportamento classico: 500 ms / 15 ms). */
+  crossfadeMs?: number;
+  /** I sottofondi in uscita durante un passaggio (li chiude STOP TUTTO / FADE OUT). */
+  uscite: Uscita[];
 }
 
 /** Cosa deve fare il motore audio. */
 export type Azione =
-  | { tipo: "avvia"; istanzaId: string; cueId: string; guadagno: number; loop: boolean; inPausa: boolean }
+  | { tipo: "avvia"; istanzaId: string; cueId: string; guadagno: number; loop: boolean; inPausa: boolean; rampMs?: number }
   | { tipo: "ferma"; istanzaId: string; rampMs: number }
   | { tipo: "mettiInPausa"; istanzaId: string; rampMs: number }
   | { tipo: "riprendi"; istanzaId: string; guadagno: number; rampMs: number }
@@ -57,6 +71,7 @@ export function statoIniziale(opzioni: {
   livelloAbbassa: number;
   fadeOutMs: number;
   livelloParla?: number;
+  crossfadeMs?: number;
 }): StatoRegole {
   return {
     master: opzioni.master,
@@ -66,6 +81,8 @@ export function statoIniziale(opzioni: {
     contatore: 0,
     parla: false,
     livelloParla: opzioni.livelloParla ?? 0.25,
+    ...(opzioni.crossfadeMs === undefined ? {} : { crossfadeMs: opzioni.crossfadeMs }),
+    uscite: [],
   };
 }
 
@@ -97,10 +114,12 @@ export function fattoreStato(stato: StatoRegole): FattoreSottofondo {
   return { pausa: false, valore };
 }
 
-/** Guadagno effettivo di un'istanza: master × volume × fattore sottofondo. */
+/** Guadagno effettivo di un'istanza: master × volume × guadagno dB × fattore sottofondo.
+ *  L'ordine non conta (sono moltiplicazioni), ma il fattore del sottofondo
+ *  (abbassa / PARLA / pausa) si applica per ultimo e "pausa" vale 0. */
 export function guadagnoIstanza(stato: StatoRegole, istanza: Istanza): number {
   const f = istanza.tipo === "sottofondo" ? fattoreStato(stato).valore : 1;
-  return stato.master * istanza.volume * f;
+  return stato.master * istanza.volume * dbALineare(istanza.guadagnoDb ?? 0) * f;
 }
 
 /**
@@ -118,7 +137,7 @@ function transizioneSottofondo(
   const azioni: Azione[] = [];
   const attivi = stato.attivi.map((i) => {
     if (i.tipo !== "sottofondo") return i;
-    const guadagno = stato.master * i.volume * dopo.valore;
+    const guadagno = stato.master * i.volume * dbALineare(i.guadagnoDb ?? 0) * dopo.valore;
     if (dopo.pausa) {
       if (!i.inPausa) azioni.push({ tipo: "mettiInPausa", istanzaId: i.istanzaId, rampMs: FADE_ABBASSA_MS });
       return { ...i, inPausa: true };
@@ -168,12 +187,20 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
   let s = stato;
   const azioni: Azione[] = [];
 
-  // Esclusività: un solo sottofondo, un solo brano.
+  // Esclusività: un solo sottofondo, un solo brano. Tra due sottofondi il
+  // passaggio è morbido (crossfade): il vecchio sfuma mentre il nuovo entra
+  // nello stesso tempo; nello STATO il vecchio è "in uscita", non più attivo.
+  const crossfade = cue.tipo === "sottofondo" && s.crossfadeMs !== undefined ? s.crossfadeMs : null;
   if (cue.tipo === "sottofondo" || cue.tipo === "brano") {
-    const rampMs = cue.tipo === "sottofondo" ? FADE_SOSTITUZIONE_SOTTOFONDO_MS : FADE_STOP_ESCLUSIVO_MS;
+    const rampMs =
+      cue.tipo === "sottofondo" ? (crossfade ?? FADE_SOSTITUZIONE_SOTTOFONDO_MS) : FADE_STOP_ESCLUSIVO_MS;
     const daFermare = s.attivi.filter((i) => i.tipo === cue.tipo);
     for (const i of daFermare) azioni.push({ tipo: "ferma", istanzaId: i.istanzaId, rampMs });
-    s = { ...s, attivi: s.attivi.filter((i) => i.tipo !== cue.tipo) };
+    const uscite =
+      cue.tipo === "sottofondo"
+        ? [...s.uscite, ...daFermare.map((i) => ({ istanzaId: i.istanzaId, cueId: i.cueId, rampMs }))]
+        : s.uscite;
+    s = { ...s, attivi: s.attivi.filter((i) => i.tipo !== cue.tipo), uscite };
   }
   const contatore = s.contatore + 1;
   const nuova: Istanza = {
@@ -186,6 +213,7 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
     sulSottofondo: cue.tipo === "sottofondo" ? "niente" : cue.sulSottofondo,
     durataSec: cue.durataSec,
     inPausa: false,
+    guadagnoDb: guadagnoCasellaDb(cue),
   };
 
   let s2: StatoRegole = { ...s, contatore, attivi: [...s.attivi, nuova] };
@@ -201,7 +229,10 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
   }
 
   const guadagno =
-    s2.master * nuova.volume * (nuova.tipo === "sottofondo" ? fattoreAllaPartenza.valore : 1);
+    s2.master *
+    nuova.volume *
+    dbALineare(nuova.guadagnoDb) *
+    (nuova.tipo === "sottofondo" ? fattoreAllaPartenza.valore : 1);
 
   azioni.push({
     tipo: "avvia",
@@ -210,6 +241,8 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
     guadagno,
     loop: nuova.loop,
     inPausa: nasceInPausa,
+    // Il nuovo sottofondo entra da 0 nello stesso tempo in cui il vecchio esce.
+    ...(crossfade !== null && crossfade > 0 ? { rampMs: crossfade } : {}),
   });
 
   // Se il nuovo cue abbassa o mette in pausa il sottofondo, applica la transizione.
@@ -248,7 +281,13 @@ export function sfumaCue(stato: StatoRegole, cueId: string): Risultato {
 /** Il file è finito da solo (o il fade del motore si è completato). */
 export function finita(stato: StatoRegole, istanzaId: string): Risultato {
   const istanza = stato.attivi.find((i) => i.istanzaId === istanzaId);
-  if (!istanza) return { stato, azioni: [] };
+  if (!istanza) {
+    // Un sottofondo in uscita ha finito di sfumare: via dall'elenco.
+    if (stato.uscite.some((u) => u.istanzaId === istanzaId)) {
+      return { stato: { ...stato, uscite: stato.uscite.filter((u) => u.istanzaId !== istanzaId) }, azioni: [] };
+    }
+    return { stato, azioni: [] };
+  }
   const prima = fattoreStato(stato);
   const dopoStato: StatoRegole = {
     ...stato,
@@ -258,24 +297,25 @@ export function finita(stato: StatoRegole, istanzaId: string): Risultato {
   return { stato: t.stato, azioni: t.azioni };
 }
 
-/** STOP TUTTO: ferma tutto subito, con una piccola rampa anti-click. */
+/** STOP TUTTO: ferma tutto subito, con una piccola rampa anti-click.
+ *  Interrompe anche un passaggio tra sottofondi in corso. */
 export function stopTutto(stato: StatoRegole): Risultato {
-  const azioni: Azione[] = stato.attivi.map((i) => ({
+  const azioni: Azione[] = [...stato.attivi, ...stato.uscite].map((i) => ({
     tipo: "ferma",
     istanzaId: i.istanzaId,
     rampMs: FADE_STOP_TUTTO_MS,
   }));
-  return { stato: { ...stato, attivi: [] }, azioni };
+  return { stato: { ...stato, attivi: [], uscite: [] }, azioni };
 }
 
-/** FADE OUT: sfuma tutto in fadeOutMs, poi silenzio. */
+/** FADE OUT: sfuma tutto in fadeOutMs, poi silenzio (anche i sottofondi in uscita). */
 export function fadeOut(stato: StatoRegole): Risultato {
-  const azioni: Azione[] = stato.attivi.map((i) => ({
+  const azioni: Azione[] = [...stato.attivi, ...stato.uscite].map((i) => ({
     tipo: "ferma",
     istanzaId: i.istanzaId,
     rampMs: stato.fadeOutMs,
   }));
-  return { stato: { ...stato, attivi: [] }, azioni };
+  return { stato: { ...stato, attivi: [], uscite: [] }, azioni };
 }
 
 /** PARLA: l'operatore parla al microfono; il sottofondo scende a livelloParla.
