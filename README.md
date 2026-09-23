@@ -4,21 +4,19 @@ La regia audio per le serate a tema di Porto Mancino. Gira su un Mac collegato a
 mixer della sala; dal telefono (stesso WiFi) si comandano i suoni con pulsanti grandi.
 Niente cloud, niente abbonamenti: tutto resta sul Mac.
 
-## Installazione su un Mac nuovo (5 passi)
+## Installazione su un Mac nuovo (3 passi, senza Terminale)
 
-1. Installa Node (versione 20 o più nuova) da <https://nodejs.org> — scarica e clicca Avanti fino alla fine.
-2. Apri il **Terminale** (Cmd+Spazio, scrivi "Terminale", Invio).
-3. Scarica il progetto:
-   ```
-   git clone https://github.com/portomancino-sketch/regia-audio.git ~/regia
-   ```
-   (oppure copia la cartella del progetto da una chiavetta in `~/regia`).
-4. Entra nella cartella e installa:
-   ```
-   cd ~/regia && npm run installa
-   ```
-5. Sulla Scrivania compare **Regia.command**: doppio click e la Regia parte.
-   La prima volta macOS può chiedere conferma: tasto destro → Apri.
+1. Copia sul Mac lo zip **Regia-vX.Y.zip** (AirDrop o chiavetta) e scompattalo
+   dove vuoi (per esempio in Documenti).
+2. Nella cartella "Regia": la **prima volta** tasto destro su
+   **"Avvia Regia.command"** → Apri → Apri (macOS chiede conferma solo la prima volta;
+   se si lamenta: Impostazioni → Privacy e sicurezza → Apri comunque).
+3. Le volte dopo basta il **doppio click**. Non serve installare nulla:
+   nella cartella c'è già tutto, internet non serve.
+
+Lo zip si produce sul Mac di sviluppo con `npm run pacchetto`
+(finisce in `dist-pacchetti/`). Sostituire la cartella "Regia" con una versione
+nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 
 ## Come si avvia
 
@@ -63,6 +61,9 @@ in un unico file zip, da riportare su un altro Mac con l'import.
 
 ## Per chi sviluppa
 
+- La strada con git: `git clone https://github.com/portomancino-sketch/regia-audio.git ~/regia`,
+  poi `cd ~/regia && npm run installa` (serve Node 20+); crea "Regia.command" sulla Scrivania.
+- `npm run pacchetto` — crea la cartella autosufficiente e lo zip per Valerio.
 - `npm run dev` — server (porta 4000) + interfaccia con ricarica automatica (porta 5173).
 - `npm test` — tutti i test (regole audio + API).
 - `npm run typecheck` — controlli TypeScript su server, web e shared.

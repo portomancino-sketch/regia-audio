@@ -90,6 +90,16 @@ export class ClientWs {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
   }
 
+  /** La connessione è aperta e pronta? */
+  get aperta(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /** Solo per le prove: fa cadere la connessione come dopo un blocco schermo. */
+  simulaCaduta(): void {
+    this.ws?.close();
+  }
+
   /** Riprova subito (per esempio dopo aver scritto un PIN nuovo). */
   riparti(): void {
     this.fermo = false;

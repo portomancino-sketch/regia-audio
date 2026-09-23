@@ -159,3 +159,29 @@ con velo bianco denso al 55%: non si tingono più. Verificato: cursore →
 variabile CSS e localStorage; screenshot a intensità 55 e 100 per entrambi
 i temi in docs/screenshots/s4quater/ (+ scatto del popover); contrasto card
 17,2/16,7 (chiaro) e 12,9/10,9 (scuro); CPU in Live ferma 3,1%.
+
+## S5 — 23 settembre 2026 — cartella autosufficiente per Valerio
+
+`npm run pacchetto` produce `dist-pacchetti/Regia/` + `Regia-vX.Y.zip`
+(ditto -c -k --keepParent, permessi conservati): "Avvia Regia.command"
+(doppio click, percorsi relativi, toglie da solo la quarantena, non duplica
+il server se già acceso, Chrome in modalità app o Safari), `app/` col server
+impacchettato da esbuild in un SOLO file (nessun ripiego necessario) + dist
++ genera-demo compilato, `node/` coi binari ufficiali Node v24.21.0 LTS
+(arm64+x64; al primo avvio resta solo quello giusto), `LEGGIMI.txt`.
+Verificato per davvero: zip scompattato sulla Scrivania, quarantena simulata
+(xattr), avviato con PATH SENZA node → parte col Node della cartella,
+demo creata, telecomando raggiungibile, export/import ok, secondo doppio
+click non duplica. Zip 81 MB; cartella 240 MB → 124 MB dopo il primo avvio.
+README: installazione = scompatta + doppio click; git sotto "Per chi sviluppa".
+
+## S5-bis — 23 settembre 2026 — telecomando dopo il blocco schermo
+
+Finché la connessione non è aperta: pillola "Ricollego…", e un tocco viene
+tenuto in coda (1 comando, scade in 3 s) e spedito da solo appena collegati;
+lo stato non viene più azzerato durante la riconnessione (niente lampo) e al
+ritorno visibile della pagina si riprova subito. Il foglio "Prima di
+iniziare" compare una volta per serata e per format (memoria sul telefono
+con la data), non a ogni ricaricamento; l'icona libro lo riapre. Verificato
+nell'end-to-end simulando la caduta della connessione (hook di prova
+`?prova` + simulaCaduta): 51/51 controlli.

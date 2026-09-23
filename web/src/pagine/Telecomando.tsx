@@ -163,6 +163,9 @@ export function PaginaTelecomando() {
   const [formatDaConfermare, setFormatDaConfermare] = useState<string | null>(null);
   const [foglioAperto, setFoglioAperto] = useState(false);
   const foglioVistoPer = useRef<string | null>(null);
+  // Connessione: finché non è aperta, i tocchi vanno in coda (1 comando, 3 s).
+  const [connessione, setConnessione] = useState(false);
+  const codaRef = useRef<{ comando: object; scade: number } | null>(null);
   const [noteChiuse, setNoteChiuse] = useState<Record<string, boolean>>({});
   const wsRef = useRef<ClientWs | null>(null);
   const pinRef = useRef(pin);
@@ -185,7 +188,13 @@ export function PaginaTelecomando() {
         setAutenticato(true);
       },
       connesso: (ok) => {
-        if (!ok) setStato((s) => (s ? { ...s, motoreOnline: false } : s));
+        setConnessione(ok);
+        if (ok) {
+          // Un tocco fatto durante "Ricollego…" parte da solo appena collegati.
+          const coda = codaRef.current;
+          codaRef.current = null;
+          if (coda && Date.now() < coda.scade) ws.invia(coda.comando as never);
+        }
       },
       pinRifiutato: () => {
         localStorage.removeItem(CHIAVE_PIN);
@@ -196,13 +205,27 @@ export function PaginaTelecomando() {
       configCambiata: () => void api.config().then(setConfig),
     });
     wsRef.current = ws;
+    if (new URLSearchParams(location.search).has("prova")) {
+      (window as unknown as { __ws?: ClientWs }).__ws = ws;
+    }
+    // Dopo il blocco schermo la pagina torna visibile: riprova subito,
+    // senza aspettare il conto alla rovescia della riconnessione.
+    const suVisibile = () => {
+      if (document.visibilityState === "visible" && !ws.aperta) ws.riparti();
+    };
+    document.addEventListener("visibilitychange", suVisibile);
     return () => {
+      document.removeEventListener("visibilitychange", suVisibile);
       ws.chiudi();
       wsRef.current = null;
     };
   }, [pin]);
 
-  const invia = useCallback((c: object) => wsRef.current?.invia(c as never), []);
+  const invia = useCallback((c: object) => {
+    const ws = wsRef.current;
+    if (ws?.aperta) ws.invia(c as never);
+    else codaRef.current = { comando: c, scade: Date.now() + 3000 };
+  }, []);
 
   // ---- Schermata PIN ----
   if (!pin) {
@@ -221,12 +244,29 @@ export function PaginaTelecomando() {
   if (!config) return <div className="p-8 text-testo-2">Carico…</div>;
 
   const motoreOnline = stato?.motoreOnline ?? false;
+  // Pulsanti disattivati solo quando siamo collegati ma la Regia è spenta;
+  // durante "Ricollego…" i tocchi restano possibili (vanno in coda).
+  const bloccato = connessione && !motoreOnline;
   const formats = [...config.formats].sort((a, b) => a.ordine - b.ordine);
   const format = formats.find((f) => f.id === stato?.formatId) ?? null;
-  // Il foglio "Prima di iniziare" compare una volta per apertura del format.
+  // Il foglio "Prima di iniziare" compare una volta per serata e per format
+  // (memoria sul telefono con la data), non a ogni ricaricamento.
   if (format && foglioVistoPer.current !== format.id) {
     foglioVistoPer.current = format.id;
-    if (format.notaInizio?.trim()) setFoglioAperto(true);
+    if (format.notaInizio?.trim()) {
+      let visti: Record<string, string> = {};
+      try {
+        visti = JSON.parse(localStorage.getItem("foglio-visto") ?? "{}") as Record<string, string>;
+      } catch {
+        /* memoria rovinata: si riparte */
+      }
+      const oggi = new Date().toDateString();
+      if (visti[format.id] !== oggi) {
+        setFoglioAperto(true);
+        visti[format.id] = oggi;
+        localStorage.setItem("foglio-visto", JSON.stringify(visti));
+      }
+    }
   }
   const fasi = format ? [...format.fasi].sort((a, b) => a.ordine - b.ordine) : [];
   const fase = fasi.find((f) => f.id === stato?.faseId) ?? fasi[0] ?? null;
@@ -242,13 +282,19 @@ export function PaginaTelecomando() {
     invia({ tipo: "comando", comando: "play", cueId: c.id });
   }
 
-  const pillolaOffline = !motoreOnline && (
+  const pillolaOffline = !connessione ? (
+    <div className="mb-3 flex justify-center">
+      <span className="inline-flex items-center gap-2 rounded-full border border-vetro-bordo bg-velo px-4 py-1.5 text-[13px] font-semibold text-testo-2">
+        Ricollego…
+      </span>
+    </div>
+  ) : !motoreOnline ? (
     <div className="mb-3 flex justify-center">
       <span className="inline-flex items-center gap-2 rounded-full bg-rosso px-4 py-1.5 text-[13px] font-semibold text-white">
         Regia non collegata
       </span>
     </div>
-  );
+  ) : null;
 
   // ---- Scelta del format ----
   if (!format || scegliFormat) {
@@ -264,7 +310,7 @@ export function PaginaTelecomando() {
             <button
               key={f.id}
               type="button"
-              disabled={!motoreOnline}
+              disabled={bloccato}
               onClick={() => {
                 if (formatDaConfermare === f.id) {
                   invia({ tipo: "comando", comando: "format", formatId: f.id });
@@ -331,7 +377,7 @@ export function PaginaTelecomando() {
       <div className="mb-4 flex items-center gap-2">
         <button
           type="button"
-          disabled={!motoreOnline || indiceFase <= 0}
+          disabled={bloccato || indiceFase <= 0}
           onClick={() => vaiAFase(-1)}
           aria-label="Fase precedente"
           className="vetro tocco flex min-h-16 w-16 items-center justify-center text-testo disabled:opacity-30"
@@ -343,7 +389,7 @@ export function PaginaTelecomando() {
         </div>
         <button
           type="button"
-          disabled={!motoreOnline || indiceFase < 0 || indiceFase >= fasi.length - 1}
+          disabled={bloccato || indiceFase < 0 || indiceFase >= fasi.length - 1}
           onClick={() => vaiAFase(1)}
           aria-label="Fase successiva"
           className="vetro tocco flex min-h-16 w-16 items-center justify-center text-testo disabled:opacity-30"
@@ -380,7 +426,7 @@ export function PaginaTelecomando() {
             compatto
             ritardoEntrataMs={Math.min(i, 9) * 25}
             attivi={stato?.attivi ?? []}
-            disabilitato={!motoreOnline}
+            disabilitato={bloccato}
             onPremi={() => premi(c)}
             onFerma={() => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
             onSfuma={() => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
@@ -409,7 +455,7 @@ export function PaginaTelecomando() {
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}
         onFade={() => invia({ tipo: "comando", comando: "fade" })}
         onStop={() => invia({ tipo: "comando", comando: "stopTutto" })}
-        disabilitata={!motoreOnline}
+        disabilitata={bloccato}
       />
     </div>
   );

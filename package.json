@@ -14,7 +14,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p web --noEmit",
     "genera-demo": "tsx scripts/genera-demo.ts",
-    "installa": "node scripts/installa.mjs"
+    "installa": "node scripts/installa.mjs",
+    "pacchetto": "node scripts/pacchetto.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

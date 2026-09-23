@@ -402,12 +402,12 @@ rifiuto && rifiuto.code === 4001 && rifiuto.reason === "PIN errato"
   : ko("Rifiuto PIN", JSON.stringify(rifiuto));
 
 // --- 11. Pagina telecomando nel browser: PIN e pulsanti ---
-const tel = await nuovaScheda(`${BASE}/telecomando`);
+const tel = await nuovaScheda(`${BASE}/telecomando?prova`);
 // Parte sempre dalla schermata PIN, anche se un giro precedente l'ha salvato.
 await tel.finoA(`document.readyState === 'complete'`);
 await tel.cmd("Page.enable");
 await tel.js(`localStorage.removeItem('regia-pin')`);
-await tel.cmd("Page.navigate", { url: `${BASE}/telecomando` });
+await tel.cmd("Page.navigate", { url: `${BASE}/telecomando?prova` });
 await tel.finoA(`[...document.querySelectorAll('button')].some(b => b.getAttribute('aria-label') === '1')`);
 for (const cifra of rete.pin) {
   await tel.js(`(() => { const b = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === '${cifra}'); if (b) b.click(); })()`);
@@ -452,6 +452,33 @@ s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "Treno in c
 s ? ok("Pulsante premuto sul telefono → suona sul Mac") : ko("Play dal telefono");
 await tel.click("STOP TUTTO");
 await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// --- S5-bis: blocco schermo simulato sul telefono ---
+// 1) La connessione cade: compare "Ricollego…" e un tocco va in coda.
+await tel.js(`window.__ws.simulaCaduta()`);
+const ricollego = await tel.finoA(`document.body.innerText.includes('Ricollego')`, 3000);
+ricollego ? ok("Connessione caduta → pillola 'Ricollego…'") : ko("Pillola Ricollego");
+await tel.clickCue("Treno in corsa"); // tocco durante la riconnessione: in coda
+s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "Treno in corsa"), 6000);
+s ? ok("Tocco in coda spedito da solo appena ricollegati") : ko("Coda comandi");
+const viaRicollego = await tel.finoA(`!document.body.innerText.includes('Ricollego')`, 5000);
+viaRicollego ? ok("Ricollegato: pillola sparita, stato aggiornato") : ko("Fine ricollegamento");
+await tel.clickCue("Treno in corsa"); // toggle: silenzio
+await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// 2) Ricarica completa (come dopo un blocco schermo lungo): il PIN resta,
+//    il foglio "Prima di iniziare" NON ricompare (memoria con data).
+await tel.cmd("Page.navigate", { url: `${BASE}/telecomando?prova` });
+await attendi(1800);
+const dentroSubito = await tel.finoA(`document.body.innerText.toLowerCase().includes('sta suonando')`, 6000);
+dentroSubito ? ok("Dopo la ricarica il PIN resta: dentro senza richieste") : ko("PIN dopo ricarica");
+const foglioNo = await tel.js(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
+foglioNo ? ok("Il foglio non ricompare a ogni ricaricamento") : ko("Foglio ricomparso");
+await tel.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => (x.getAttribute('aria-label') || '') === "Rileggi 'Prima di iniziare'"); if (b) b.click(); })()`);
+const foglioRiaperto2 = await tel.finoA(`document.body.innerText.toLowerCase().includes('ok, pronti')`, 3000);
+foglioRiaperto2 ? ok("...ma l'icona libro lo riapre") : ko("Riapertura dal libro");
+await tel.click("Ok, pronti");
+await attendi(300);
 
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---
 await tel.click("STOP TUTTO");
