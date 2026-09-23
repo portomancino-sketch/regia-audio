@@ -4,8 +4,10 @@
 // pulsante "Prendi il controllo" per scalzare quella che sta comandando.
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server, IncomingMessage } from "node:http";
+import { randomBytes } from "node:crypto";
 import type { StatoLive, Presentazione } from "../../shared/tipi";
 import type { Store } from "./store";
+import { scriviEvento, type EventoDiario } from "./diario";
 
 interface Client {
   ws: WebSocket;
@@ -13,6 +15,8 @@ interface Client {
   ip: string;
   vivo: boolean;
   sessioneId: string | null;
+  /** Quattro caratteri per riconoscere la finestra nel diario. */
+  id4: string;
 }
 
 const STATO_VUOTO: Omit<StatoLive, "motoreOnline"> = {
@@ -30,6 +34,10 @@ const BATTITO_TIMEOUT_MS = Number(process.env.REGIA_BATTITO_MS || 12_000);
 export class Hub {
   private clienti = new Set<Client>();
   private motore: Client | null = null;
+  /** Per il diario: memoria dell'ultimo stato e dell'ultimo comando ricevuto. */
+  private diarioPrec: { istanze: Map<string, string>; faseId: string | null; formatId: string | null; parla: boolean; fatti: Set<string> } =
+    { istanze: new Map(), faseId: null, formatId: null, parla: false, fatti: new Set() };
+  private ultimoComando: { comando: string; origine: string; quando: number } | null = null;
   private ultimoBattito = 0;
   private ultimoStato: StatoLive | null = null;
   private intervalloPing: NodeJS.Timeout;
@@ -124,7 +132,14 @@ export class Hub {
           ws.close(4001, "PIN errato");
           return;
         }
-        client = { ws, ruolo: p.ruolo, ip, vivo: true, sessioneId: p.sessioneId ?? null };
+        client = {
+          ws,
+          ruolo: p.ruolo,
+          ip,
+          vivo: true,
+          sessioneId: p.sessioneId ?? null,
+          id4: (p.sessioneId ?? randomBytes(2).toString("hex")).slice(-4),
+        };
         this.clienti.add(client);
 
         // "Chi c'è comanda": la pagina nuova prende il comando da sola solo
@@ -171,6 +186,11 @@ export class Hub {
       }
 
       if (m.tipo === "comando") {
+        const origine = `${client.ruolo === "regia" ? "mac" : "telefono"}·${client.id4}`;
+        const comando = (m as { comando?: string }).comando ?? "";
+        this.ultimoComando = { comando, origine, quando: Date.now() };
+        if (comando === "fade") this.annota({ tipo: "fade", origine });
+        if (comando === "stopTutto") this.annota({ tipo: "stop tutto", origine });
         // I comandi vanno SOLO al motore corrente.
         if (this.motore && this.motore.ws.readyState === WebSocket.OPEN) {
           this.motore.ws.send(JSON.stringify(msg));
@@ -180,6 +200,7 @@ export class Hub {
 
       if (m.tipo === "stato" && client === this.motore) {
         const stato = msg as StatoLive;
+        this.diarioDaStato(stato, client);
         this.ultimoStato = { ...stato, motoreOnline: true };
         this.ultimoBattito = Date.now(); // anche lo stato vale come battito
         // Il volume master resta salvato nelle impostazioni.
@@ -250,5 +271,73 @@ export class Hub {
   chiudi(): void {
     clearInterval(this.intervalloPing);
     clearInterval(this.intervalloBattito);
+  }
+
+  // ---- Diario di serata ----
+
+  private annota(e: Omit<EventoDiario, "ora">): void {
+    scriviEvento({ ora: new Date().toISOString(), ...e });
+  }
+
+  /** Se un comando dello stesso genere è arrivato da poco, l'evento è suo. */
+  private origineDi(comandi: string[], motore: Client): string {
+    const u = this.ultimoComando;
+    if (u && comandi.includes(u.comando) && Date.now() - u.quando < 2000) return u.origine;
+    return `mac·${motore.id4}`;
+  }
+
+  private nomi(stato: StatoLive): { fase?: string; format?: string } {
+    const format = this.store.config.formats.find((f) => f.id === stato.formatId);
+    const fase = format?.fasi.find((f) => f.id === stato.faseId);
+    return { fase: fase?.nome, format: format?.nome };
+  }
+
+  /** Gli eventi nascono dallo stato reale del motore (diff), non dai comandi. */
+  private diarioDaStato(stato: StatoLive, motore: Client): void {
+    const prec = this.diarioPrec;
+    const { fase, format } = this.nomi(stato);
+
+    if (stato.formatId !== prec.formatId && stato.formatId) {
+      this.annota({ tipo: "format aperto", format, origine: this.origineDi(["format"], motore) });
+    }
+    if (stato.faseId !== prec.faseId && stato.faseId && stato.formatId === prec.formatId) {
+      this.annota({ tipo: "fase cambiata", fase, format, origine: this.origineDi(["fase"], motore) });
+    }
+
+    const adesso = new Map((stato.attivi ?? []).map((a) => [a.istanzaId, a.titolo]));
+    for (const [id, titolo] of adesso) {
+      if (!prec.istanze.has(id)) {
+        this.annota({ tipo: "suono partito", cue: titolo, fase, format, origine: this.origineDi(["play"], motore) });
+      }
+    }
+    for (const [id, titolo] of prec.istanze) {
+      if (!adesso.has(id)) {
+        this.annota({
+          tipo: "suono fermato",
+          cue: titolo,
+          fase,
+          format,
+          origine: this.origineDi(["play", "stop", "sfuma", "stopTutto", "fade"], motore),
+        });
+      }
+    }
+
+    const parla = stato.parla === true;
+    if (parla !== prec.parla) {
+      this.annota({ tipo: parla ? "parla acceso" : "parla spento", format, origine: this.origineDi(["parla"], motore) });
+    }
+
+    const fatti = new Set(stato.fatti ?? []);
+    for (const cueId of fatti) {
+      if (!prec.fatti.has(cueId)) {
+        const cue = this.store.config.formats
+          .flatMap((f) => f.fasi)
+          .flatMap((f) => f.cue)
+          .find((c) => c.id === cueId);
+        this.annota({ tipo: "promemoria fatto", cue: cue?.titolo ?? "?", fase, format, origine: this.origineDi(["spunta"], motore) });
+      }
+    }
+
+    this.diarioPrec = { istanze: adesso, faseId: stato.faseId, formatId: stato.formatId, parla, fatti };
   }
 }

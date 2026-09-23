@@ -1,0 +1,180 @@
+// Il diario di serata: cosa è successo, quando, da dove.
+import { useEffect, useMemo, useState } from "react";
+import { CalendarClock, ChevronLeft, Download } from "lucide-react";
+import { Vetro } from "../componenti/ui/Vetro";
+import { Pulsante } from "../componenti/ui/Pulsante";
+
+interface Riassunto {
+  data: string;
+  formats: string[];
+  primo: string;
+  ultimo: string;
+  durataMin: number;
+  suoni: number;
+}
+interface Evento {
+  ora: string;
+  tipo: string;
+  cue?: string;
+  fase?: string;
+  format?: string;
+  origine: string;
+}
+
+const ora = (iso: string) =>
+  new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+const dataLunga = (d: string) =>
+  new Date(`${d}T12:00:00`).toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+function TempoPerFase(props: { eventi: Evento[] }) {
+  // Quanto si è stati in ogni fase, dai cambi di fase (e dal primo/ultimo evento).
+  const barre = useMemo(() => {
+    const durate = new Map<string, number>();
+    let faseCorrente: string | null = null;
+    let da = 0;
+    for (const e of props.eventi) {
+      const t = new Date(e.ora).getTime();
+      if (e.tipo === "fase cambiata" || e.tipo === "format aperto") {
+        if (faseCorrente) durate.set(faseCorrente, (durate.get(faseCorrente) ?? 0) + (t - da));
+        faseCorrente = e.fase ?? null;
+        da = t;
+      } else if (!faseCorrente && e.fase) {
+        faseCorrente = e.fase;
+        da = t;
+      }
+    }
+    if (faseCorrente && props.eventi.length > 0) {
+      const fine = new Date(props.eventi[props.eventi.length - 1]!.ora).getTime();
+      durate.set(faseCorrente, (durate.get(faseCorrente) ?? 0) + (fine - da));
+    }
+    const massimo = Math.max(1, ...durate.values());
+    return [...durate.entries()].map(([nome, ms]) => ({ nome, minuti: Math.round(ms / 60000), frazione: ms / massimo }));
+  }, [props.eventi]);
+
+  if (barre.length === 0) return null;
+  return (
+    <Vetro className="p-5">
+      <div className="etichetta mb-3">Tempo per fase</div>
+      <div className="space-y-2">
+        {barre.map((b) => (
+          <div key={b.nome} className="flex items-center gap-3">
+            <span className="w-40 truncate text-[13px] text-testo-2">{b.nome}</span>
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-[var(--barra-fondo)]">
+              <div className="h-full rounded-full bg-brand-chiaro" style={{ width: `${b.frazione * 100}%` }} />
+            </div>
+            <span className="w-14 text-right text-[13px] tabular-nums text-testo-2">
+              {b.minuti < 1 ? "<1 min" : `${b.minuti} min`}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Vetro>
+  );
+}
+
+export function Diario() {
+  const [giorni, setGiorni] = useState<Riassunto[] | null>(null);
+  const [aperto, setAperto] = useState<string | null>(null);
+  const [eventi, setEventi] = useState<Evento[]>([]);
+
+  useEffect(() => {
+    void fetch("/api/diario").then(async (r) => setGiorni((await r.json()) as Riassunto[]));
+  }, []);
+
+  useEffect(() => {
+    if (!aperto) return;
+    void fetch(`/api/diario/${aperto}`).then(async (r) =>
+      setEventi(((await r.json()) as { eventi: Evento[] }).eventi),
+    );
+  }, [aperto]);
+
+  if (giorni === null) return <div className="p-8 text-testo-2">Carico…</div>;
+
+  if (aperto) {
+    return (
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setAperto(null)}
+            aria-label="Torna all'elenco"
+            className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-velo hover:text-testo"
+          >
+            <ChevronLeft size={18} strokeWidth={1.75} />
+          </button>
+          <h1 className="flex-1 text-[22px] font-semibold capitalize">{dataLunga(aperto)}</h1>
+          <a href={`/api/diario/${aperto}/csv`} download>
+            <Pulsante variante="secondario">
+              <Download size={15} strokeWidth={1.75} aria-hidden /> Esporta CSV
+            </Pulsante>
+          </a>
+        </div>
+
+        <TempoPerFase eventi={eventi} />
+
+        <Vetro className="p-5">
+          <div className="etichetta mb-3">Cronologia</div>
+          <div className="space-y-1">
+            {eventi.map((e, i) => (
+              <div key={i} className="flex items-baseline gap-3 border-b border-vetro-bordo py-1.5 text-[14px] last:border-0">
+                <span className="w-16 shrink-0 tabular-nums text-testo-3">{ora(e.ora)}</span>
+                <span className="w-32 shrink-0 font-medium text-testo">{e.tipo}</span>
+                <span className="min-w-0 flex-1 truncate text-testo-2">
+                  {[e.cue, e.fase].filter(Boolean).join(" · ")}
+                </span>
+                <span className="shrink-0 text-[12px] tabular-nums text-testo-3">{e.origine}</span>
+              </div>
+            ))}
+            {eventi.length === 0 && <p className="text-testo-2">Nessun evento in questa giornata.</p>}
+          </div>
+        </Vetro>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="mb-5 text-[28px] font-semibold">Diario di serata</h1>
+      {giorni.length === 0 ? (
+        <Vetro className="mx-auto flex max-w-md flex-col items-center gap-3 p-10 text-center">
+          <CalendarClock size={30} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+          <p className="text-testo-2">Ancora nessuna serata: il diario si scrive da solo mentre lavori.</p>
+        </Vetro>
+      ) : (
+        <div className="space-y-3">
+          {giorni.map((g) => (
+            <button
+              key={g.data}
+              type="button"
+              onClick={() => setAperto(g.data)}
+              className="vetro tocco flex w-full cursor-pointer items-center gap-4 p-4 text-left"
+            >
+              <span
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                style={{ backgroundColor: "color-mix(in srgb, var(--brand) 14%, transparent)" }}
+              >
+                <CalendarClock size={19} strokeWidth={1.75} className="text-brand-chiaro" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[16px] font-semibold capitalize text-testo">
+                  {dataLunga(g.data)}
+                </span>
+                <span className="block truncate text-[13px] text-testo-2">
+                  {g.formats.join(", ") || "—"}
+                </span>
+              </span>
+              <span className="shrink-0 text-right text-[13px] tabular-nums text-testo-2">
+                {ora(g.primo).slice(0, 5)}–{ora(g.ultimo).slice(0, 5)}
+                <span className="block text-testo-3">
+                  {g.durataMin < 60 ? `${g.durataMin} min` : `${Math.floor(g.durataMin / 60)} h ${g.durataMin % 60} min`} · {g.suoni} suoni
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -4,8 +4,9 @@ import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../.
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
-import { BookOpenText, ChevronLeft, Volume2 } from "lucide-react";
+import { BookOpenText, CalendarClock, ChevronLeft, Volume2 } from "lucide-react";
 import { Home } from "./Home";
+import { Diario } from "./Diario";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
 import { PannelloTelecomando } from "./PannelloTelecomando";
@@ -356,12 +357,13 @@ export function PaginaRegia() {
   const faiFade = useCallback(() => {
     const m = motoreRef.current;
     if (m && sonoIlMotoreRef.current) m.fadeOut();
-    else wsRef.current?.invia({ tipo: "comando", comando: "fade" });
+    // Il comando viaggia comunque: serve al diario; per il motore è un'eco innocua.
+    wsRef.current?.invia({ tipo: "comando", comando: "fade" });
   }, []);
   const faiStopTutto = useCallback(() => {
     const m = motoreRef.current;
     if (m && sonoIlMotoreRef.current) m.stopTutto();
-    else wsRef.current?.invia({ tipo: "comando", comando: "stopTutto" });
+    wsRef.current?.invia({ tipo: "comando", comando: "stopTutto" });
   }, []);
   const cambiaFase = useCallback(
     (faseId: string) => {
@@ -542,6 +544,18 @@ export function PaginaRegia() {
               onCambia={(v) => (v === "live" ? passaAlive(formatAperto) : setVista("modifica"))}
             />
           )}
+          <button
+            type="button"
+            title="Diario di serata"
+            aria-label="Diario di serata"
+            onClick={() => {
+              history.pushState(null, "", "/diario");
+              setPercorso("/diario");
+            }}
+            className="tocco rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
+          >
+            <CalendarClock size={18} strokeWidth={1.75} />
+          </button>
           <InterruttoreTema
             chiave="tema-regia"
             extra={
@@ -582,7 +596,9 @@ export function PaginaRegia() {
         )}
       </header>
 
-      {!formatAperto ? (
+      {percorso === "/diario" ? (
+        <Diario />
+      ) : !formatAperto ? (
         <Home
           config={config}
           onConfigCambiata={(c) => {

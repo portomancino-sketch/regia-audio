@@ -13,6 +13,7 @@ import type { Store } from "./store";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
 import { indirizzoLan } from "./rete";
+import { csvGiorno, elencoGiorni, leggiGiorno } from "./diario";
 import { PORTA } from "./porta";
 
 const ESTENSIONI_AUDIO = new Set(["mp3", "wav", "m4a", "aac", "ogg"]);
@@ -449,6 +450,21 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     fs.unlinkSync(temp);
     hub()?.configCambiata();
     return { fatto: true };
+  });
+
+  // ---- Diario di serata ----
+
+  app.get("/api/diario", async () => elencoGiorni());
+
+  app.get("/api/diario/:data", async (req) => ({
+    eventi: leggiGiorno((req.params as { data: string }).data),
+  }));
+
+  app.get("/api/diario/:data/csv", async (req, reply) => {
+    const data = (req.params as { data: string }).data;
+    reply.header("Content-Type", "text/csv; charset=utf-8");
+    reply.header("Content-Disposition", `attachment; filename="diario-${data}.csv"`);
+    return csvGiorno(data);
   });
 
   // ---- Rete ----
