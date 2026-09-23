@@ -231,3 +231,25 @@ sul codice attuale e il pacchetto è stato rigenerato con tutte le novità S6.
   (68/68 sul commit corrente): "Ricollego…", tocco in coda spedito al
   ricollegamento, PIN che resta dopo la ricarica, foglio una volta per
   serata/format, icona libro.
+
+## S7-bis — 23 settembre 2026 — consegna a Valerio
+
+Solo pacchetto e documenti (zero modifiche a prodotto/UI/server/web).
+- **Avvia Regia.command**: ora avvia con `caffeinate -d -i` (Mac e schermo
+  svegli finché la finestra è aperta) e lo dice a schermo.
+- **LEGGIMI.txt riscritto per macOS 15+**: il tasto destro → Apri non basta più
+  per il software non firmato; il percorso vero è "Fine" → Impostazioni →
+  Privacy e sicurezza → "Apri comunque" (due volte) → password. Istruzioni
+  separate per i Mac meno recenti.
+- **Piano B rete corretto**: hotspot del TELEFONO (il Mac collegato solo al
+  WiFi non può condividere WiFi→WiFi); tolta la Condivisione Internet dal
+  README. Guida per Valerio inclusa nel pacchetto ("Guida per Valerio.txt").
+- **docs/PROVA_A_VUOTO.md**: checklist a spunte per la prova in sala
+  (preparazione, Mac, telefono, "cose brutte apposta", decisioni con Valerio).
+- **v1.1.1** → dist-pacchetti/Regia-v1.1.1.zip (80 MB; 124 MB dopo il primo
+  avvio). Ri-verifica completa: quarantena simulata, PATH senza node, demo,
+  telecomando, secondo doppio click non duplica, dati intatti; caffeinate
+  presente da accesa e sparito da spenta.
+- NOTA: il passaggio Gatekeeper con doppio click in Finder NON è verificabile
+  da qui (la simulazione via bash non attraversa Gatekeeper): lasciato a
+  Jacopo a mano, seguendo LEGGIMI.txt passo 2.
