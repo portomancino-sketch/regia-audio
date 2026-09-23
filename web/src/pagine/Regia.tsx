@@ -15,6 +15,7 @@ import { InputInline } from "../componenti/comuni";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
+import { useAttiviFluidi } from "../hooks";
 
 type Vista = "modifica" | "live";
 
@@ -48,6 +49,8 @@ export function PaginaRegia() {
   const motoreRef = useRef<MotoreAudio | null>(null);
   const wsRef = useRef<ClientWs | null>(null);
   const vistaRef = useRef<Vista>("modifica");
+  // Posizioni che scorrono fluide tra un aggiornamento di stato e l'altro.
+  const attiviFluidi = useAttiviFluidi(attivi);
 
   useEffect(() => {
     vistaRef.current = vista;
@@ -557,7 +560,7 @@ export function PaginaRegia() {
           spazioSotto={cueSempre.length > 0}
           format={formatAperto}
           faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
-          attivi={attivi}
+          attivi={attiviFluidi}
           fatti={fatti}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
@@ -574,7 +577,7 @@ export function PaginaRegia() {
             vista === "live" && cueSempre.length > 0 ? (
               <RigaSempre
                 cue={cueSempre}
-                attivi={attivi}
+                attivi={attiviFluidi}
                 fatti={fatti}
                 onPremi={premiCue}
                 onFerma={fermaCue}
@@ -584,7 +587,7 @@ export function PaginaRegia() {
               />
             ) : undefined
           }
-          attivi={attivi}
+          attivi={attiviFluidi}
           master={masterUi}
           onMaster={cambiaMaster}
           onFade={faiFade}

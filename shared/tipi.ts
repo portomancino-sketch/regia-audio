@@ -67,6 +67,8 @@ export interface CueAttivo {
   posizioneSec: number;
   durataSec: number | null;
   inPausa: boolean;
+  /** true per un sottofondo che ricomincia da capo (niente conto alla rovescia). */
+  loop?: boolean;
 }
 
 export interface StatoLive {

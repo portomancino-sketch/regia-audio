@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioLines, CircleCheck, Music, Square, Zap } from "lucide-react";
 import type { Cue, CueAttivo, TipoCue } from "../../../shared/tipi";
-import { coloreCue, formattaTempo, NOMI_TIPO } from "../util";
+import { coloreCue, formattaTempo, NOMI_TIPO, tempoRimanente } from "../util";
 import { BarraAvanzamento } from "./ui/BarraAvanzamento";
 import { Pillola } from "./ui/Pillola";
 import { Equalizzatore } from "./ui/Equalizzatore";
@@ -128,6 +128,7 @@ export function PulsanteCue(props: {
       ? Math.min(1, attiva.posizioneSec / attiva.durataSec)
       : 0;
   const inPausa = attiva?.inPausa === true;
+  const rimanente = attiva ? tempoRimanente(attiva) : null;
 
   return (
     <div
@@ -215,10 +216,10 @@ export function PulsanteCue(props: {
           </button>
         )}
         <span className="flex-1" />
-        <span className="text-[12px] tabular-nums text-testo-3">
-          {attiva
-            ? `${formattaTempo(attiva.posizioneSec)} / ${formattaTempo(attiva.durataSec)}`
-            : formattaTempo(cue.durataSec)}
+        <span
+          className={`text-[12px] tabular-nums ${rimanente?.ambra ? "font-semibold text-[var(--tipo-effetto)]" : "text-testo-3"}`}
+        >
+          {attiva ? (rimanente?.testo ?? "") : formattaTempo(cue.durataSec)}
         </span>
         {!attiva && props.scorciatoia && (
           <span className="rounded-full border border-vetro-bordo bg-velo px-1.5 text-[11px] tabular-nums text-testo-3">
@@ -228,8 +229,12 @@ export function PulsanteCue(props: {
       </div>
 
       {attiva && !inPausa && (
-        <div className="absolute inset-x-0 bottom-0">
-          <BarraAvanzamento frazione={avanzamento} colore={colore} spessa />
+        <div className={`absolute inset-x-0 bottom-0 ${rimanente?.ambra ? "pulsa-piano" : ""}`}>
+          <BarraAvanzamento
+            frazione={avanzamento}
+            colore={rimanente?.ambra ? "var(--tipo-effetto)" : colore}
+            spessa
+          />
         </div>
       )}
     </div>

@@ -349,6 +349,7 @@ export class MotoreAudio {
         posizioneSec: Math.round(posizione * 10) / 10,
         durataSec: i.durataSec,
         inPausa: i.inPausa,
+        loop: i.loop,
       });
     }
     return lista;

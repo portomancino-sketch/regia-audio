@@ -2,7 +2,7 @@
 import { Volume2 } from "lucide-react";
 import { Equalizzatore } from "./ui/Equalizzatore";
 import type { CueAttivo } from "../../../shared/tipi";
-import { formattaTempo } from "../util";
+import { tempoRimanente } from "../util";
 import { Dock } from "./ui/Dock";
 import { Pulsante } from "./ui/Pulsante";
 import { Slider } from "./ui/Slider";
@@ -33,18 +33,23 @@ export function BarraLive(props: {
           <div key="silenzio" className="dissolvi truncate text-[15px] text-testo-3">Silenzio</div>
         ) : (
           <div key={attivi.map((a) => a.istanzaId).join(",")} className="dissolvi truncate">
-            {attivi.map((a) => (
-              <span key={a.istanzaId} className="mr-3 whitespace-nowrap text-[15px]">
-                <span className="font-medium text-testo">{a.titolo}</span>{" "}
-                {a.inPausa ? (
-                  <Pillola className="align-middle">in pausa</Pillola>
-                ) : (
-                  <span className="text-[13px] tabular-nums text-testo-2">
-                    {formattaTempo(a.posizioneSec)} / {formattaTempo(a.durataSec)}
-                  </span>
-                )}
-              </span>
-            ))}
+            {attivi.map((a) => {
+              const r = tempoRimanente(a);
+              return (
+                <span key={a.istanzaId} className="mr-3 whitespace-nowrap text-[15px]">
+                  <span className="font-medium text-testo">{a.titolo}</span>{" "}
+                  {a.inPausa ? (
+                    <Pillola className="align-middle">in pausa</Pillola>
+                  ) : r.testo ? (
+                    <span
+                      className={`text-[13px] tabular-nums ${r.ambra ? "font-semibold text-[var(--tipo-effetto)]" : "text-testo-2"}`}
+                    >
+                      {r.testo}
+                    </span>
+                  ) : null}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ import { api } from "../api";
 import { ClientWs } from "../ws";
 import { BarraLive } from "../componenti/BarraLive";
 import { RigaSempre } from "../componenti/RigaSempre";
+import { useAttiviFluidi } from "../hooks";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
@@ -176,6 +177,8 @@ export function PaginaTelecomando() {
   }, [pin]);
 
   useSchermoAcceso(autenticato);
+  // Posizioni fluide tra uno stato e l'altro (il hook vive PRIMA dei return).
+  const attiviFluidi = useAttiviFluidi(stato?.attivi ?? []);
 
   useEffect(() => {
     void api.config().then(setConfig);
@@ -429,7 +432,7 @@ export function PaginaTelecomando() {
             cue={c}
             compatto
             ritardoEntrataMs={Math.min(i, 9) * 25}
-            attivi={stato?.attivi ?? []}
+            attivi={attiviFluidi}
             disabilitato={bloccato}
             onPremi={() => premi(c)}
             onFerma={() => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
@@ -458,7 +461,7 @@ export function PaginaTelecomando() {
             <RigaSempre
               telefono
               cue={cueSempre}
-              attivi={stato?.attivi ?? []}
+              attivi={attiviFluidi}
               fatti={stato?.fatti ?? []}
               onPremi={(c) => premi(c)}
               onFerma={(c) => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
@@ -469,7 +472,7 @@ export function PaginaTelecomando() {
           ) : undefined
         }
         extra={<InterruttoreTema chiave="tema-telecomando" sopra />}
-        attivi={stato?.attivi ?? []}
+        attivi={attiviFluidi}
         master={stato?.master ?? 0.8}
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}
         onFade={() => invia({ tipo: "comando", comando: "fade" })}
