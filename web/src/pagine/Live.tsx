@@ -17,8 +17,6 @@ export function Live(props: {
   onSfuma: (cue: Cue) => void;
   onSpunta: (cue: Cue) => void;
   disabilitato?: boolean;
-  /** C'è la riga Sempre sopra il dock: lascia più spazio in fondo. */
-  spazioSotto?: boolean;
 }) {
   const fasi = [...props.format.fasi].filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine);
   const fase = fasi.find((f) => f.id === props.faseId) ?? fasi[0];
@@ -35,7 +33,11 @@ export function Live(props: {
   }
 
   return (
-    <div className={`mx-auto max-w-5xl px-4 pt-5 ${props.spazioSotto ? "pb-64" : "pb-36"}`}>
+    <div
+      className="mx-auto max-w-5xl px-4 pt-5"
+      // Spazio in fondo misurato dal dock (riga Sempre compresa), non indovinato.
+      style={{ paddingBottom: "calc(var(--altezza-dock, 200px) + 16px)" }}
+    >
       {fasi.length > 0 && (
         <div className="mb-4 flex items-center gap-2">
           <ControlloSegmentato

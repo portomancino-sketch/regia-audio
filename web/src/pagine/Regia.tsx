@@ -623,7 +623,6 @@ export function PaginaRegia() {
         />
       ) : (
         <Live
-          spazioSotto={cueSempre.length > 0}
           format={formatAperto}
           faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
           attivi={attiviFluidi}

@@ -356,8 +356,12 @@ export function PaginaTelecomando() {
 
   return (
     <div
-      className={`pagina-telefono mx-auto max-w-md px-3 ${cueSempre.length > 0 ? "pb-72" : "pb-44"}`}
-      style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
+      className="pagina-telefono mx-auto max-w-md px-3"
+      style={{
+        paddingTop: "max(12px, env(safe-area-inset-top))",
+        // Spazio in fondo misurato dal dock (riga Sempre compresa), non indovinato.
+        paddingBottom: "calc(var(--altezza-dock, 200px) + 16px)",
+      }}
     >
       {pillolaOffline}
       <div className="mb-3 flex items-center gap-1">
