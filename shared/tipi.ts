@@ -76,6 +76,7 @@ export interface StatoLive {
 export type Comando =
   | { tipo: "comando"; comando: "play"; cueId: string }
   | { tipo: "comando"; comando: "stop"; cueId: string }
+  | { tipo: "comando"; comando: "sfuma"; cueId: string }
   | { tipo: "comando"; comando: "fade" }
   | { tipo: "comando"; comando: "stopTutto" }
   | { tipo: "comando"; comando: "master"; valore: number }

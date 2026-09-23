@@ -1,5 +1,5 @@
 // Il pulsante grande di un cue nella vista Live (Mac e telefono).
-import { AudioLines } from "lucide-react";
+import { AudioLines, Square } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
 import { coloreCue, NOMI_TIPO } from "../util";
 import { BarraAvanzamento } from "./ui/BarraAvanzamento";
@@ -9,6 +9,10 @@ export function PulsanteCue(props: {
   cue: Cue;
   attivi: CueAttivo[];
   onPremi: () => void;
+  /** Ferma subito questo suono (mostrato solo mentre suona). */
+  onFerma?: () => void;
+  /** Sfuma dolcemente questo suono (mostrato solo mentre suona). */
+  onSfuma?: () => void;
   disabilitato?: boolean;
   scorciatoia?: string;
   compatto?: boolean;
@@ -17,19 +21,29 @@ export function PulsanteCue(props: {
   const istanze = props.attivi.filter((a) => a.cueId === cue.id);
   const attiva = istanze[0];
   const colore = coloreCue(cue);
+  const spento = props.disabilitato || !cue.file;
   const avanzamento =
     attiva && attiva.durataSec && attiva.durataSec > 0
       ? Math.min(1, attiva.posizioneSec / attiva.durataSec)
       : 0;
 
   return (
-    <button
-      type="button"
-      disabled={props.disabilitato || !cue.file}
-      onClick={props.onPremi}
-      className={`vetro tocco relative flex flex-col justify-between overflow-hidden p-4 text-left disabled:opacity-40 ${
+    <div
+      role="button"
+      tabIndex={spento ? -1 : 0}
+      aria-disabled={spento}
+      onClick={() => {
+        if (!spento) props.onPremi();
+      }}
+      onKeyDown={(e) => {
+        if (!spento && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          props.onPremi();
+        }
+      }}
+      className={`vetro tocco relative flex cursor-pointer select-none flex-col justify-between overflow-hidden p-4 text-left ${
         props.compatto ? "min-h-[88px]" : "min-h-[112px]"
-      }`}
+      } ${spento ? "cursor-default opacity-40" : ""}`}
       style={
         attiva
           ? {
@@ -67,7 +81,34 @@ export function PulsanteCue(props: {
         {attiva?.inPausa && <Pillola>in pausa</Pillola>}
         {istanze.length > 1 && <span className="text-[12px] text-brand-chiaro">×{istanze.length}</span>}
         <span className="flex-1" />
-        {props.scorciatoia && (
+        {attiva && props.onSfuma && (
+          <button
+            type="button"
+            title="Sfuma questo suono"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onSfuma!();
+            }}
+            className="tocco rounded-[10px] border border-vetro-bordo bg-white/5 px-2.5 py-1.5 text-[12px] font-medium text-testo-2 hover:text-testo"
+          >
+            Sfuma
+          </button>
+        )}
+        {attiva && props.onFerma && (
+          <button
+            type="button"
+            title="Ferma subito questo suono"
+            aria-label="Ferma subito"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onFerma!();
+            }}
+            className="tocco flex items-center justify-center rounded-[10px] border border-vetro-bordo bg-white/5 px-2.5 py-1.5 text-testo-2 hover:text-testo"
+          >
+            <Square size={13} strokeWidth={2} fill="currentColor" />
+          </button>
+        )}
+        {!attiva && props.scorciatoia && (
           <kbd className="rounded-md border border-vetro-bordo bg-white/5 px-1.5 text-[11px] text-testo-3">
             {props.scorciatoia}
           </kbd>
@@ -78,6 +119,6 @@ export function PulsanteCue(props: {
           <BarraAvanzamento frazione={avanzamento} colore={colore} />
         </div>
       )}
-    </button>
+    </div>
   );
 }

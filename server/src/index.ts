@@ -4,7 +4,7 @@ import { creaApp } from "./app";
 import { indirizzoLan } from "./rete";
 import { cartellaDati } from "./percorsi";
 
-const PORTA = 4000;
+import { PORTA } from "./porta";
 
 async function avvia(): Promise<void> {
   const { app, store, avviaHub } = creaApp();

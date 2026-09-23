@@ -1,10 +1,16 @@
-// Verifica end-to-end: guida un Chrome headless sulla pagina Regia e
-// osserva lo stato dal WebSocket come farebbe un telecomando vero.
-// Uso: node scripts/verifica-e2e.mjs   (con il server già acceso sulla 4000)
+// Verifica end-to-end: avvia un SUO server su una porta di prova (dati
+// temporanei, la Regia vera sulla 4000 non viene toccata), guida un Chrome
+// headless sulla pagina Regia e osserva lo stato dal WebSocket come farebbe
+// un telecomando vero.
+// Uso: node scripts/verifica-e2e.mjs   (serve la build in dist/)
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import WebSocket from "ws";
 
-const BASE = "http://127.0.0.1:4000";
+const PORTA_TEST = 4999;
+const BASE = `http://127.0.0.1:${PORTA_TEST}`;
 const CDP_PORT = 9333;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
@@ -70,7 +76,7 @@ class Pagina {
   click(testo) {
     const t = testo.replace(/'/g, "\\'");
     return this.js(
-      `(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
+      `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
     );
   }
   chiudi() {
@@ -100,7 +106,7 @@ async function chiudiScheda(p) {
 class Osservatore {
   constructor(pin) {
     this.stati = [];
-    this.ws = new WebSocket("ws://127.0.0.1:4000/ws");
+    this.ws = new WebSocket(`ws://127.0.0.1:${PORTA_TEST}/ws`);
     this.ws.on("open", () => this.ws.send(JSON.stringify({ ruolo: "telecomando", pin })));
     this.ws.on("message", (d) => {
       const m = JSON.parse(String(d));
@@ -127,6 +133,32 @@ class Osservatore {
 }
 
 // ================= LA VERIFICA =================
+console.log(`Avvio un server di prova sulla porta ${PORTA_TEST} (dati temporanei)...`);
+const datiTemp = fs.mkdtempSync(path.join(os.tmpdir(), "regia-e2e-"));
+const server = spawn("npx", ["tsx", "server/src/index.ts"], {
+  stdio: "ignore",
+  env: { ...process.env, PORT: String(PORTA_TEST), REGIA_DIR: datiTemp },
+});
+process.on("exit", () => {
+  server.kill();
+  fs.rmSync(datiTemp, { recursive: true, force: true });
+});
+{
+  let pronto = false;
+  for (let i = 0; i < 60 && !pronto; i++) {
+    try {
+      await fetch(`${BASE}/api/rete`);
+      pronto = true;
+    } catch {
+      await attendi(300);
+    }
+  }
+  if (!pronto) {
+    console.log("Il server di prova non è partito.");
+    process.exit(1);
+  }
+}
+
 console.log("Avvio Chrome headless...");
 const chrome = spawn(
   CHROME,
@@ -256,6 +288,23 @@ osservatore.comando({ comando: "play", cueId: idTreno });
 s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 5000);
 s ? ok("Play dal telecomando: il Mac suona") : ko("Play dal telecomando");
 
+// --- 5b. Sfuma/Ferma del singolo cue ---
+osservatore.comando({ comando: "sfuma", cueId: idTreno });
+s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
+s ? ok("Comando 'sfuma' del singolo cue dal telecomando") : ko("Comando 'sfuma'");
+await regia.click("Treno in corsa");
+await osservatore.finoA((x) => x.attivi.length > 0, 5000);
+await regia.click("Sfuma");
+s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
+s ? ok("Bottone 'Sfuma' sulla card attiva") : ko("Bottone 'Sfuma'");
+await regia.click("Treno in corsa");
+await osservatore.finoA((x) => x.attivi.length > 0, 5000);
+await regia.js(`(() => { const b = [...document.querySelectorAll('button[aria-label="Ferma subito"]')][0]; if (b) { b.click(); return true; } return false; })()`);
+s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
+s ? ok("Bottone '■ Ferma subito' sulla card attiva") : ko("Bottone 'Ferma subito'");
+await regia.click("Treno in corsa");
+await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 5000);
+
 // --- 6. STOP TUTTO e FADE OUT ---
 await regia.click("STOP TUTTO");
 s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
@@ -291,7 +340,7 @@ s ? ok("Regia riaperta → tutto torna online da solo") : ko("Ritorno online");
 
 // --- 10. PIN sbagliato rifiutato ---
 const rifiuto = await new Promise((res) => {
-  const w = new WebSocket("ws://127.0.0.1:4000/ws");
+  const w = new WebSocket(`ws://127.0.0.1:${PORTA_TEST}/ws`);
   w.on("open", () => w.send(JSON.stringify({ ruolo: "telecomando", pin: "9999x" })));
   w.on("close", (code, reason) => res({ code, reason: String(reason) }));
   setTimeout(() => res(null), 3000);

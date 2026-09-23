@@ -13,6 +13,7 @@ import type { Store } from "./store";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
 import { indirizzoLan } from "./rete";
+import { PORTA } from "./porta";
 
 const ESTENSIONI_AUDIO = new Set(["mp3", "wav", "m4a", "aac", "ogg"]);
 const ERRORE_FORMATO = "Formato non supportato, usa mp3 o wav";
@@ -440,7 +441,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const ip = indirizzoLan();
     return {
       ip,
-      urlTelecomando: `http://${ip}:4000/telecomando`,
+      urlTelecomando: `http://${ip}:${PORTA}/telecomando`,
       pin: store.config.impostazioni.pin,
     };
   });

@@ -4,6 +4,7 @@ import {
   statoIniziale,
   premi,
   stop,
+  sfumaCue,
   finita,
   stopTutto,
   fadeOut,
@@ -251,6 +252,26 @@ describe("stop, stop tutto, fade out", () => {
     const ferma = azione(r.azioni, "ferma");
     expect(ferma).toHaveLength(3);
     for (const f of ferma) expect(f.rampMs).toBe(FADE_STOP_TUTTO_MS);
+    expect(r.stato.attivi).toHaveLength(0);
+  });
+
+  it("sfumaCue sfuma solo quel cue in fadeOutMs e ripristina il sottofondo", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = premi(r.stato, BRANO_PAUSA);
+    r = sfumaCue(r.stato, "br1");
+    const ferma = azione(r.azioni, "ferma");
+    expect(ferma).toHaveLength(1);
+    expect(ferma[0]?.rampMs).toBe(1500); // il fadeOutMs delle impostazioni
+    // Il sottofondo era in pausa: riprende.
+    expect(azione(r.azioni, "riprendi")).toHaveLength(1);
+    expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["sf"]);
+  });
+
+  it("sfumaCue su un effetto sfuma tutte le sue istanze", () => {
+    let r = premi(nuovo(), EFFETTO_NIENTE);
+    r = premi(r.stato, EFFETTO_NIENTE);
+    r = sfumaCue(r.stato, "fx2");
+    expect(azione(r.azioni, "ferma")).toHaveLength(2);
     expect(r.stato.attivi).toHaveLength(0);
   });
 

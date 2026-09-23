@@ -216,6 +216,20 @@ export function stop(stato: StatoRegole, cueId: string): Risultato {
   return { stato: s, azioni };
 }
 
+/** Sfuma un singolo cue (tutte le sue istanze) in fadeOutMs, poi lo ferma. */
+export function sfumaCue(stato: StatoRegole, cueId: string): Risultato {
+  let s = stato;
+  const azioni: Azione[] = [];
+  for (const i of [...s.attivi]) {
+    if (i.cueId === cueId) {
+      const r = rimuovi(s, i.istanzaId, stato.fadeOutMs);
+      s = r.stato;
+      azioni.push(...r.azioni);
+    }
+  }
+  return { stato: s, azioni };
+}
+
 /** Il file è finito da solo (o il fade del motore si è completato). */
 export function finita(stato: StatoRegole, istanzaId: string): Risultato {
   const istanza = stato.attivi.find((i) => i.istanzaId === istanzaId);

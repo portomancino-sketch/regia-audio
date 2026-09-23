@@ -94,6 +94,9 @@ export function PaginaRegia() {
         case "stop":
           m.stop(c.cueId);
           break;
+        case "sfuma":
+          m.sfuma(c.cueId);
+          break;
         case "fade":
           m.fadeOut();
           break;
@@ -220,6 +223,16 @@ export function PaginaRegia() {
     },
     [],
   );
+  const fermaCue = useCallback((cue: Cue) => {
+    const m = motoreRef.current;
+    if (m && sonoIlMotoreRef.current) m.stop(cue.id);
+    else wsRef.current?.invia({ tipo: "comando", comando: "stop", cueId: cue.id });
+  }, []);
+  const sfumaCueUi = useCallback((cue: Cue) => {
+    const m = motoreRef.current;
+    if (m && sonoIlMotoreRef.current) m.sfuma(cue.id);
+    else wsRef.current?.invia({ tipo: "comando", comando: "sfuma", cueId: cue.id });
+  }, []);
   const cambiaMaster = useCallback((v: number) => {
     setMasterUi(v);
     const m = motoreRef.current;
@@ -407,6 +420,8 @@ export function PaginaRegia() {
           attivi={attivi}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
+          onFerma={fermaCue}
+          onSfuma={sfumaCueUi}
           disabilitato={!motoreOnline}
         />
       )}

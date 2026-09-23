@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import WebSocket from "ws";
 
-const BASE = "http://127.0.0.1:4000";
+const BASE = process.env.REGIA_BASE ?? "http://127.0.0.1:4000";
 const CDP_PORT = 9334;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const CARTELLA = "docs/screenshots/s2";
@@ -41,7 +41,7 @@ class Pagina {
   click(testo) {
     const t = testo.replace(/'/g, "\\'");
     return this.js(
-      `(() => { const b = [...document.querySelectorAll('button')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
+      `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
     );
   }
   async scatta(nome) {
@@ -172,7 +172,7 @@ await attendi(400);
 
 // ---- Controllo rete: nessuna richiesta verso internet ----
 const tutte = [...mac.richieste, ...tel.richieste];
-const esterne = tutte.filter((u) => !u.startsWith("http://127.0.0.1:4000") && !u.startsWith("ws://127.0.0.1:4000") && !u.startsWith("data:"));
+const esterne = tutte.filter((u) => !u.startsWith(BASE) && !u.startsWith(BASE.replace("http:", "ws:")) && !u.startsWith("data:"));
 if (esterne.length > 0) {
   console.log("⚠️ RICHIESTE ESTERNE TROVATE:");
   for (const u of [...new Set(esterne)]) console.log("  ", u);

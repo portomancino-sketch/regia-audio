@@ -11,6 +11,8 @@ export function Live(props: {
   attivi: CueAttivo[];
   onCambiaFase: (faseId: string) => void;
   onPremi: (cue: Cue) => void;
+  onFerma: (cue: Cue) => void;
+  onSfuma: (cue: Cue) => void;
   disabilitato?: boolean;
 }) {
   const fasi = [...props.format.fasi].sort((a, b) => a.ordine - b.ordine);
@@ -56,6 +58,8 @@ export function Live(props: {
               disabilitato={props.disabilitato}
               scorciatoia={i < 9 ? String(i + 1) : undefined}
               onPremi={() => props.onPremi(c)}
+              onFerma={() => props.onFerma(c)}
+              onSfuma={() => props.onSfuma(c)}
             />
           ))}
         </div>

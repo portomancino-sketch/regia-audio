@@ -5,6 +5,7 @@ import {
   statoIniziale,
   premi,
   stop,
+  sfumaCue,
   stopTutto,
   fadeOut,
   master,
@@ -104,6 +105,10 @@ export class MotoreAudio {
 
   stop(cueId: string): void {
     this.applica(stop(this.stato, cueId));
+  }
+
+  sfuma(cueId: string): void {
+    this.applica(sfumaCue(this.stato, cueId));
   }
 
   stopTutto(): void {

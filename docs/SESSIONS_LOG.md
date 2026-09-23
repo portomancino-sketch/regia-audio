@@ -51,6 +51,17 @@ Solo interfaccia, zero logica: regole audio, server, WebSocket e formato dati in
   e ignora i comandi. Sistemarlo richiede un battito applicativo nel protocollo WS
   (vietato in S2): da fare in una prossima sessione.
 
+## S2-bis — 23 settembre 2026 — Sfuma/Ferma sul singolo suono
+
+Sui pulsanti attivi (Mac e telefono) compaiono due comandi: **Sfuma** (sfuma quel
+solo suono nel tempo di fade delle impostazioni) e **■** (lo ferma subito). Nuova
+funzione pura `sfumaCue` in shared/regole.ts (+2 test, ora 40), nuovo comando WS
+"sfuma" (il server inoltra i comandi così com'erano, nessuna logica nuova lato
+server). Il server ora legge la variabile `PORT` (default 4000): serve alla
+verifica end-to-end, che ora avvia un SUO server su porta 4999 con dati temporanei
+— così una finestra Regia dell'utente rimasta aperta non falsa più i risultati.
+29/29 controlli end-to-end.
+
 ## S1-bis — 23 settembre 2026 — cartella dati
 
 La cartella dati di default è ora **`~/Regia-dati` su qualsiasi Mac** (prima era

@@ -338,6 +338,8 @@ export function PaginaTelecomando() {
             attivi={stato?.attivi ?? []}
             disabilitato={!motoreOnline}
             onPremi={() => premi(c)}
+            onFerma={() => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
+            onSfuma={() => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
           />
         ))}
         {cue.length === 0 && <p className="text-testo-2">Nessun suono in questa fase.</p>}
