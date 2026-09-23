@@ -68,7 +68,7 @@ function CardFormat(props: {
             className="w-full rounded-[10px] border border-brand-chiaro bg-white/5 px-1.5 py-0.5 text-[22px] font-semibold focus:outline-none"
           />
         ) : (
-          <div className="truncate text-[22px] font-semibold leading-tight text-testo">{props.format.nome}</div>
+          <div className="line-clamp-2 text-[22px] font-semibold leading-tight text-testo">{props.format.nome}</div>
         )}
         <div className="mt-1 text-[13px] text-testo-2">
           {props.format.fasi.length} fasi · {nCue} suoni

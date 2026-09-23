@@ -361,7 +361,7 @@ export function PaginaRegia() {
           </span>
           {formatAperto && (
             <ControlloSegmentato
-              className="shrink-0"
+              className="w-48 shrink-0"
               segmenti={[
                 { id: "modifica", testo: "Modifica" },
                 { id: "live", testo: "Live" },

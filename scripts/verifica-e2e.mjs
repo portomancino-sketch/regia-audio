@@ -158,11 +158,11 @@ console.log(`Server ok, PIN ${rete.pin}. Comincio.\n`);
 
 // --- 1. La pagina Regia si apre e mostra il format demo ---
 const regia = await nuovaScheda(`${BASE}/`);
-const homeOk = await regia.finoA(INPUT_CON("Demo — Orient Express"));
+const homeOk = await regia.finoA(`document.body.innerText.includes('Demo — Orient Express')`);
 homeOk ? ok("Home con il format demo") : ko("Home con il format demo");
 
 // --- 2. Apri il format: vista Modifica con fasi e caselle ---
-await regia.click("Apri");
+await regia.js(`(() => { const card = [...document.querySelectorAll('div.vetro.tocco')].find(d => d.textContent.includes('Demo — Orient Express')); if (card) { card.click(); return true; } return false; })()`);
 const modificaOk = await regia.finoA(`${INPUT_CON("Accoglienza")} && ${INPUT_CON("Treno in corsa")}`);
 modificaOk ? ok("Modifica: fasi e caselle della demo") : ko("Modifica: fasi e caselle");
 
@@ -172,7 +172,7 @@ const demo = cfgPrima.formats.find((f) => f.nome.includes("Orient Express"));
 const fase1 = demo.fasi[0];
 const nCasellePrima = fase1.cue.length;
 await regia.js(
-  `[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='+ Casella')[0].click()`,
+  `[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='Casella')[0].click()`,
 );
 const creata = await regia.finoA(INPUT_CON("Nuovo suono"));
 creata ? ok("+ Casella crea un cue") : ko("+ Casella");
@@ -307,16 +307,11 @@ await tel.finoA(`document.readyState === 'complete'`);
 await tel.cmd("Page.enable");
 await tel.js(`localStorage.removeItem('regia-pin')`);
 await tel.cmd("Page.navigate", { url: `${BASE}/telecomando` });
-await tel.finoA(`document.querySelector('input[type="text"]') !== null`);
-await tel.js(`
-  (() => {
-    const el = document.querySelector('input[type="text"]');
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(el, '${rete.pin}');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  })()
-`);
-await attendi(200);
+await tel.finoA(`[...document.querySelectorAll('button')].some(b => b.getAttribute('aria-label') === '1')`);
+for (const cifra of rete.pin) {
+  await tel.js(`(() => { const b = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === '${cifra}'); if (b) b.click(); })()`);
+  await attendi(80);
+}
 await tel.click("Entra");
 const telePronto = await tel.finoA(
   `document.body.innerText.includes('Scegli la serata') || document.body.innerText.toLowerCase().includes('sta suonando')`,

@@ -41,7 +41,7 @@ export function PulsanteCue(props: {
     >
       <div className="flex w-full items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-[20px] font-semibold leading-tight text-testo">
+          <div className="line-clamp-2 text-[20px] font-semibold leading-tight text-testo">
             {cue.titolo}
           </div>
           {cue.nota && (
