@@ -557,6 +557,34 @@ await tel.scatta("03-telecomando-riga-sempre");
     : ko("Telefono: card sotto il dock", JSON.stringify(c));
   const pillole = await tel.js(`[...document.querySelectorAll('[aria-label="Sempre"] button')].map(b => Math.round(b.getBoundingClientRect().height))`);
   pillole.every((h) => h === 44) ? ok("Pillole Sempre alte 44px (tocco minimo)") : ko("Altezza pillole", pillole.join("/"));
+
+  // S8-bis: pagina NON scrollata, la striscia Sempre sta dentro il vetro del dock
+  // (quindi opaca): nessuna card "buca" la striscia. Al tocco, ogni punto lungo la
+  // striscia risponde con un elemento del dock, mai con una card sotto.
+  const st = await tel.js(`(async () => {
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 120));
+    const striscia = document.querySelector('[aria-label="Sempre"]');
+    const vetro = document.querySelector('.vetro-dock');
+    if (!striscia || !vetro) return null;
+    const s = striscia.getBoundingClientRect(), v = vetro.getBoundingClientRect();
+    const dentro = s.top >= v.top - 1 && s.bottom <= v.bottom + 1 && s.left >= v.left - 1 && s.right <= v.right + 1;
+    const carte = [...document.querySelectorAll('.grid > [role=button]')];
+    let bucate = 0;
+    for (const c of carte) {
+      const r = c.getBoundingClientRect();
+      if (r.bottom <= s.top || r.top >= s.bottom) continue;
+      for (let i = 0; i < 12; i++) {
+        const x = s.left + 4 + ((s.width - 8) * i) / 11, y = (s.top + s.bottom) / 2;
+        const el = document.elementFromPoint(x, y);
+        if (el && c.contains(el)) { bucate++; break; }
+      }
+    }
+    return { dentro, bucate, carte: carte.length };
+  })()`);
+  st && st.dentro && st.bucate === 0
+    ? ok("Telefono: striscia Sempre dentro il vetro del dock, nessuna card la buca", `${st.carte} card`)
+    : ko("Telefono: striscia Sempre fuori dal vetro o bucata", JSON.stringify(st));
 }
 
 // --- Tempo rimanente: "finisce tra" che scorre ---
