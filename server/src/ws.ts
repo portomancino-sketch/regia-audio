@@ -38,6 +38,8 @@ export class Hub {
   private diarioPrec: { istanze: Map<string, string>; faseId: string | null; formatId: string | null; parla: boolean; fatti: Set<string> } =
     { istanze: new Map(), faseId: null, formatId: null, parla: false, fatti: new Set() };
   private ultimoComando: { comando: string; origine: string; quando: number } | null = null;
+  /** Soundcheck in corso: quando è partito e quante caselle ha provato. */
+  private soundcheck: { inizio: string; provate: number } | null = null;
   private ultimoBattito = 0;
   private ultimoStato: StatoLive | null = null;
   private intervalloPing: NodeJS.Timeout;
@@ -188,6 +190,8 @@ export class Hub {
       if (m.tipo === "comando") {
         const origine = `${client.ruolo === "regia" ? "mac" : "telefono"}·${client.id4}`;
         const comando = (m as { comando?: string }).comando ?? "";
+        // Durante il soundcheck i telefoni non comandano.
+        if (client.ruolo === "telecomando" && this.ultimoStato?.soundcheck) return;
         this.ultimoComando = { comando, origine, quando: Date.now() };
         if (comando === "fade") this.annota({ tipo: "fade", origine });
         if (comando === "stopTutto") this.annota({ tipo: "stop tutto", origine });
@@ -305,6 +309,28 @@ export class Hub {
     }
 
     const adesso = new Map((stato.attivi ?? []).map((a) => [a.istanzaId, a.titolo]));
+
+    // Soundcheck: i suoni di prova non sono suoni veri. Un solo evento alla fine.
+    if (stato.soundcheck) {
+      if (!this.soundcheck) this.soundcheck = { inizio: new Date().toISOString(), provate: 0 };
+      this.soundcheck.provate = Math.max(this.soundcheck.provate, stato.soundcheck.indice);
+      this.diarioPrec = { ...prec, istanze: new Map(), faseId: stato.faseId, formatId: stato.formatId };
+      return;
+    }
+    if (this.soundcheck) {
+      const sc = this.soundcheck;
+      this.soundcheck = null;
+      this.annota({
+        tipo: "soundcheck",
+        format,
+        origine: `mac·${motore.id4}`,
+        dettagli: { inizio: sc.inizio, fine: new Date().toISOString(), caselle: sc.provate },
+      });
+      // Ciò che suona adesso (se qualcosa) è la base: niente "partito" fantasma.
+      this.diarioPrec = { ...prec, istanze: adesso, faseId: stato.faseId, formatId: stato.formatId };
+      return;
+    }
+
     for (const [id, titolo] of adesso) {
       if (!prec.istanze.has(id)) {
         this.annota({ tipo: "suono partito", cue: titolo, fase, format, origine: this.origineDi(["play"], motore) });

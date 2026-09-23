@@ -10,6 +10,7 @@ import AdmZip from "adm-zip";
 import { parseFile } from "music-metadata";
 import type { Config, Cue, Fase, Format } from "../../shared/tipi";
 import { puoMettereInEvidenza } from "../../shared/sempre";
+import { scriviEvento } from "./diario";
 import type { Store } from "./store";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
@@ -103,6 +104,17 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     hub()?.configCambiata();
   };
 
+  // Modalità serata: con le modifiche bloccate ogni scrittura REST è rifiutata
+  // (423), tranne le impostazioni (servono per sbloccare) e il diario.
+  const MESSAGGIO_BLOCCO = "Serata in corso — modifiche bloccate";
+  app.addHook("preHandler", async (req, reply) => {
+    if (!store.config.impostazioni.bloccoModifiche) return;
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return;
+    const url = req.url.split("?")[0] ?? "";
+    if (url === "/api/impostazioni") return;
+    if (url.startsWith("/api/")) return reply.status(423).send({ errore: MESSAGGIO_BLOCCO });
+  });
+
   // ---- Configurazione ----
 
   app.get("/api/config", async () => store.config);
@@ -126,6 +138,11 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (typeof corpo.fadeOutMs === "number") imp.fadeOutMs = Math.max(100, corpo.fadeOutMs);
     if (typeof corpo.livelloAbbassa === "number") imp.livelloAbbassa = Math.min(1, Math.max(0, corpo.livelloAbbassa));
     if (typeof corpo.livelloParla === "number") imp.livelloParla = Math.min(0.6, Math.max(0, corpo.livelloParla));
+    if (typeof corpo.bloccoModifiche === "boolean" && corpo.bloccoModifiche !== (imp.bloccoModifiche ?? false)) {
+      imp.bloccoModifiche = corpo.bloccoModifiche;
+      scriviEvento({ ora: new Date().toISOString(), tipo: corpo.bloccoModifiche ? "blocco_on" : "blocco_off", origine: "mac" });
+      hub()?.configCambiata();
+    }
     store.salva();
     if (imp.pin !== pinPrima) hub()?.pinCambiato();
     return imp;
@@ -302,6 +319,12 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       c.sulSottofondo = corpo.sulSottofondo;
     }
     if (corpo.colore === null || typeof corpo.colore === "string") c.colore = corpo.colore ?? null;
+    if (corpo.usiPrevisti === null || (corpo.usiPrevisti as unknown) === "") delete c.usiPrevisti;
+    else if (typeof corpo.usiPrevisti === "number" && Number.isFinite(corpo.usiPrevisti)) {
+      const n = Math.round(corpo.usiPrevisti);
+      if (n >= 1) c.usiPrevisti = Math.min(99, n);
+      else delete c.usiPrevisti;
+    }
     if (typeof corpo.evidenza === "boolean") {
       // "In evidenza" vale solo nella riga Sempre, massimo 4.
       if (corpo.evidenza && !trovato.fase.sempre) {

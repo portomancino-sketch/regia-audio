@@ -16,11 +16,16 @@ export interface EventoDiario {
     | "format aperto"
     | "promemoria fatto"
     | "parla acceso"
-    | "parla spento";
+    | "parla spento"
+    | "soundcheck"
+    | "blocco_on"
+    | "blocco_off";
   cue?: string;
   fase?: string;
   format?: string;
   origine: string; // "mac·ab12" | "telefono·cd34"
+  /** Dati in più (es. soundcheck: inizio, fine, caselle provate). */
+  dettagli?: Record<string, unknown>;
 }
 
 function cartellaDiario(): string {

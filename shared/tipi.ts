@@ -22,6 +22,8 @@ export interface Cue {
   /** Solo riga "Sempre": pillola sempre visibile in Live (massimo 4; assente = no).
    *  Se la riga ha 4 caselle o meno, sono tutte in evidenza da sole. */
   evidenza?: boolean;
+  /** Quante volte si prevede di usarla in serata (assente = illimitato). */
+  usiPrevisti?: number;
 }
 
 export interface Fase {
@@ -53,6 +55,8 @@ export interface Impostazioni {
   livelloAbbassa: number;
   /** 0..0.6 — a quanto scende il sottofondo mentre si parla (default 0.25). */
   livelloParla?: number;
+  /** Modalità serata: la pagina Modifica è in sola lettura su ogni finestra. */
+  bloccoModifiche?: boolean;
 }
 
 export interface Config {
@@ -88,6 +92,10 @@ export interface StatoLive {
   fatti?: string[];
   /** PARLA acceso (il sottofondo è abbassato per la voce). */
   parla?: boolean;
+  /** Quante volte ogni casella è partita davvero in serata (cueId → conteggio). */
+  usi?: Record<string, number>;
+  /** Soundcheck in corso sul Mac: i comandi dei telefoni vengono ignorati. */
+  soundcheck?: { indice: number; totale: number } | null;
 }
 
 export type Comando =
@@ -96,6 +104,7 @@ export type Comando =
   | { tipo: "comando"; comando: "sfuma"; cueId: string }
   | { tipo: "comando"; comando: "spunta"; cueId: string }
   | { tipo: "comando"; comando: "azzeraSpunte"; faseId: string }
+  | { tipo: "comando"; comando: "azzeraSerata"; faseId: string }
   | { tipo: "comando"; comando: "parla"; acceso: boolean }
   | { tipo: "comando"; comando: "fade" }
   | { tipo: "comando"; comando: "stopTutto" }

@@ -187,6 +187,42 @@ describe("riga Sempre", () => {
   });
 });
 
+describe("modalità serata (blocco modifiche)", () => {
+  it("con il blocco attivo le scritture sono rifiutate con 423; le impostazioni no; sbloccato torna tutto", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Bloccabile" } })).json();
+    let r = await app.inject({ method: "PATCH", url: "/api/impostazioni", payload: { bloccoModifiche: true } });
+    expect(r.json().bloccoModifiche).toBe(true);
+    r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { nome: "Nuovo nome" } });
+    expect(r.statusCode).toBe(423);
+    expect(r.json().errore).toContain("modifiche bloccate");
+    r = await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+    expect(r.statusCode).toBe(423);
+    r = await app.inject({ method: "GET", url: "/api/config" });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().formats.find((f: { id: string }) => f.id === format.id).nome).toBe("Bloccabile");
+    r = await app.inject({ method: "PATCH", url: "/api/impostazioni", payload: { bloccoModifiche: false } });
+    expect(r.json().bloccoModifiche).toBe(false);
+    r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { nome: "Nuovo nome" } });
+    expect(r.statusCode).toBe(200);
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+  });
+
+  it("'usi previsti' si salva, si limita a 1..99 e si toglie con null", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Usi" } })).json();
+    const fase = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Uno" } })).json();
+    const c = (await app.inject({ method: "POST", url: `/api/fasi/${fase.id}/cue`, payload: {} })).json();
+    let r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { usiPrevisti: 3 } });
+    expect(r.json().usiPrevisti).toBe(3);
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { usiPrevisti: 0 } });
+    expect(r.json().usiPrevisti).toBeUndefined();
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { usiPrevisti: 500 } });
+    expect(r.json().usiPrevisti).toBe(99);
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${c.id}`, payload: { usiPrevisti: null } });
+    expect(r.json().usiPrevisti).toBeUndefined();
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+  });
+});
+
 describe("upload audio", () => {
   it("carica un wav e legge la durata; il file finisce nella cartella audio", async () => {
     const format = (await app.inject({ method: "POST", url: "/api/formats", payload: {} })).json();
