@@ -7,7 +7,7 @@ import { BarraAvanzamento } from "./ui/BarraAvanzamento";
 import { Pillola } from "./ui/Pillola";
 import { Equalizzatore } from "./ui/Equalizzatore";
 
-const ICONE_TIPO: Record<TipoCue, typeof Music> = {
+export const ICONE_TIPO: Record<TipoCue, typeof Music> = {
   sottofondo: AudioLines,
   brano: Music,
   effetto: Zap,

@@ -287,6 +287,16 @@
     inset 0 0 0 1px var(--vetro-hairline);
 }
 
+/* Striscia scorrevole senza barra visibile (pillole Sempre sul telefono). */
+.striscia-senza-barra {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.striscia-senza-barra::-webkit-scrollbar {
+  display: none;
+}
+
 @keyframes pulsa-piano {
   0%,
   100% {

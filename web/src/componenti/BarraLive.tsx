@@ -69,7 +69,9 @@ export function BarraLive(props: {
           {Math.round(props.master * 100)}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      {/* Sul telefono i pulsanti possono andare a capo (STOP TUTTO prende la riga):
+          il dock cresce e la pagina lo misura, niente finisce sotto. */}
+      <div className={`flex items-center gap-2 ${props.telefono ? "basis-full flex-wrap" : ""}`}>
         {props.extra}
         {props.onParla && (
           <Pulsante
