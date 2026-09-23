@@ -11,7 +11,7 @@ const PORTA_TEST = 4994;
 const BASE = `http://127.0.0.1:${PORTA_TEST}`;
 const CDP_PORT = 9338;
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const CARTELLA = "docs/screenshots/s4bis";
+const CARTELLA = "docs/screenshots/s4ter";
 fs.mkdirSync(CARTELLA, { recursive: true });
 const attendi = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -166,11 +166,16 @@ for (const tema of ["chiaro", "scuro"]) {
   // Contiamo i punti "distinti": distanza canale-massimo > 25 da almeno un altro punto distinto.
   const distinti = [];
   for (const p of pixel) {
-    if (distinti.every((q) => Math.max(...p.map((v, i) => Math.abs(v - q[i]))) > 25)) distinti.push(p);
+    if (distinti.every((q) => Math.max(...p.map((v, i) => Math.abs(v - q[i]))) > 45)) distinti.push(p);
   }
   distinti.length >= 3
-    ? ok(`sfondo ${tema}: ${distinti.length} zone di colore distinte (>25/255)`)
+    ? ok(`sfondo ${tema}: ${distinti.length} zone di colore distinte (>45/255)`)
     : ko(`sfondo ${tema}: solo ${distinti.length} zone distinte`, "troppo piatto");
+  // Nessun punto grigio puro (saturazione zero).
+  const grigi = pixel.filter((p) => Math.max(...p) - Math.min(...p) === 0);
+  grigi.length === 0
+    ? ok(`sfondo ${tema}: nessun punto grigio puro`)
+    : ko(`sfondo ${tema}: ${grigi.length} punti grigio puro`);
 
   // Contrasto del testo sulle card: campiona il centro di una card e confronta col testo.
   const card = await pagina.js(`

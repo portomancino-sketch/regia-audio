@@ -130,3 +130,17 @@ indistinguibile dal verde. Verifica MISURATA (scripts/verifica-sfondo.mjs):
 campionati 5 punti dello screenshot, ≥3 zone distinte oltre 25/255 in entrambi
 i temi; contrasto testo sulle card 17,7:1 (chiaro) e 15,3:1 (scuro); CPU in
 Live ferma 2,7–3,6% (blur e deriva accesi). Screenshot in docs/screenshots/s4bis/.
+
+## S4-ter — 23 settembre 2026 — i colori dello sfondo si VEDONO
+
+Trovata la causa vera del "quasi bianco": le regole CSS delle macchie di
+S4-bis non erano mai entrate nel file (sostituzioni testuali fallite in
+silenzio), e le percentuali dei radial-gradient erano riferite all'angolo
+lontano del riquadro, non al raggio. Riscritto `sfondo.css` da zero:
+colori pieni senza alpha (chiaro: salvia #b6d6c5, pesca #f6c9a8, azzurro
+#b5cbee, lavanda #d9cdef; scuro: #244a3f, #23346b, #5a3f16, #2c2749),
+opacità div 0,95, blur(60px), gradienti `closest-side` con plateau pieno
+fino al 55% del raggio, macchie che coprono la maggior parte dello schermo.
+Verifica con soglia severa: ≥3 zone oltre 45/255 e nessun punto grigio puro
+in entrambi i temi; contrasto card 15,5:1 (chiaro) e 7,9:1 (scuro);
+CPU in Live ferma 2,8–3,1%. Screenshot in docs/screenshots/s4ter/.

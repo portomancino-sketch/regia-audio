@@ -1,4 +1,6 @@
-/* Lo sfondo "mesh": base + quattro macchie sfocate + grana. */
+/* Lo sfondo "mesh": base + quattro macchie di colore pieno + grana.
+   S4-ter: i colori si VEDONO — plateau pieno fino al 55% del raggio,
+   blur(60px) sui div, le macchie coprono la maggior parte dello schermo. */
 
 .sfondo-mesh {
   position: fixed;
@@ -19,39 +21,43 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(60px);
-  opacity: var(--sfondo-intensita);
-  will-change: transform;
+  opacity: calc(0.95 * var(--sfondo-intensita));
 }
 
-/* Posizioni: alto-sinistra, alto-destra, basso-destra (nell'angolo, non sotto
-   il dock centrale), centro-sinistra. */
+/* Nota: i raggi del radial-gradient sono in % di closest-side, così il
+   "55%" è davvero metà del raggio del cerchio, non del suo angolo lontano.
+   Le posizioni sono relative a .macchie, che parte 10vw fuori dallo schermo. */
 .macchia-1 {
-  width: 60vw;
-  height: 60vw;
-  left: -18vw;
-  top: -22vw;
-  background: radial-gradient(circle, var(--macchia-1) 0%, transparent 62%);
+  /* Salvia, alto-sinistra: centro viewport ≈ (12vw, 6vw). */
+  width: 85vw;
+  height: 85vw;
+  left: -20.5vw;
+  top: -26.5vw;
+  background: radial-gradient(circle closest-side, var(--macchia-1) 0%, var(--macchia-1) 55%, transparent 100%);
 }
 .macchia-2 {
-  width: 55vw;
-  height: 55vw;
-  right: -16vw;
-  top: -18vw;
-  background: radial-gradient(circle, var(--macchia-2) 0%, transparent 62%);
+  /* Pesca, alto-destra: centro viewport ≈ (90vw, 4vw). */
+  width: 80vw;
+  height: 80vw;
+  left: 60vw;
+  top: -26vw;
+  background: radial-gradient(circle closest-side, var(--macchia-2) 0%, var(--macchia-2) 55%, transparent 100%);
 }
 .macchia-3 {
-  width: 65vw;
-  height: 65vw;
-  right: -30vw;
-  bottom: -38vw;
-  background: radial-gradient(circle, var(--macchia-3) 0%, transparent 62%);
+  /* Azzurro, basso-destra: centro viewport ≈ (85vw, 58vw). */
+  width: 95vw;
+  height: 95vw;
+  left: 47.5vw;
+  top: 20.5vw;
+  background: radial-gradient(circle closest-side, var(--macchia-3) 0%, var(--macchia-3) 55%, transparent 100%);
 }
 .macchia-4 {
+  /* Lavanda, piccola, basso/centro-sinistra: centro viewport ≈ (8vw, 52vw). */
   width: 45vw;
   height: 45vw;
-  left: -12vw;
-  top: 38vh;
-  background: radial-gradient(circle, var(--macchia-4), transparent 70%);
+  left: -4.5vw;
+  top: 39.5vw;
+  background: radial-gradient(circle closest-side, var(--macchia-4) 0%, var(--macchia-4) 55%, transparent 100%);
 }
 
 /* La deriva è guidata da JS a bassa frequenza (vedi Sfondo.tsx). */
@@ -65,5 +71,3 @@
   background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='160'%20height='160'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.8'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 160px 160px;
 }
-
-

@@ -9,9 +9,10 @@
   --sfondo: #0a0c10;
   /* Macchie dello sfondo mesh. --sfondo-intensita (0–1) le regola tutte. */
   --sfondo-intensita: 1;
-  --macchia-1: rgba(62, 104, 91, 0.6);
-  --macchia-2: rgba(60, 95, 190, 0.7);
-  --macchia-3: rgba(160, 110, 40, 0.35);
+  --macchia-1: #244a3f;
+  --macchia-2: #23346b;
+  --macchia-3: #5a3f16;
+  --macchia-4: #2c2749;
   --grana-opacita: 0.06;
   --grana-blend: overlay;
   --testo: rgba(255, 255, 255, 0.92);
@@ -71,9 +72,10 @@
   color-scheme: light;
 
   --sfondo: #f7f5f1;
-  --macchia-1: rgba(120, 170, 150, 0.55);
-  --macchia-2: rgba(250, 200, 160, 0.6);
-  --macchia-3: rgba(165, 195, 235, 0.55);
+  --macchia-1: #b6d6c5;
+  --macchia-2: #f6c9a8;
+  --macchia-3: #b5cbee;
+  --macchia-4: #d9cdef;
   --grana-opacita: 0.04;
   --grana-blend: multiply;
   --testo: #111418;

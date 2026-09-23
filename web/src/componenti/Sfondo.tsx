@@ -31,6 +31,7 @@ export function Sfondo(props: { animato?: boolean }) {
         <div className="macchia macchia-1" />
         <div className="macchia macchia-2" />
         <div className="macchia macchia-3" />
+        <div className="macchia macchia-4" />
       </div>
       <div className="grana" />
     </div>
