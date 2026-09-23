@@ -7,8 +7,12 @@ import { fileURLToPath } from "node:url";
 const radiceProgetto = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function stessaCartella(a: string, b: string): boolean {
+  // Confronto per inode: su macOS realpath non normalizza le maiuscole,
+  // quindi "~/Regia" e "~/regia" sembrerebbero diversi anche quando non lo sono.
   try {
-    return fs.realpathSync(a) === fs.realpathSync(b);
+    const sa = fs.statSync(a);
+    const sb = fs.statSync(b);
+    return sa.dev === sb.dev && sa.ino === sb.ino;
   } catch {
     return false;
   }
