@@ -462,3 +462,51 @@ DECISIONI PRESE DA SOLO (S11)
   anche in una finestra che non comanda.
 - File ≥ 180 s (streaming) in "Analizza tutti": si scaricano e decodificano
   comunque (siamo in Modifica, non in Live).
+
+## S12 — 24 settembre 2026 — dati (blocco C di v1.3.0)
+
+- **C1 Durata prevista e orologio di scaletta**: campo per fase in Modifica
+  (`durataPrevista`, minuti, non sulla riga Sempre). shared/scaletta.ts (pura,
+  6 test): inizio serata = primo "suono partito" del giorno; fase corrente =
+  ultimo "fase cambiata"/"format aperto" dopo l'inizio; trascorso; previsto;
+  scarto cumulato all'ingresso della fase (reale − somma delle previste
+  precedenti, solo se almeno una c'è); verde ≤ 2 min, ambra ≤ 5, rosso oltre.
+  Live sul Mac: "Fase 12:40 / 15:00" + pillola "in ritardo di 8 min"; telefono:
+  riga piccola sotto il nome della fase. I dati arrivano dal diario di oggi
+  (rilettura ogni 20 s e 1 s dopo un cambio di fase).
+- **C2 Riepilogo serata**: server/src/diario.ts `riepilogoSerata` (pura, test
+  su una serata scritta a mano): inizio, fine, durata, tabella per fase
+  (prevista / reale / scarto), STOP TUTTO, possibili errori (fermato entro 2 s
+  dalla partenza), comandi telefono vs Mac (soundcheck e blocco esclusi).
+  Riquadro in cima alla serata nel Diario. Export CSV: blocco "chiave,valore"
+  in cima, riga vuota, poi la cronologia (un solo file).
+- **C3 Suoni mai usati**: `GET /api/statistiche/mai-usati` (ultime 10 serate,
+  per format usato le caselle mai partite, promemoria esclusi; cache in memoria
+  invalidata quando si scrive il diario o cambia la config). Sezione nel
+  Diario e badge grigio in Modifica.
+- **C4 Duplica e archivia**: "Duplica" ora copia fasi, caselle, note, riga
+  Sempre, durate previste e crossfade con id nuovi e gli STESSI file audio
+  (riferimenti); la copia si apre subito in Modifica; eliminare un format non
+  cancella i file usati da un altro. "Archivia" (`archiviato`): sparisce da
+  Live, Telecomando e Home; sezione "Archiviati" con Ripristina; Live vietata
+  sugli archiviati; se era quello aperto in Live si passa al primo non archiviato.
+- Test vecchi aggiornati: il test API della duplicazione ora pretende lo
+  stesso file (non una copia); il controllo end-to-end del CSV accetta il
+  riepilogo in cima.
+- Verifica: 106 test + typecheck verdi; **122/122 end-to-end** (nuovi:
+  orologio Mac e telefono, riepilogo e CSV, mai usati e badge, Duplica dal
+  menu con stessi file, archiviato assente dal telefono). Screenshot in
+  docs/screenshots/s12/ (orologio "in ritardo di 8 min" con diario finto).
+
+DECISIONI PRESE DA SOLO (S12)
+- Il riepilogo e la statistica "mai usati" ragionano per NOMI (di format, fase
+  e casella), perché il diario registra i nomi: rinominare una casella la fa
+  contare come nuova.
+- Il CSV resta un solo file: riepilogo in cima come righe "chiave,valore",
+  una riga vuota, poi la cronologia.
+- L'orologio di scaletta legge il diario di oggi via REST ogni 20 s (Mac e
+  telefono): niente campi nuovi nello stato WebSocket.
+- Nel riepilogo di una serata ancora in corso l'ultima fase mostra lo scarto
+  parziale (es. "-30 min"): il riquadro è pensato per le serate finite.
+- Le fasi/caselle duplicate singolarmente (menu della fase/casella) copiano
+  ancora i file su disco come prima; solo "Duplica format" usa i riferimenti.

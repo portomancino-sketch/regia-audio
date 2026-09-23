@@ -24,6 +24,19 @@ Lo zip si produce sul Mac di sviluppo con `npm run pacchetto`
 (finisce in `dist-pacchetti/`). Sostituire la cartella "Regia" con una versione
 nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 
+## Novità 1.3.0
+
+- **Prova tutti** (Live, Mac): 3 secondi di ogni casella, esito con file mancanti e picchi.
+- **STOP TUTTO sul telefono** solo con pressione lunga (600 ms): niente stop per sbaglio.
+- **Blocca modifiche** (lucchetto): Modifica in sola lettura su ogni finestra per la serata.
+- **"Usato 1/3" e "già suonato"** sulle caselle; "Azzera serata" nel menu della fase.
+- **Livello automatico** all'importazione (obiettivo −18 dBFS, picco ≤ −1) + cursore in dB e "Ascolta".
+- **Passaggio morbido tra sottofondi** (0–5 s per format, default 2).
+- **Orologio di scaletta**: durata prevista per fase, "Fase 12:40 / 15:00", anticipo/ritardo.
+- **Riepilogo della serata** nel Diario (anche nel CSV) e **suoni mai usati** nelle ultime 10 serate.
+- **Duplica** un format riusando gli stessi file; **Archivia** e ripristina.
+- Config vecchie compatibili: tutti i campi nuovi sono facoltativi.
+
 ## Come si avvia
 
 - Doppio click su **Avvia Regia.command** nella cartella Regia. Si apre una

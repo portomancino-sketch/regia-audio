@@ -22,7 +22,17 @@
    - **Promemoria** (grigio): non suona. È una cosa da fare: in serata si tocca
      e si segna con la spunta. Le spunte si vedono da tutti i telefoni.
 9. Scegli cosa fa al suono base: **Resta / Si abbassa / Si ferma**.
-10. Prova tutto in **Live** prima che arrivi la gente.
+10. Prova tutto in **Live** prima che arrivi la gente. Il pulsante **Prova tutti**
+    suona 3 secondi di ogni casella, una alla volta, e alla fine dice quali file
+    mancano o non si leggono, e quanto è forte ognuno.
+10b. Quando importi un file, la Regia misura da sola quanto è forte e lo porta a
+    un livello uguale agli altri ("auto +4 dB"). Se vuoi ritoccare a orecchio:
+    cursore **Volume** (−12…+12 dB) sulla casella e **Ascolta** per sentire.
+    Per i suoni caricati prima: menu ⋯ in cima → **Analizza tutti i suoni**.
+10c. **Passaggio tra sottofondi** (in cima al format): quando parte un
+    sottofondo mentre un altro suona, i due si scambiano dolcemente (2 secondi).
+10d. **Durata prevista** di ogni fase (minuti): serve all'orologio di scaletta in Live.
+10e. **Usi previsti in serata** sulla casella: in Live vedrai "usato 1/3".
 11. Collega il telefono dell'assistente: pannello **Telecomando**, inquadra il QR,
     scrivi il PIN. Se il telefono non si collega: LEGGIMI.txt, «Se il telefono
     non vede il Mac». Metti il blocco schermo del telefono su **Mai**.
@@ -38,7 +48,7 @@
 - Premere un pulsante = parte il suono. Ripremerlo = si ferma.
   Sul pulsante che suona ci sono anche **Sfuma** (dolce) e **■** (subito).
 - I **promemoria** si toccano per segnarli fatti (spunta verde).
-  "Azzera spunte" è nel menu ⋯ della fase, in Modifica.
+  "Azzera serata" è nel menu ⋯ della fase, in Modifica.
 - La nota della fase sta sopra i pulsanti: un tocco la nasconde, l'icona ⓘ la riapre.
 - Le frecce **‹ ›** cambiano fase.
 - Sui pulsanti che suonano vedi **"finisce tra 0:42"**: negli ultimi 10 secondi
@@ -46,14 +56,29 @@
 - **PARLA** (microfono): mentre parli al pubblico il suono base si abbassa da solo;
   ripremi e risale. Sul Mac: tasto **P**. Quanto si abbassa si regola dal sole/luna.
 - **FADE OUT**: sfuma tutto dolcemente. **STOP TUTTO** (rosso): silenzio immediato.
+  Sul telefono STOP TUTTO parte solo **tenendo premuto** per un attimo (il
+  pulsante si riempie): un tocco per sbaglio non fa nulla.
+- Il **lucchetto** in alto (Mac) blocca le modifiche per la serata: nessuno
+  può cambiare niente per sbaglio. Si sblocca dalla pagina Modifica.
+- In alto vedi **"Fase 12:40 / 15:00"** e se sei in anticipo o in ritardo sulla
+  scaletta (verde, ambra, rosso). Sul telefono, sotto il nome della fase.
+- Sulle caselle: **"usato 1/3"** e **"✓ già suonato"**. Una casella che ha finito
+  gli usi previsti si attenua ma si può sempre premere.
+  "Azzera serata" (menu ⋯ della fase) azzera spunte e contatori.
 - Se il telefono dice **"Regia non collegata"**: guarda il Mac, riapri la pagina
   della Regia. Il telefono si ricollega da solo.
 - Dalla tastiera del Mac: **ESC** = stop tutto, **F** = fade out, **P** = parla,
   **1–9** = i suoni della fase (i promemoria non contano),
-  **Q W E R T** = le prime cinque caselle della riga Sempre, **← →** = cambia fase.
+  **Q W E R T** = le pillole in evidenza della riga Sempre, **← →** = cambia fase.
 
 ## Dopo la serata
 
 - Il **Diario** (icona calendario in alto, solo sul Mac) ricorda tutto da solo:
   quando è partito ogni suono, i cambi di fase, chi ha premuto cosa.
   Si può scaricare la serata in CSV per riguardarla con calma.
+- In cima a ogni serata c'è il **riepilogo**: inizio, fine, durata, tempo per
+  fase contro il previsto, STOP TUTTO, possibili errori, comandi dal telefono.
+- **Suoni mai usati**: il Diario elenca le caselle mai partite nelle ultime 10
+  serate; in Modifica hanno un'etichetta grigia.
+- Nella Home, menu ⋯ del format: **Duplica** (stessi suoni, si apre subito) e
+  **Archivia** (sparisce da Live e telefono, resta sotto "Archiviati" con Ripristina).
