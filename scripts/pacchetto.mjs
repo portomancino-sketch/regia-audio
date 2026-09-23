@@ -169,25 +169,53 @@ fi
 
 echo ""
 echo "  Accendo la Regia... Lascia aperta questa finestra."
+echo "  Finché questa finestra è aperta il Mac non va in stop."
 echo "  Per spegnere tutto: chiudi questa finestra."
 echo ""
 ( sleep 2; apri_finestra ) &
-exec "$NODO" "$DIR/app/server/src/index.mjs"
+# caffeinate tiene svegli Mac e schermo finché la Regia è accesa.
+exec caffeinate -d -i "$NODO" "$DIR/app/server/src/index.mjs"
 `;
 fs.writeFileSync(path.join(P, "Avvia Regia.command"), comando);
 fs.chmodSync(path.join(P, "Avvia Regia.command"), 0o755);
 
 const leggimi = `REGIA — la regia audio delle serate di Porto Mancino
 
-1. La prima volta: tasto destro su "Avvia Regia.command" → Apri → Apri.
-   (Se macOS si lamenta: Impostazioni → Privacy e sicurezza → Apri comunque.)
-2. Le volte dopo basta il doppio click.
-3. Nella finestra che si apre premi "Attiva audio".
-4. Telefono: pannello "Telecomando" in alto, inquadra il QR, scrivi il PIN.
-5. Per spegnere: chiudi la finestra nera del Terminale.
+LA PRIMA VOLTA (una volta sola)
+1. Doppio click su "Avvia Regia.command".
+2. macOS lo blocca: è normale, non è un errore.
+   - Se il messaggio parla di "verificare" o "malware" (macOS 15 o più recente):
+     premi "Fine". Poi Impostazioni di Sistema → Privacy e sicurezza → scendi
+     fino a "Sicurezza" → "Apri comunque" → di nuovo "Apri comunque" → password
+     del Mac. Se la Regia non parte da sola, rifai doppio click.
+   - Se invece dice "sviluppatore non identificato" (Mac meno recenti):
+     tasto destro su "Avvia Regia.command" → Apri → Apri.
+3. Se il Mac chiede altri permessi (cartella Documenti, rete, "node"): Consenti.
+
+LE VOLTE DOPO
+1. Doppio click su "Avvia Regia.command". Si apre una finestra nera (lasciala
+   aperta: è il cuore della Regia) e poi la finestra della Regia.
+2. Premi "Attiva audio".
+3. Telefono: pannello "Telecomando" in alto, inquadra il QR, scrivi il PIN.
+4. Per spegnere: chiudi la finestra nera.
+
+IN SERATA
+- Mac collegato alla corrente, coperchio aperto. Finché la finestra nera è
+  aperta il Mac non va in stop.
+
+SE IL TELEFONO NON VEDE IL MAC
+- Telefono e Mac sullo stesso WiFi? Controlla il nome della rete su entrambi.
+- Il WiFi del locale può tenere separati i telefoni dal Mac (rete ospiti).
+  Piano B: accendi l'hotspot del telefono e collega il Mac a quella rete.
+  Non serve internet. Poi riapri il pannello Telecomando: il QR è nuovo.
+- Firewall del Mac acceso? Impostazioni → Rete → Firewall → Opzioni → "node"
+  → Consenti connessioni in entrata.
+
 I tuoi suoni e le serate restano al sicuro nella cartella "Regia-dati".
+Guida completa: "Guida per Valerio.txt" in questa cartella.
 `;
 fs.writeFileSync(path.join(P, "LEGGIMI.txt"), leggimi);
+fs.copyFileSync(path.join(radice, "docs/GUIDA_VALERIO.md"), path.join(P, "Guida per Valerio.txt"));
 
 // ---- 6. Zip con permessi (ditto) ----
 passo("Zip finale");
