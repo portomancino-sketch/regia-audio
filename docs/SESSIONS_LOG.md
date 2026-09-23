@@ -362,3 +362,60 @@ Solo pacchetto e documenti (zero modifiche a prodotto/UI/server/web).
   Altri, Modifica con stelle e avviso).
 - **v1.2.0** → dist-pacchetti/Regia-v1.2.0.zip (80 MB); build web nuova e
   LEGGIMI verificati dentro lo zip. Solo Mac Intel; arm64 da confermare.
+
+## S10 — 24 settembre 2026 — sicurezza in diretta (blocco A di v1.3.0)
+
+- **A1 Soundcheck "Prova tutti"** (Mac, Live): suona 3 s di ogni casella audio
+  (riga Sempre + fasi in ordine, promemoria saltati) con 300 ms di silenzio
+  tra una e l'altra; card evidenziata, contatore "12 / 34" nel dock e sul
+  pulsante ("Ferma 12 / 34"); ESC o il pulsante interrompono. Alla fine il
+  riquadro "Esito soundcheck": file mancanti, file che non si leggono, picco
+  in dB per casella dal più basso. Diario: un solo evento `soundcheck`
+  (dettagli: inizio, fine, caselle) e nessun "suono partito/fermato" di prova.
+  Telefono: vede "sta suonando", pillola "Soundcheck in corso · n / N", i suoi
+  comandi sono ignorati (hub e motore). Funzione pura in shared/soundcheck.ts
+  (sequenza, esito ordinato, dB) con 5 test.
+- **A2 STOP TUTTO protetto sul telefono**: solo pressione lunga 600 ms con
+  riempimento che cresce; a 600 ms scatta con vibrazione; tocco breve → niente
+  e "Tieni premuto" per 1,5 s. Mac invariato, FADE OUT a tocco singolo.
+- **A3 Modalità serata**: lucchetto "Blocca modifiche" nella barra di Live
+  (Mac), `impostazioni.bloccoModifiche` nella config (vale per tutte le
+  finestre e dopo il riavvio). Con il blocco: Modifica in sola lettura
+  (banner "Serata in corso — modifiche bloccate", fieldset disabilitato,
+  niente trascinamento/drop/eliminazioni) e il server rifiuta ogni scrittura
+  REST con 423 (import compreso), tranne le impostazioni. "Sblocca" solo nel
+  banner sul Mac, con conferma. Suggerimento "Vuoi bloccare le modifiche per
+  la serata?" una volta al giorno (al primo suono vero o a "Prova tutti").
+  Diario: `blocco_on` / `blocco_off`.
+- **A4 "Già suonato"**: campo "Usi previsti in serata" sulla casella
+  (`usiPrevisti`, 1–99, vuoto = illimitati); stato condiviso `usi`
+  (cueId → partenze vere, non soundcheck) sincronizzato via stato come le
+  spunte. Card: "usato 1/3"; esaurita → opacità 0,55 e badge "fatto" ma
+  sempre premibile; senza previsione, "✓ già suonato" dopo la prima partenza.
+  "Azzera spunte" → "Azzera serata" (spunte + contatori); azzeramento al
+  cambio di giorno. shared/usi.ts con 4 test.
+- **Hub**: chi manda "rilascio" esce subito dai clienti. Dopo un
+  ricaricamento il vecchio socket poteva restare aperto e venire promosso a
+  motore al posto della pagina viva (visto nell'end-to-end "finestra
+  congelata"): ora non succede più.
+- Verifica: 71 test unitari/API + typecheck verdi; **105/105 end-to-end**
+  (nuovi: soundcheck con contatore, ESC ed esito, comandi telefono ignorati,
+  diario con un solo evento; tocco breve/pressione lunga; blocco → campi
+  disabilitati, 423, sblocco con conferma, eventi diario; usi 2/2 → card
+  attenuata e terza partenza; Azzera serata). Il test del telefono usa ora la
+  pressione lunga per STOP TUTTO. Screenshot in docs/screenshots/s10/.
+
+DECISIONI PRESE DA SOLO (S10)
+- Il soundcheck suona fuori dalle regole (master × volume della casella,
+  niente abbassa/pausa del sottofondo) e ferma tutto prima di iniziare.
+- I file lunghi (≥ 180 s, in streaming) nel soundcheck non vengono
+  decodificati in Live: si verifica solo che il file esista, picco "—".
+- I contatori "usi" vivono nella memoria del Mac che comanda (localStorage
+  con la data) così sopravvivono a un ricaricamento; le spunte restano come prima.
+- Sul telefono il badge "usato n/N" sta sulle card delle fasi; le pillole
+  Sempre non lo mostrano (troppo piccole).
+- Il comando WebSocket `azzeraSpunte` resta come alias di `azzeraSerata`.
+- Il blocco è imposto dal server (423) su tutte le scritture REST tranne le
+  impostazioni: vale per import, telefono e qualsiasi finestra.
+- Il suggerimento "Vuoi bloccare?" è ricordato per giornata nel localStorage
+  del Mac (come il foglio "Prima di iniziare").
