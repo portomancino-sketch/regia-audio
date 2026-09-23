@@ -419,3 +419,46 @@ DECISIONI PRESE DA SOLO (S10)
   impostazioni: vale per import, telefono e qualsiasi finestra.
 - Il suggerimento "Vuoi bloccare?" è ricordato per giornata nel localStorage
   del Mac (come il foglio "Prima di iniziare").
+
+## S11 — 24 settembre 2026 — audio (blocco B di v1.3.0)
+
+- **B1 Livello automatico all'importazione**: quando si trascina un file in
+  Modifica la pagina lo decodifica (OfflineAudioContext), misura il livello
+  medio (RMS in dBFS con gate: i tratti di 0,4 s sotto −50 dBFS non contano)
+  e il picco, e salva `analisi { rms, picco, versione: 1 }` e `guadagnoAuto`
+  (dB) = −18 − rms, limitato a −12…+12 e ridotto perché picco + guadagno ≤ −1
+  dBFS. shared/livello.ts (pura, testata: file a −18 → 0; a −40 → +12; picco
+  alto limitato; gate sul silenzio). "Analizza tutti i suoni" nel menu ⋯ del
+  format in Modifica con barra e "Interrompi". Il soundcheck usa il picco
+  dell'analisi se c'è. Il motore applica per ogni cue master × volume ×
+  10^((auto+ritocco)/20) × regole. Nessuna analisi in Live; i file su disco
+  non si toccano. Cambiando file l'analisi vecchia viene cancellata.
+- **B2 Cursore per casella**: in Modifica "Volume" −12…+12 dB (passo 1,
+  `ritocco`), accanto "auto +4 dB" in grigio e "Ascolta" (3 s col guadagno
+  attuale, AudioContext separato). In Live la card mostra "+3 dB" solo se
+  il ritocco è diverso da 0. Il vecchio cursore 0–100 resta come "Livello
+  base". 5 test sulle regole: partenza, ritocco negativo, abbassa/pausa dopo il
+  dB, PARLA + master, config vecchie (0 dB).
+- **B3 Passaggio morbido tra sottofondi**: campo del format "Passaggio tra
+  sottofondi" 0–5 s (`crossfade`, default 2). Nelle regole il vecchio
+  sottofondo passa in `uscite` (non attivo) con la sua durata e il nuovo
+  entra da 0 nello stesso tempo (`rampMs` nell'azione avvia); STOP TUTTO e
+  FADE OUT fermano anche le uscite; con 0 s il comportamento è quello di
+  prima. 5 test. Motore: `ferma` su un'istanza già in uscita sostituisce la
+  rampa; `guadagniAttuali()` per le prove (solo con ?prova).
+- Verifica: 92 test unitari/API + typecheck verdi; **113/113 end-to-end**
+  (nuovi: drop di un wav a −30 dBFS generato nella pagina → casella con
+  auto +11,9 dB; cursore, "auto", "Ascolta"; badge "+3 dB" in Live; crossfade
+  con i gain misurati sui nodi: entrambi > 0 per ~2 s, poi solo il nuovo; STOP
+  TUTTO chiude il passaggio). Screenshot in docs/screenshots/s11/.
+
+DECISIONI PRESE DA SOLO (S11)
+- Due cursori sulla casella: il vecchio 0–100 diventa "Livello base"
+  (regola esistente, non tolta), il nuovo "Volume" è in dB (−12…+12).
+- Il passaggio morbido vale solo se il motore ha caricato il format
+  (`caricaFormat` imposta `crossfadeMs`); nello stato "vergine" delle regole
+  resta il fade classico di 500 ms, così i test vecchi restano validi.
+- "Ascolta" in Modifica usa un AudioContext proprio (non il motore): funziona
+  anche in una finestra che non comanda.
+- File ≥ 180 s (streaming) in "Analizza tutti": si scaricano e decodificano
+  comunque (siamo in Modifica, non in Live).
