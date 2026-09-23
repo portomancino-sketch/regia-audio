@@ -510,3 +510,21 @@ DECISIONI PRESE DA SOLO (S12)
   parziale (es. "-30 min"): il riquadro è pensato per le serate finite.
 - Le fasi/caselle duplicate singolarmente (menu della fase/casella) copiano
   ancora i file su disco come prima; solo "Duplica format" usa i riferimenti.
+
+## Chiusura v1.3.0 — 24 settembre 2026
+
+- Suite completa: 106 test unitari/API, typecheck, **122/122 end-to-end** verdi.
+- CPU in Live (scripts/misura-cpu.mjs, finestra vera, Live ferma): **3,2 %**
+  (soglia 5 %). Il crossfade è una rampa di guadagno di Web Audio: non aggiunge
+  lavoro al renderer; lo script esistente misura la Live a riposo.
+- Config vecchia: aperta con la build nuova una regia.json di backup del 23
+  settembre (prima di ogni campo nuovo): config, statistiche, diario, duplica e
+  pagina Regia rispondono; nessun campo obbligatorio nuovo.
+- GUIDA_VALERIO.md: una riga per ogni funzione nuova. README: "Novità 1.3.0".
+- **v1.3.0** → dist-pacchetti/Regia-v1.3.0.zip (80 MB): dentro verificati
+  LEGGIMI (versione S8), "Guida per Valerio.txt" aggiornata e la build web nuova.
+  Solo Mac Intel; arm64 da confermare sul Mac di Valerio.
+
+NON FATTO
+- Nessun punto scartato. Unica deviazione: l'obiettivo "5 card sopra il dock"
+  di S9 resta per geometria (vedi S9).
