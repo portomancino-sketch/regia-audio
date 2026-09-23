@@ -27,6 +27,10 @@ Niente cloud, niente abbonamenti: tutto resta sul Mac.
 - In alternativa, dal Terminale: `cd ~/regia && npm start`, poi apri
   <http://localhost:4000> con Chrome.
 - Al primo caricamento premi il pulsante **"Attiva audio"**: serve una volta sola.
+- L'interfaccia parte in **tema chiaro**; il sole/luna in alto passa a scuro o
+  automatico (scelta salvata per dispositivo).
+- Tieni **una sola finestra Regia** aperta: se ne apri un'altra, comanda l'ultima
+  (sulla vecchia c'è "Prendi il controllo" per riprendersi il comando).
 - Il telefono si collega all'indirizzo mostrato nel pannello **📱 Telecomando**
   (c'è anche il QR da inquadrare) e chiede il **PIN** scritto lì.
 

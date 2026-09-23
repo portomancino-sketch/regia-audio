@@ -5,29 +5,38 @@
 1. Doppio click su **Regia.command** sulla Scrivania.
 2. Premi **Attiva audio** quando appare.
 3. Scegli la serata, o creane una con **+ Nuovo format**.
-4. Per ogni fase della serata, aggiungi le caselle dei suoni.
-5. Trascina i file audio sopra le caselle. Fatto: si salva da solo ("Salvato ✓").
-6. Per ogni casella scegli il tipo:
+4. In cima al format c'è **"Prima di iniziare"**: scrivi le cose da ricordare
+   (volumi, telefono carico...). Compaiono all'apertura della serata, a te e all'assistente.
+5. Sotto il nome di ogni fase c'è **"Cosa succede"**: due righe per orientarsi in sala.
+6. Per ogni fase, aggiungi le caselle dei suoni. Trascina i file audio sopra le
+   caselle: si salva da solo ("Salvato").
+7. Scegli il tipo di ogni casella:
    - **Sottofondo** (blu): il suono d'ambiente. Va da solo, in cerchio.
    - **Brano** (viola): musica o dialogo importante. Uno alla volta.
    - **Effetto** (ambra): sparo, campanello. Si somma a tutto.
-7. Scegli cosa fa al suono base: **Resta / Si abbassa / Si ferma**.
-8. Prova tutto in **Live** prima che arrivi la gente.
-9. Collega il telefono dell'assistente: pannello **📱 Telecomando**,
-   inquadra il QR, scrivi il PIN. Metti il blocco schermo del telefono su **Mai**.
-
-Tutto quello che prepari si salva da solo nella cartella **Regia-dati**
-(dentro la tua cartella Inizio). Non serve toccarla, ma non cancellarla.
+   - **Promemoria** (grigio): non suona. È una cosa da fare: in serata si tocca
+     e si segna con la spunta. Le spunte si vedono da tutti i telefoni.
+8. Scegli cosa fa al suono base: **Resta / Si abbassa / Si ferma**.
+9. Prova tutto in **Live** prima che arrivi la gente.
+10. Collega il telefono dell'assistente: pannello **Telecomando**, inquadra il QR,
+    scrivi il PIN. Metti il blocco schermo del telefono su **Mai**.
+11. Il **sole/luna** in alto cambia i colori: chiaro, scuro, o automatico.
+    Ognuno sceglie il suo (Mac e telefono separati).
 
 ## Durante la serata
 
-- Il Mac resta acceso con la Regia aperta. Non chiudere la finestra nera.
+- **Una sola finestra Regia aperta sul Mac.** Se per sbaglio ne apri un'altra,
+  comanda l'ultima aperta; sulla vecchia compare "Prendi il controllo" per
+  riprendersi il comando.
 - L'assistente preme i pulsanti dal telefono. I suoni escono dal Mac.
 - Premere un pulsante = parte il suono. Ripremerlo = si ferma.
+  Sul pulsante che suona ci sono anche **Sfuma** (dolce) e **■** (subito).
+- I **promemoria** si toccano per segnarli fatti (spunta verde).
+  "Azzera spunte" è nel menu ⋯ della fase, in Modifica.
+- La nota della fase sta sopra i pulsanti: un tocco la nasconde, l'icona ⓘ la riapre.
 - Le frecce **‹ ›** cambiano fase.
-- **FADE OUT** (arancione): sfuma tutto dolcemente.
-- **STOP TUTTO** (rosso): silenzio immediato. Per le emergenze.
-- Se il telefono dice **"Regia non collegata"**: guarda il Mac, riapri la
-  pagina della Regia. Il telefono si ricollega da solo.
+- **FADE OUT**: sfuma tutto dolcemente. **STOP TUTTO** (rosso): silenzio immediato.
+- Se il telefono dice **"Regia non collegata"**: guarda il Mac, riapri la pagina
+  della Regia. Il telefono si ricollega da solo.
 - Dalla tastiera del Mac: **ESC** = stop tutto, **F** = fade out,
-  **1–9** = i suoni della fase, **← →** = cambia fase.
+  **1–9** = i suoni della fase (i promemoria non contano), **← →** = cambia fase.

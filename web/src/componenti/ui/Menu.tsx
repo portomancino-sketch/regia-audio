@@ -46,7 +46,7 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
       {aperto && (
         <Vetro
           raggio="campo"
-          className="absolute right-0 top-9 z-50 min-w-40 overflow-hidden bg-[var(--menu-fondo)] py-1"
+          className="absolute right-0 top-9 z-50 min-w-40 overflow-hidden vetro-solido py-1"
         >
           {props.voci.map((v, i) => (
             <button

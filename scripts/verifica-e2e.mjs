@@ -23,6 +23,9 @@ function ko(nome, dettaglio = "") {
   esiti.push({ nome, ok: false, dettaglio });
   console.log(`  ✗ ${nome}${dettaglio ? ` — ${dettaglio}` : ""}`);
 }
+function log(m) {
+  console.log("  … " + m);
+}
 function attendi(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -71,6 +74,13 @@ class Pagina {
       await attendi(200);
     }
     return false;
+  }
+  /** Clicca la card di un cue cercando il titolo esatto (evita le note di fase). */
+  clickCue(titolo) {
+    const t = titolo.replace(/'/g, "\\'");
+    return this.js(
+      `(() => { const card = [...document.querySelectorAll('[role=button]')].find(el => [...el.querySelectorAll('div')].some(d => d.textContent.trim() === '${t}')); if (card) { card.click(); return true; } return false; })()`,
+    );
   }
   /** Clicca il primo bottone il cui testo contiene `testo`. */
   click(testo) {
@@ -236,9 +246,33 @@ osservatore.ultimo
 await regia.click("Live");
 await attendi(400);
 
+// --- 4b. Foglio "Prima di iniziare" e nota della fase ---
+const foglioMac = await regia.finoA(`document.body.innerText.toLowerCase().includes('prima di iniziare')`);
+foglioMac ? ok("Foglio 'Prima di iniziare' all'apertura del format") : ko("Foglio 'Prima di iniziare'");
+await regia.click("Ok, pronti");
+const foglioChiuso = await regia.finoA(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
+foglioChiuso ? ok("'Ok, pronti' chiude il foglio") : ko("Chiusura foglio");
+// icona per riaprirlo
+await regia.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'"); if (b) b.click(); })()`);
+const foglioRiaperto = await regia.finoA(`document.body.innerText.toLowerCase().includes('ok, pronti')`);
+foglioRiaperto ? ok("Il foglio si riapre dall'icona") : ko("Riapertura foglio");
+await regia.click("Ok, pronti");
+await attendi(300);
+// nota della fase: visibile, si chiude con un tocco, si riapre dall'icona
+const notaVisibile = await regia.finoA(`document.body.innerText.includes('Gli ospiti si siedono')`);
+notaVisibile ? ok("Nota della fase visibile in Live") : ko("Nota della fase");
+await regia.click("Gli ospiti si siedono");
+const notaChiusa = await regia.finoA(`!document.body.innerText.includes('Gli ospiti si siedono')`);
+notaChiusa ? ok("La nota si chiude con un tocco") : ko("Chiusura nota fase");
+await regia.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Mostra la nota della fase'); if (b) b.click(); })()`);
+const notaRiaperta = await regia.finoA(`document.body.innerText.includes('Gli ospiti si siedono')`);
+notaRiaperta ? ok("...e si riapre dall'icona") : ko("Riapertura nota fase");
+await regia.click("Gli ospiti si siedono");
+await attendi(300);
+
 // Sottofondo
 const idTreno = fase1.cue.find((c) => c.titolo === "Treno in corsa").id;
-await regia.click("Treno in corsa");
+await regia.clickCue("Treno in corsa");
 let s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno && !a.inPausa));
 s ? ok("Il sottofondo suona (visto dal telecomando)") : ko("Play sottofondo");
 await attendi(900);
@@ -247,7 +281,7 @@ const posTreno1 = s?.attivi.find((a) => a.cueId === idTreno)?.posizioneSec ?? -1
 posTreno1 > 0 ? ok("La posizione avanza", `${posTreno1}s`) : ko("Posizione", `pos=${posTreno1}`);
 
 // Effetto "abbassa": il sottofondo resta attivo, l'effetto si somma
-await regia.click("Campanello");
+await regia.clickCue("Campanello");
 s = await osservatore.finoA((x) => x.attivi.length === 2);
 s ? ok("Effetto sovrapposto al sottofondo") : ko("Effetto sovrapposto");
 s && !s.attivi.find((a) => a.cueId === idTreno)?.inPausa
@@ -262,7 +296,7 @@ const posPrimaDelBrano = osservatore.ultimo.attivi.find((a) => a.cueId === idTre
 const fase2 = demo.fasi[1];
 await regia.click(fase2.nome); // tab della fase 2
 await attendi(300);
-await regia.click("Tensione");
+await regia.clickCue("Tensione");
 s = await osservatore.finoA((x) => x.attivi.find((a) => a.cueId === idTreno)?.inPausa === true);
 s ? ok("Brano 'si ferma': il sottofondo è in pausa") : ko("Sottofondo in pausa col brano");
 // il brano Tensione dura 8 s: aspetta che finisca e che il treno riprenda
@@ -292,17 +326,17 @@ s ? ok("Play dal telecomando: il Mac suona") : ko("Play dal telecomando");
 osservatore.comando({ comando: "sfuma", cueId: idTreno });
 s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
 s ? ok("Comando 'sfuma' del singolo cue dal telecomando") : ko("Comando 'sfuma'");
-await regia.click("Treno in corsa");
+await regia.clickCue("Treno in corsa");
 await osservatore.finoA((x) => x.attivi.length > 0, 5000);
 await regia.click("Sfuma");
 s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
 s ? ok("Bottone 'Sfuma' sulla card attiva") : ko("Bottone 'Sfuma'");
-await regia.click("Treno in corsa");
+await regia.clickCue("Treno in corsa");
 await osservatore.finoA((x) => x.attivi.length > 0, 5000);
 await regia.js(`(() => { const b = [...document.querySelectorAll('button[aria-label="Ferma subito"]')][0]; if (b) { b.click(); return true; } return false; })()`);
 s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
 s ? ok("Bottone '■ Ferma subito' sulla card attiva") : ko("Bottone 'Ferma subito'");
-await regia.click("Treno in corsa");
+await regia.clickCue("Treno in corsa");
 await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 5000);
 
 // --- 6. STOP TUTTO e FADE OUT ---
@@ -311,7 +345,7 @@ s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
 s ? ok("STOP TUTTO fa silenzio") : ko("STOP TUTTO");
 await regia.click(fase1.nome);
 await attendi(300);
-await regia.click("Treno in corsa");
+await regia.clickCue("Treno in corsa");
 await osservatore.finoA((x) => x.attivi.length > 0, 5000);
 await regia.click("FADE OUT");
 s = await osservatore.finoA((x) => x.attivi.length === 0, 5000);
@@ -322,13 +356,25 @@ osservatore.comando({ comando: "fase", faseId: fase2.id });
 s = await osservatore.finoA((x) => x.faseId === fase2.id, 4000);
 s ? ok("La fase cambiata dal telefono cambia per tutti") : ko("Fase condivisa");
 
-// --- 8. Seconda finestra Regia: banner e nessun doppio motore ---
+// --- 8. Seconda finestra Regia: prende il comando, la prima riprende col bottone ---
 const regia2 = await nuovaScheda(`${BASE}/format/${demo.id}`);
-const banner = await regia2.finoA(
-  `document.body.innerText.includes("Un'altra finestra Regia è già attiva")`,
+await attendi(800);
+const bannerPrima = await regia.finoA(
+  `document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
 );
-banner ? ok("Seconda finestra Regia: banner 'già attiva'") : ko("Banner seconda finestra");
+bannerPrima ? ok("La nuova finestra scalza la vecchia (banner sulla prima)") : ko("Banner presa del comando");
+// La prima riprende con "Prendi il controllo".
+await regia.click("Prendi il controllo");
+const ripresa = await regia.finoA(
+  `!document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
+);
+ripresa ? ok("'Prendi il controllo' restituisce il comando alla prima") : ko("Prendi il controllo");
+const bannerSeconda = await regia2.finoA(
+  `document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
+);
+bannerSeconda ? ok("...e la seconda viene avvisata") : ko("Avviso alla seconda finestra");
 await chiudiScheda(regia2);
+await attendi(400);
 
 // --- 9. Chiudi la Regia: il telecomando vede 'motore offline'; riaprila: torna online ---
 await chiudiScheda(regia);
@@ -372,12 +418,51 @@ await attendi(200);
 await tel.click("Confermi");
 const teleFormat = await tel.finoA(`document.body.innerText.toLowerCase().includes('sta suonando')`);
 teleFormat ? ok("Telecomando: format scelto con conferma") : ko("Telecomando: scelta format");
+// il foglio "Prima di iniziare" compare anche sul telefono: chiudilo
+const foglioTel = await tel.finoA(`document.body.innerText.toLowerCase().includes('prima di iniziare')`);
+foglioTel ? ok("Foglio 'Prima di iniziare' anche sul telefono") : ko("Foglio sul telefono");
+await tel.click("Ok, pronti");
+await attendi(300);
+// anche il Mac (regia3) ha aperto il format: chiudi il suo foglio
+await regia3.click("Ok, pronti");
+await attendi(300);
+
+// --- Promemoria: spuntato dal telefono, visibile sul Mac ---
+await tel.clickCue("Chiudere le porte");
+s = await osservatore.finoA((x) => (x.fatti ?? []).length === 1, 5000);
+s ? ok("Promemoria spuntato dal telefono (condiviso nello stato)") : ko("Spunta promemoria");
+const spuntaSulMac = await regia3.finoA(
+  `[...document.querySelectorAll('span')].some(el => el.textContent.trim() === 'fatto')`,
+);
+spuntaSulMac ? ok("...e la spunta si vede sul Mac") : ko("Spunta sul Mac");
+// mai tra gli attivi
+(osservatore.ultimo?.attivi ?? []).length === 0
+  ? ok("Il promemoria non suona (nessun attivo)")
+  : ko("Promemoria tra gli attivi!");
+
 // premi un pulsante dal telefono → il motore (regia3) suona
-await tel.click("Treno in corsa");
+await tel.clickCue("Treno in corsa");
 s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "Treno in corsa"), 5000);
 s ? ok("Pulsante premuto sul telefono → suona sul Mac") : ko("Play dal telefono");
 await tel.click("STOP TUTTO");
 await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// --- Tab congelata: senza battito il comando passa all'altra finestra ---
+await tel.click("STOP TUTTO");
+await attendi(300);
+const regia4 = await nuovaScheda(`${BASE}/`);
+await attendi(800); // regia4 prende il comando, regia3 mostra il banner
+const banner3 = await regia3.finoA(`document.body.innerText.includes('ha preso il comando')`);
+banner3 ? ok("Nuova finestra prende il comando (banner sull'altra)") : ko("Banner pre-congelamento");
+await regia4.cmd("Page.enable");
+await regia4.cmd("Page.setWebLifecycleState", { state: "frozen" });
+log("Finestra congelata: aspetto il timeout del battito (~12 s)...");
+const promossa = await regia3.finoA(`!document.body.innerText.includes('ha preso il comando')`, 20000);
+promossa ? ok("Finestra congelata → l'altra viene promossa da sola") : ko("Promozione dopo congelamento");
+s = await osservatore.finoA((x) => x.motoreOnline === true, 5000);
+s ? ok("...e il telecomando resta operativo") : ko("Telecomando dopo promozione");
+await chiudiScheda(regia4);
+await attendi(400);
 
 // --- Fine ---
 await chiudiScheda(tel);

@@ -391,7 +391,7 @@ export function PaginaTelecomando() {
       </div>
       {foglioAperto && format.notaInizio?.trim() && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="vetro w-full max-w-sm bg-[var(--menu-fondo)] p-6">
+          <div className="vetro w-full max-w-sm vetro-solido p-6">
             <div className="etichetta mb-2">Prima di iniziare</div>
             <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">{format.notaInizio}</p>
             <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>

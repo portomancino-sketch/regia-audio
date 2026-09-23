@@ -435,7 +435,7 @@ export function PaginaRegia() {
       {/* Foglio "Prima di iniziare" */}
       {foglioAperto && formatAperto?.notaInizio?.trim() && vista === "live" && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
-          <div className="vetro w-full max-w-md bg-[var(--menu-fondo)] p-6">
+          <div className="vetro w-full max-w-md vetro-solido p-6">
             <div className="etichetta mb-2">Prima di iniziare</div>
             <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">
               {formatAperto.notaInizio}
