@@ -94,9 +94,20 @@ export type Comando =
 export interface Presentazione {
   ruolo: "regia" | "telecomando";
   pin?: string;
+  /** Solo per le pagine Regia: identifica la finestra e quando si è aperta. */
+  sessioneId?: string;
+  apertaAlle?: number;
 }
 
-export type MessaggioWs = StatoLive | Comando | { tipo: "ping" } | { tipo: "pong" };
+export type MessaggioWs =
+  | StatoLive
+  | Comando
+  | { tipo: "ping" }
+  | { tipo: "pong" }
+  | { tipo: "battito" }
+  | { tipo: "rilascio" }
+  | { tipo: "prendi_comando" }
+  | { tipo: "motore_sostituito" };
 
 export interface InfoRete {
   ip: string;

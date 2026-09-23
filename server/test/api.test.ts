@@ -9,6 +9,7 @@ import type { AddressInfo } from "node:net";
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "regia-test-"));
 process.env.REGIA_DIR = tempDir;
 process.env.REGIA_DEMO = "0";
+process.env.REGIA_BATTITO_MS = "1000"; // battiti veloci nei test
 
 const { creaApp } = await import("../src/app");
 const { app, store, avviaHub } = creaApp();
@@ -214,7 +215,15 @@ describe("duplicazione", () => {
 });
 
 describe("websocket", () => {
-  function connetti(presentazione: object): Promise<{ ws: WebSocket; messaggi: unknown[]; chiusura: Promise<{ code: number; reason: string }> }> {
+  interface Conn {
+    ws: WebSocket;
+    messaggi: unknown[];
+    chiusura: Promise<{ code: number; reason: string }>;
+    battito?: NodeJS.Timeout;
+    chiudi: () => void;
+  }
+
+  function connetti(presentazione: object, conBattito = false): Promise<Conn> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(`ws://127.0.0.1:${porta}/ws`);
       const messaggi: unknown[] = [];
@@ -224,11 +233,31 @@ describe("websocket", () => {
       ws.on("message", (d) => messaggi.push(JSON.parse(String(d))));
       ws.on("open", () => {
         ws.send(JSON.stringify(presentazione));
-        setTimeout(() => resolve({ ws, messaggi, chiusura }), 200);
+        const conn: Conn = {
+          ws,
+          messaggi,
+          chiusura,
+          chiudi: () => {
+            if (conn.battito) clearInterval(conn.battito);
+            ws.close();
+          },
+        };
+        if (conBattito) {
+          conn.battito = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ tipo: "battito" }));
+          }, 250);
+        }
+        setTimeout(() => resolve(conn), 200);
       });
       ws.on("error", reject);
     });
   }
+
+  const tipi = (c: Conn) => c.messaggi.map((m) => (m as { tipo: string }).tipo);
+  const ultimoRuolo = (c: Conn) =>
+    (c.messaggi.filter((m) => (m as { tipo: string }).tipo === "ruoloAssegnato").at(-1) as
+      | { motore: boolean }
+      | undefined)?.motore;
 
   it("telecomando con PIN errato viene chiuso con motivo 'PIN errato'", async () => {
     const { chiusura } = await connetti({ ruolo: "telecomando", pin: "0000x" });
@@ -237,14 +266,10 @@ describe("websocket", () => {
     expect(esito.reason).toBe("PIN errato");
   });
 
-  it("la regia riceve il ruolo di motore e lo stato; il telecomando con PIN giusto riceve lo stato", async () => {
-    const regia = await connetti({ ruolo: "regia" });
-    const ruolo = regia.messaggi.find((m) => (m as { tipo: string }).tipo === "ruoloAssegnato") as {
-      motore: boolean;
-    };
-    expect(ruolo.motore).toBe(true);
+  it("la regia diventa motore e lo stato viene reinviato alle connessioni", async () => {
+    const regia = await connetti({ ruolo: "regia", sessioneId: "a" }, true);
+    expect(ultimoRuolo(regia)).toBe(true);
 
-    // Il motore manda uno stato: il server lo conserva.
     regia.ws.send(
       JSON.stringify({ tipo: "stato", formatId: "f1", faseId: "x1", master: 0.7, attivi: [], motoreOnline: true }),
     );
@@ -256,43 +281,116 @@ describe("websocket", () => {
       faseId: string;
       motoreOnline: boolean;
     };
-    expect(stato.faseId).toBe("x1"); // lo stato viene reinviato alla connessione
+    expect(stato.faseId).toBe("x1");
     expect(stato.motoreOnline).toBe(true);
 
     // Un comando dal telecomando arriva al motore.
     const prima = regia.messaggi.length;
     tel.ws.send(JSON.stringify({ tipo: "comando", comando: "play", cueId: "c9" }));
     await new Promise((r) => setTimeout(r, 200));
-    const comandi = regia.messaggi.slice(prima).filter((m) => (m as { tipo: string }).tipo === "comando");
-    expect(comandi).toHaveLength(1);
+    expect(regia.messaggi.slice(prima).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(1);
 
     // Il motore si scollega: il telecomando viene avvisato.
-    regia.ws.close();
+    regia.chiudi();
     await new Promise((r) => setTimeout(r, 300));
     const ultimo = tel.messaggi.filter((m) => (m as { tipo: string }).tipo === "stato").at(-1) as {
       motoreOnline: boolean;
     };
     expect(ultimo.motoreOnline).toBe(false);
-    tel.ws.close();
+    tel.chiudi();
   });
 
-  it("una seconda finestra Regia non è il motore", async () => {
-    const prima = await connetti({ ruolo: "regia" });
-    const seconda = await connetti({ ruolo: "regia" });
-    const ruolo2 = seconda.messaggi.find((m) => (m as { tipo: string }).tipo === "ruoloAssegnato") as {
-      motore: boolean;
-    };
-    expect(ruolo2.motore).toBe(false);
-
-    // Se la prima si chiude, la seconda viene promossa.
-    prima.ws.close();
-    await new Promise((r) => setTimeout(r, 300));
-    const promozione = seconda.messaggi.filter((m) => (m as { tipo: string }).tipo === "ruoloAssegnato").at(-1) as {
-      motore: boolean;
-    };
-    expect(promozione.motore).toBe(true);
-    seconda.ws.close();
+  it("l'ultima finestra Regia scalza la precedente; i comandi vanno solo a lei", async () => {
+    const prima = await connetti({ ruolo: "regia", sessioneId: "p1" }, true);
+    const seconda = await connetti({ ruolo: "regia", sessioneId: "p2" }, true);
     await new Promise((r) => setTimeout(r, 100));
+
+    expect(ultimoRuolo(seconda)).toBe(true);
+    expect(tipi(prima)).toContain("motore_sostituito");
+
+    // I comandi arrivano SOLO alla seconda (il motore corrente).
+    const pin = store.config.impostazioni.pin;
+    const tel = await connetti({ ruolo: "telecomando", pin });
+    const nPrima = prima.messaggi.length;
+    const nSeconda = seconda.messaggi.length;
+    tel.ws.send(JSON.stringify({ tipo: "comando", comando: "stopTutto" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(prima.messaggi.slice(nPrima).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(0);
+    expect(seconda.messaggi.slice(nSeconda).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(1);
+
+    // "Prendi il controllo": la prima riprende il comando, la seconda è avvisata.
+    prima.ws.send(JSON.stringify({ tipo: "prendi_comando" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(ultimoRuolo(prima)).toBe(true);
+    expect(tipi(seconda)).toContain("motore_sostituito");
+
+    prima.chiudi();
+    seconda.chiudi();
+    tel.chiudi();
+    await new Promise((r) => setTimeout(r, 200));
+  });
+
+  it("senza battito il motore va offline e un'altra Regia viene promossa", async () => {
+    // Il motore NON manda battiti (finestra congelata simulata)...
+    const congelata = await connetti({ ruolo: "regia", sessioneId: "z1" });
+    // ...ma la promozione deve scegliere l'altra finestra sana? No: l'ultima
+    // presentata è il motore. Qui la congelata è l'unica: prima verifichiamo
+    // il passaggio a offline.
+    const pin = store.config.impostazioni.pin;
+    const tel = await connetti({ ruolo: "telecomando", pin });
+    const offline = await new Promise<boolean>((res) => {
+      const inizio = Date.now();
+      const t = setInterval(() => {
+        const ultimo = tel.messaggi.filter((m) => (m as { tipo: string }).tipo === "stato").at(-1) as
+          | { motoreOnline: boolean }
+          | undefined;
+        if (ultimo && !ultimo.motoreOnline) {
+          clearInterval(t);
+          res(true);
+        } else if (Date.now() - inizio > 4000) {
+          clearInterval(t);
+          res(false);
+        }
+      }, 100);
+    });
+    expect(offline).toBe(true); // entro il timeout del battito (1 s nei test)
+    expect(tipi(congelata)).toContain("motore_sostituito");
+
+    // Ora una finestra sana si collega e diventa motore...
+    const sana = await connetti({ ruolo: "regia", sessioneId: "z2" }, true);
+    expect(ultimoRuolo(sana)).toBe(true);
+    // ...poi si congela anche lei (stop battiti): la prima viene promossa.
+    if (sana.battito) clearInterval(sana.battito);
+    const promossa = await new Promise<boolean>((res) => {
+      const inizio = Date.now();
+      const t = setInterval(() => {
+        if (ultimoRuolo(congelata) === true && tipi(congelata).filter((x) => x === "ruoloAssegnato").length >= 2) {
+          clearInterval(t);
+          res(true);
+        } else if (Date.now() - inizio > 4000) {
+          clearInterval(t);
+          res(false);
+        }
+      }, 100);
+    });
+    expect(promossa).toBe(true);
+
+    congelata.chiudi();
+    sana.chiudi();
+    tel.chiudi();
+    await new Promise((r) => setTimeout(r, 200));
+  });
+
+  it("'rilascio' passa subito il comando a un'altra finestra", async () => {
+    const a = await connetti({ ruolo: "regia", sessioneId: "r1" }, true);
+    const b = await connetti({ ruolo: "regia", sessioneId: "r2" }, true);
+    // b è il motore (ultima). b rilascia → a viene promossa.
+    b.ws.send(JSON.stringify({ tipo: "rilascio" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(ultimoRuolo(a)).toBe(true);
+    a.chiudi();
+    b.chiudi();
+    await new Promise((r) => setTimeout(r, 200));
   });
 });
 

@@ -24,6 +24,7 @@ export function PaginaRegia() {
   const [vista, setVista] = useState<Vista>("modifica");
   const [sonoIlMotore, setSonoIlMotore] = useState(false);
   const sonoIlMotoreRef = useRef(false);
+  const sessione = useRef({ sessioneId: crypto.randomUUID(), apertaAlle: Date.now() });
   const [audioAttivo, setAudioAttivo] = useState(false);
   const [attivi, setAttivi] = useState<CueAttivo[]>([]);
   const [masterUi, setMasterUi] = useState(0.8);
@@ -184,10 +185,19 @@ export function PaginaRegia() {
   useEffect(() => {
     void ricaricaConfig().then((c) => setMasterUi(c.impostazioni.volumeMaster));
 
-    const ws = new ClientWs("regia", () => null, {
+    const ws = new ClientWs(
+      "regia",
+      () => null,
+      {
       ruoloAssegnato: (motore) => {
         sonoIlMotoreRef.current = motore;
         setSonoIlMotore(motore);
+      },
+      motoreSostituito: () => {
+        // Un'altra finestra ha preso il comando: qui si fa silenzio.
+        motoreRef.current?.stopTutto();
+        sonoIlMotoreRef.current = false;
+        setSonoIlMotore(false);
       },
       comando: (c) => {
         if (sonoIlMotoreRef.current) gestisciComando(c);
@@ -205,8 +215,19 @@ export function PaginaRegia() {
       },
       telefoni: setTelefoni,
       configCambiata: () => void ricaricaConfig(),
-    });
+      },
+      () => sessione.current,
+    );
     wsRef.current = ws;
+
+    // La pagina si sgancia quando si chiude e si ripresenta quando torna visibile.
+    const suPagehide = () => ws.invia({ tipo: "rilascio" });
+    window.addEventListener("pagehide", suPagehide);
+    window.addEventListener("beforeunload", suPagehide);
+    const suVisibile = () => {
+      if (document.visibilityState === "visible") ws.invia({ tipo: "prendi_comando" });
+    };
+    document.addEventListener("visibilitychange", suVisibile);
 
     const suPopstate = () => setPercorso(location.pathname);
     window.addEventListener("popstate", suPopstate);
@@ -228,6 +249,9 @@ export function PaginaRegia() {
 
     return () => {
       ws.chiudi();
+      window.removeEventListener("pagehide", suPagehide);
+      window.removeEventListener("beforeunload", suPagehide);
+      document.removeEventListener("visibilitychange", suVisibile);
       window.removeEventListener("popstate", suPopstate);
       document.removeEventListener("visibilitychange", suVisibilita);
       void wakeLock?.release();
@@ -248,6 +272,14 @@ export function PaginaRegia() {
     setAudioAttivo(m.sbloccato);
     inviaStato();
   }, [sonoIlMotore, config, inviaStato]);
+
+  // Battito: il motore si fa sentire ogni 5 s (una finestra congelata smette).
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (sonoIlMotoreRef.current) wsRef.current?.invia({ tipo: "battito" });
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
 
   // Tick: aggiorna posizioni e manda lo stato mentre qualcosa suona.
   useEffect(() => {
@@ -475,10 +507,17 @@ export function PaginaRegia() {
           <PannelloTelecomando telefoni={telefoni} />
         </div>
         {!sonoIlMotore && (
-          <div className="mx-auto mt-2 max-w-6xl">
+          <div className="mx-auto mt-2 flex max-w-6xl items-center gap-2">
             <span className="inline-block rounded-full border border-vetro-bordo bg-velo px-3 py-1 text-[12px] text-testo-2">
-              Un'altra finestra Regia è già attiva: qui puoi modificare, ma i suoni escono dall'altra finestra.
+              Un'altra finestra Regia ha preso il comando.
             </span>
+            <Pulsante
+              variante="primario"
+              misura="sm"
+              onClick={() => wsRef.current?.invia({ tipo: "prendi_comando" })}
+            >
+              Prendi il controllo
+            </Pulsante>
           </div>
         )}
       </header>

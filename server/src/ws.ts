@@ -1,7 +1,8 @@
 // Il canale in diretta tra la pagina Regia (il "motore") e i telecomandi.
+// Regola: comanda SEMPRE l'ultima pagina Regia che si presenta.
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server, IncomingMessage } from "node:http";
-import type { StatoLive, Comando, Presentazione } from "../../shared/tipi";
+import type { StatoLive, Presentazione } from "../../shared/tipi";
 import type { Store } from "./store";
 
 interface Client {
@@ -9,6 +10,7 @@ interface Client {
   ruolo: "regia" | "telecomando";
   ip: string;
   vivo: boolean;
+  sessioneId: string | null;
 }
 
 const STATO_VUOTO: Omit<StatoLive, "motoreOnline"> = {
@@ -19,11 +21,17 @@ const STATO_VUOTO: Omit<StatoLive, "motoreOnline"> = {
   attivi: [],
 };
 
+// Se il motore non manda un battito per questo tempo, è considerato spento
+// (una finestra congelata dal browser risponde ai ping di rete ma non batte).
+const BATTITO_TIMEOUT_MS = Number(process.env.REGIA_BATTITO_MS || 12_000);
+
 export class Hub {
   private clienti = new Set<Client>();
   private motore: Client | null = null;
+  private ultimoBattito = 0;
   private ultimoStato: StatoLive | null = null;
-  private intervallo: NodeJS.Timeout;
+  private intervalloPing: NodeJS.Timeout;
+  private intervalloBattito: NodeJS.Timeout;
 
   constructor(
     server: Server,
@@ -31,8 +39,9 @@ export class Hub {
   ) {
     const wss = new WebSocketServer({ server, path: "/ws" });
     wss.on("connection", (ws, req) => this.nuovaConnessione(ws, req));
+
     // Ping/pong ogni 10 s: chi non risponde viene scollegato.
-    this.intervallo = setInterval(() => {
+    this.intervalloPing = setInterval(() => {
       for (const c of [...this.clienti]) {
         if (!c.vivo) {
           c.ws.terminate();
@@ -42,7 +51,43 @@ export class Hub {
         c.ws.ping();
       }
     }, 10_000);
-    this.intervallo.unref();
+    this.intervalloPing.unref();
+
+    // Battito del motore: senza battito per troppo tempo → offline o promozione.
+    this.intervalloBattito = setInterval(
+      () => {
+        if (!this.motore) return;
+        if (Date.now() - this.ultimoBattito <= BATTITO_TIMEOUT_MS) return;
+        const congelato = this.motore;
+        this.motore = null;
+        this.invia(congelato.ws, { tipo: "motore_sostituito" });
+        this.promuoviOppureOffline(congelato);
+      },
+      Math.max(250, Math.min(2000, BATTITO_TIMEOUT_MS / 4)),
+    );
+    this.intervalloBattito.unref();
+  }
+
+  /** Rende `client` il motore; la pagina precedente viene avvisata. */
+  private nominaMotore(client: Client): void {
+    const precedente = this.motore;
+    this.motore = client;
+    this.ultimoBattito = Date.now();
+    if (precedente && precedente !== client) {
+      this.invia(precedente.ws, { tipo: "motore_sostituito" });
+    }
+    this.invia(client.ws, { tipo: "ruoloAssegnato", motore: true });
+  }
+
+  /** Il motore se n'è andato: promuovi un'altra pagina Regia, o segnala offline. */
+  private promuoviOppureOffline(escluso: Client | null): void {
+    const prossima = [...this.clienti].find((c) => c.ruolo === "regia" && c !== escluso);
+    if (prossima) {
+      this.nominaMotore(prossima);
+    } else {
+      this.ultimoStato = { ...this.statoCorrente(), motoreOnline: false };
+      this.aTutti(this.ultimoStato);
+    }
   }
 
   private nuovaConnessione(ws: WebSocket, req: IncomingMessage): void {
@@ -72,15 +117,12 @@ export class Hub {
           ws.close(4001, "PIN errato");
           return;
         }
-        client = { ws, ruolo: p.ruolo, ip, vivo: true };
+        client = { ws, ruolo: p.ruolo, ip, vivo: true, sessioneId: p.sessioneId ?? null };
         this.clienti.add(client);
 
-        if (p.ruolo === "regia") {
-          // Un solo motore: la prima finestra Regia suona, le altre no.
-          const sonoIlMotore = this.motore === null;
-          if (sonoIlMotore) this.motore = client;
-          this.invia(ws, { tipo: "ruoloAssegnato", motore: sonoIlMotore });
-        }
+        // L'ULTIMA pagina Regia che si presenta prende il comando.
+        if (p.ruolo === "regia") this.nominaMotore(client);
+
         // Stato corrente a chi si collega.
         this.invia(ws, this.statoCorrente());
         this.aggiornaTelefoni();
@@ -93,8 +135,29 @@ export class Hub {
         return;
       }
 
+      if (m.tipo === "battito") {
+        if (client === this.motore) this.ultimoBattito = Date.now();
+        return;
+      }
+
+      if (m.tipo === "prendi_comando") {
+        // Una pagina Regia (ri)prende il comando.
+        if (client.ruolo === "regia" && client !== this.motore) this.nominaMotore(client);
+        else if (client === this.motore) this.ultimoBattito = Date.now();
+        return;
+      }
+
+      if (m.tipo === "rilascio") {
+        // La pagina sta per chiudersi: passa subito il comando.
+        if (client === this.motore) {
+          this.motore = null;
+          this.promuoviOppureOffline(client);
+        }
+        return;
+      }
+
       if (m.tipo === "comando") {
-        // I comandi vanno al motore, che è l'unico a suonare.
+        // I comandi vanno SOLO al motore corrente.
         if (this.motore && this.motore.ws.readyState === WebSocket.OPEN) {
           this.motore.ws.send(JSON.stringify(msg));
         }
@@ -104,6 +167,7 @@ export class Hub {
       if (m.tipo === "stato" && client === this.motore) {
         const stato = msg as StatoLive;
         this.ultimoStato = { ...stato, motoreOnline: true };
+        this.ultimoBattito = Date.now(); // anche lo stato vale come battito
         // Il volume master resta salvato nelle impostazioni.
         if (Math.abs(this.store.config.impostazioni.volumeMaster - stato.master) > 0.001) {
           this.store.config.impostazioni.volumeMaster = stato.master;
@@ -118,15 +182,7 @@ export class Hub {
       this.clienti.delete(client);
       if (client === this.motore) {
         this.motore = null;
-        // Se c'è un'altra finestra Regia aperta, diventa lei il motore.
-        const prossima = [...this.clienti].find((c) => c.ruolo === "regia");
-        if (prossima) {
-          this.motore = prossima;
-          this.invia(prossima.ws, { tipo: "ruoloAssegnato", motore: true });
-        } else {
-          this.ultimoStato = { ...this.statoCorrente(), motoreOnline: false };
-          this.aTutti(this.ultimoStato);
-        }
+        this.promuoviOppureOffline(client);
       }
       this.aggiornaTelefoni();
     });
@@ -135,7 +191,7 @@ export class Hub {
   }
 
   private statoCorrente(): StatoLive {
-    if (this.ultimoStato) return this.ultimoStato;
+    if (this.ultimoStato) return { ...this.ultimoStato, motoreOnline: this.motore !== null };
     return {
       ...STATO_VUOTO,
       master: this.store.config.impostazioni.volumeMaster,
@@ -178,6 +234,7 @@ export class Hub {
   }
 
   chiudi(): void {
-    clearInterval(this.intervallo);
+    clearInterval(this.intervalloPing);
+    clearInterval(this.intervalloBattito);
   }
 }

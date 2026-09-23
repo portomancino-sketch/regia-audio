@@ -5,6 +5,7 @@ export interface MessaggiRicevuti {
   stato?: (s: StatoLive) => void;
   comando?: (c: Comando) => void;
   ruoloAssegnato?: (motore: boolean) => void;
+  motoreSostituito?: () => void;
   telefoni?: (telefoni: { ip: string }[]) => void;
   configCambiata?: () => void;
   connesso?: (ok: boolean) => void;
@@ -23,6 +24,8 @@ export class ClientWs {
     private ruolo: "regia" | "telecomando",
     private pin: () => string | null,
     private su: MessaggiRicevuti,
+    /** Campi extra della presentazione (id di sessione della pagina Regia). */
+    private extra: () => Record<string, unknown> = () => ({}),
   ) {
     this.apri();
   }
@@ -36,7 +39,7 @@ export class ClientWs {
     ws.onopen = () => {
       this.attesaMs = 1000;
       this.ultimoMessaggio = Date.now();
-      ws.send(JSON.stringify({ ruolo: this.ruolo, pin: this.pin() ?? undefined }));
+      ws.send(JSON.stringify({ ruolo: this.ruolo, pin: this.pin() ?? undefined, ...this.extra() }));
       this.su.connesso?.(true);
       // Ping ogni 10 s; se il server tace per 25 s, si ricomincia.
       this.timerPing = window.setInterval(() => {
@@ -59,6 +62,7 @@ export class ClientWs {
       if (msg.tipo === "stato") this.su.stato?.(msg as unknown as StatoLive);
       else if (msg.tipo === "comando") this.su.comando?.(msg as unknown as Comando);
       else if (msg.tipo === "ruoloAssegnato") this.su.ruoloAssegnato?.((msg as { motore?: boolean }).motore === true);
+      else if (msg.tipo === "motore_sostituito") this.su.motoreSostituito?.();
       else if (msg.tipo === "telefoni") this.su.telefoni?.((msg as { telefoni?: { ip: string }[] }).telefoni ?? []);
       else if (msg.tipo === "configCambiata") this.su.configCambiata?.();
     };
