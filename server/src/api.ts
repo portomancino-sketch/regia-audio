@@ -10,12 +10,12 @@ import AdmZip from "adm-zip";
 import { parseFile } from "music-metadata";
 import type { Config, Cue, Fase, Format } from "../../shared/tipi";
 import { puoMettereInEvidenza } from "../../shared/sempre";
-import { scriviEvento } from "./diario";
+import { scriviEvento, riepilogoSerata, csvGiornoConRiepilogo, maiUsati, invalidaMaiUsati } from "./diario";
 import type { Store } from "./store";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
 import { indirizzoLan } from "./rete";
-import { csvGiorno, elencoGiorni, leggiGiorno } from "./diario";
+import { elencoGiorni, leggiGiorno } from "./diario";
 import { PORTA } from "./porta";
 
 const ESTENSIONI_AUDIO = new Set(["mp3", "wav", "m4a", "aac", "ogg"]);
@@ -101,6 +101,7 @@ function cueNuovo(ordine: number, parziale?: Partial<Cue>): Cue {
 export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub | null): void {
   const cambiata = () => {
     store.salva();
+    invalidaMaiUsati();
     hub()?.configCambiata();
   };
 
@@ -166,9 +167,18 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/formats/:id", async (req, reply) => {
     const format = trovaFormat(store.config, (req.params as { id: string }).id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
-    const { nome, notaInizio, crossfade } = (req.body ?? {}) as { nome?: string; notaInizio?: string; crossfade?: number };
+    const { nome, notaInizio, crossfade, archiviato } = (req.body ?? {}) as {
+      nome?: string;
+      notaInizio?: string;
+      crossfade?: number;
+      archiviato?: boolean;
+    };
     if (typeof nome === "string" && nome.trim()) format.nome = nome.trim();
     if (typeof notaInizio === "string") format.notaInizio = notaInizio;
+    if (typeof archiviato === "boolean") {
+      if (archiviato) format.archiviato = true;
+      else delete format.archiviato;
+    }
     if (typeof crossfade === "number" && Number.isFinite(crossfade)) format.crossfade = Math.round(Math.min(5, Math.max(0, crossfade)) * 10) / 10;
     cambiata();
     return format;
@@ -184,19 +194,19 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.post("/api/formats/:id/duplica", async (req, reply) => {
     const format = trovaFormat(store.config, (req.params as { id: string }).id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
+    // La copia riusa gli STESSI file audio (riferimenti, non copie su disco).
     const copia: Format = {
+      ...format,
       id: randomUUID(),
       nome: `${format.nome} (copia)`,
       ordine: store.config.formats.length,
       fasi: format.fasi.map((fase) => ({
+        ...fase,
         id: randomUUID(),
-        nome: fase.nome,
-        ordine: fase.ordine,
-        sempre: fase.sempre,
-        nota: fase.nota,
-        cue: fase.cue.map((c, j) => duplicaCue(c, j)),
+        cue: fase.cue.map((c, j) => ({ ...c, id: randomUUID(), ordine: j })),
       })),
     };
+    delete copia.archiviato;
     store.config.formats.push(copia);
     cambiata();
     return copia;
@@ -206,7 +216,11 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const id = (req.params as { id: string }).id;
     const format = trovaFormat(store.config, id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
-    for (const fase of format.fasi) for (const cue of fase.cue) cancellaFileCue(cue);
+    // I file usati anche da un altro format (copie per riferimento) restano.
+    const altrove = new Set(
+      store.config.formats.filter((f) => f.id !== id).flatMap((f) => f.fasi).flatMap((f) => f.cue).map((c) => c.file),
+    );
+    for (const fase of format.fasi) for (const cue of fase.cue) if (!altrove.has(cue.file)) cancellaFileCue(cue);
     store.config.formats = store.config.formats.filter((f) => f.id !== id);
     store.config.formats.forEach((f, i) => (f.ordine = i));
     cambiata();
@@ -233,9 +247,15 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/fasi/:id", async (req, reply) => {
     const trovata = trovaFase(store.config, (req.params as { id: string }).id);
     if (!trovata) return reply.status(404).send({ errore: "Fase non trovata" });
-    const { nome, nota } = (req.body ?? {}) as { nome?: string; nota?: string };
+    const { nome, nota, durataPrevista } = (req.body ?? {}) as { nome?: string; nota?: string; durataPrevista?: number | null };
     if (typeof nome === "string" && nome.trim() && !trovata.fase.sempre) trovata.fase.nome = nome.trim();
     if (typeof nota === "string") trovata.fase.nota = nota;
+    if (durataPrevista === null) delete trovata.fase.durataPrevista;
+    else if (typeof durataPrevista === "number" && Number.isFinite(durataPrevista) && !trovata.fase.sempre) {
+      const n = Math.round(durataPrevista);
+      if (n >= 1) trovata.fase.durataPrevista = Math.min(600, n);
+      else delete trovata.fase.durataPrevista;
+    }
     cambiata();
     return trovata.fase;
   });
@@ -514,16 +534,20 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
 
   app.get("/api/diario", async () => elencoGiorni());
 
-  app.get("/api/diario/:data", async (req) => ({
-    eventi: leggiGiorno((req.params as { data: string }).data),
-  }));
+  app.get("/api/diario/:data", async (req) => {
+    const eventi = leggiGiorno((req.params as { data: string }).data);
+    return { eventi, riepilogo: riepilogoSerata(eventi, store.config) };
+  });
 
   app.get("/api/diario/:data/csv", async (req, reply) => {
     const data = (req.params as { data: string }).data;
     reply.header("Content-Type", "text/csv; charset=utf-8");
     reply.header("Content-Disposition", `attachment; filename="diario-${data}.csv"`);
-    return csvGiorno(data);
+    return csvGiornoConRiepilogo(data, store.config);
   });
+
+  /** Le caselle mai partite nelle ultime 10 serate, per format (cache in memoria). */
+  app.get("/api/statistiche/mai-usati", async () => maiUsati(store.config));
 
   // ---- Rete ----
 

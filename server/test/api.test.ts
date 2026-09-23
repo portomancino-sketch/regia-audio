@@ -319,7 +319,47 @@ describe("upload audio", () => {
 });
 
 describe("duplicazione", () => {
-  it("duplicare un format copia anche i file audio", async () => {
+  it("duplicare un format: id nuovi per fasi e caselle, gli STESSI file audio (riferimenti); eliminare l'originale non tocca i file in comune", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Orig" } })).json();
+    const fase = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Uno" } })).json();
+    await app.inject({ method: "PATCH", url: `/api/fasi/${fase.id}`, payload: { durataPrevista: 25 } });
+    await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { crossfade: 3.5, notaInizio: "Ciao" } });
+    const cue = (await app.inject({ method: "POST", url: `/api/fasi/${fase.id}/cue`, payload: { titolo: "Suono" } })).json();
+    const { payload, headers } = multipart("suono.wav", wavFinto());
+    await app.inject({ method: "POST", url: `/api/cue/${cue.id}/audio`, payload, headers });
+
+    const copia = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/duplica` })).json();
+    expect(copia.nome).toBe("Orig (copia)");
+    expect(copia.crossfade).toBe(3.5);
+    expect(copia.notaInizio).toBe("Ciao");
+    expect(copia.fasi.some((x: { sempre?: boolean }) => x.sempre)).toBe(true);
+    const faseCopiata = copia.fasi.find((x: { sempre?: boolean }) => !x.sempre);
+    expect(faseCopiata.id).not.toBe(fase.id);
+    expect(faseCopiata.durataPrevista).toBe(25);
+    const cueCopiato = faseCopiata.cue[0];
+    expect(cueCopiato.id).not.toBe(cue.id);
+    expect(cueCopiato.file).toBe(`${cue.id}.wav`); // stesso file, non una copia
+    expect(fs.existsSync(path.join(tempDir, "audio", cueCopiato.file))).toBe(true);
+
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+    expect(fs.existsSync(path.join(tempDir, "audio", cueCopiato.file))).toBe(true); // usato dalla copia: resta
+    await app.inject({ method: "DELETE", url: `/api/formats/${copia.id}` });
+    expect(fs.existsSync(path.join(tempDir, "audio", cueCopiato.file))).toBe(false);
+  });
+
+  it("archivia e ripristina un format; durata prevista solo sulle fasi normali", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Vecchio" } })).json();
+    let r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { archiviato: true } });
+    expect(r.json().archiviato).toBe(true);
+    r = await app.inject({ method: "PATCH", url: `/api/formats/${format.id}`, payload: { archiviato: false } });
+    expect(r.json().archiviato).toBeUndefined();
+    const sempre = format.fasi.find((f: { sempre?: boolean }) => f.sempre);
+    r = await app.inject({ method: "PATCH", url: `/api/fasi/${sempre.id}`, payload: { durataPrevista: 10 } });
+    expect(r.json().durataPrevista).toBeUndefined();
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+  });
+
+  it("duplicare un format (vecchio test): la copia ha i file e il suo nome", async () => {
     const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Orig" } })).json();
     const fase = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: {} })).json();
     const cue = (await app.inject({ method: "POST", url: `/api/fasi/${fase.id}/cue`, payload: {} })).json();
@@ -331,7 +371,7 @@ describe("duplicazione", () => {
     expect(copia.nome).toBe("Orig (copia)");
     const cueCopiato = copia.fasi.find((x: { sempre?: boolean }) => !x.sempre).cue[0];
     expect(cueCopiato.id).not.toBe(cue.id);
-    expect(cueCopiato.file).not.toBe(`${cue.id}.wav`);
+    expect(cueCopiato.file).toBe(`${cue.id}.wav`); // S12: riferimento allo stesso file
     expect(fs.existsSync(path.join(tempDir, "audio", cueCopiato.file))).toBe(true);
 
     await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });

@@ -41,6 +41,8 @@ export interface Fase {
   nota?: string;
   /** La riga "Sempre": visibile in ogni fase, non eliminabile, una per format. */
   sempre?: boolean;
+  /** Durata prevista della fase in minuti (per l'orologio di scaletta). */
+  durataPrevista?: number;
 }
 
 export interface Format {
@@ -52,6 +54,8 @@ export interface Format {
   notaInizio?: string;
   /** Passaggio morbido tra sottofondi, in secondi (0–5, default 2). */
   crossfade?: number;
+  /** Archiviato: sparisce da Live, Telecomando e Home principale (resta sotto "Archiviati"). */
+  archiviato?: boolean;
 }
 
 export interface Impostazioni {
