@@ -35,7 +35,7 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
         Telecomando{props.telefoni.length > 0 && ` (${props.telefoni.length})`}
       </Pulsante>
       {aperto && (
-        <Vetro className="absolute right-0 top-14 z-50 w-80 bg-[#14181e]/95 p-5">
+        <Vetro className="absolute right-0 top-14 z-50 w-80 bg-[var(--menu-fondo)] p-5">
           {!rete ? (
             <p className="text-testo-2">Un attimo…</p>
           ) : (
@@ -57,7 +57,7 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
                   onChange={(e) => setPinBozza(e.target.value.replace(/\D/g, ""))}
                   onBlur={() => void salvaPin()}
                   aria-label="PIN del telecomando"
-                  className="vetro vetro-campo w-28 bg-white/5 px-2 py-1.5 text-center text-[24px] font-semibold tabular-nums tracking-[0.3em] text-testo focus:border-brand-chiaro focus:outline-none"
+                  className="vetro vetro-campo w-28 bg-velo px-2 py-1.5 text-center text-[24px] font-semibold tabular-nums tracking-[0.3em] text-testo focus:border-brand-chiaro focus:outline-none"
                 />
               </div>
               <div className="text-[13px] text-testo-2">

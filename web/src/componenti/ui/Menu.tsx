@@ -39,14 +39,14 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
           setAperto(!aperto);
           setDaConfermare(null);
         }}
-        className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-white/5 hover:text-testo"
+        className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
       >
         <MoreHorizontal size={18} strokeWidth={1.75} />
       </button>
       {aperto && (
         <Vetro
           raggio="campo"
-          className="absolute right-0 top-9 z-50 min-w-40 overflow-hidden bg-[#181c22]/95 py-1"
+          className="absolute right-0 top-9 z-50 min-w-40 overflow-hidden bg-[var(--menu-fondo)] py-1"
         >
           {props.voci.map((v, i) => (
             <button
@@ -66,8 +66,8 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
                 v.pericolosa
                   ? daConfermare === i
                     ? "bg-rosso/20 text-rosso"
-                    : "text-rosso/90 hover:bg-white/5"
-                  : "text-testo hover:bg-white/5"
+                    : "text-rosso/90 hover:bg-velo"
+                  : "text-testo hover:bg-velo"
               }`}
             >
               {v.icona}

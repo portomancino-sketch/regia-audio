@@ -15,6 +15,8 @@ export function BarraLive(props: {
   onStop: () => void;
   disabilitata?: boolean;
   telefono?: boolean;
+  /** Contenuto extra nel dock (es. l'interruttore del tema sul telefono). */
+  extra?: React.ReactNode;
 }) {
   const { attivi } = props;
   return (
@@ -54,6 +56,7 @@ export function BarraLive(props: {
         </span>
       </div>
       <div className="flex items-center gap-2">
+        {props.extra}
         <Pulsante
           variante="secondario"
           misura={props.telefono ? "md" : "lg"}

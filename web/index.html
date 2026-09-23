@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f1117" />
     <title>Regia</title>
+    <script>
+      // Applica il tema salvato prima di disegnare, per evitare lampi di colore.
+      (function () {
+        var chiave = location.pathname.indexOf("/telecomando") === 0 ? "tema-telecomando" : "tema-regia";
+        var scelta = "chiaro";
+        try {
+          scelta = localStorage.getItem(chiave) || "chiaro";
+        } catch (e) {}
+        var tema =
+          scelta === "auto"
+            ? matchMedia("(prefers-color-scheme: dark)").matches
+              ? "scuro"
+              : "chiaro"
+            : scelta;
+        document.documentElement.dataset.tema = tema;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

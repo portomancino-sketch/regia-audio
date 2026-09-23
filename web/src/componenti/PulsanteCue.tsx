@@ -89,7 +89,7 @@ export function PulsanteCue(props: {
               e.stopPropagation();
               props.onSfuma!();
             }}
-            className="tocco rounded-[10px] border border-vetro-bordo bg-white/5 px-2.5 py-1.5 text-[12px] font-medium text-testo-2 hover:text-testo"
+            className="tocco rounded-[10px] border border-vetro-bordo bg-velo px-2.5 py-1.5 text-[12px] font-medium text-testo-2 hover:text-testo"
           >
             Sfuma
           </button>
@@ -103,13 +103,13 @@ export function PulsanteCue(props: {
               e.stopPropagation();
               props.onFerma!();
             }}
-            className="tocco flex items-center justify-center rounded-[10px] border border-vetro-bordo bg-white/5 px-2.5 py-1.5 text-testo-2 hover:text-testo"
+            className="tocco flex items-center justify-center rounded-[10px] border border-vetro-bordo bg-velo px-2.5 py-1.5 text-testo-2 hover:text-testo"
           >
             <Square size={13} strokeWidth={2} fill="currentColor" />
           </button>
         )}
         {!attiva && props.scorciatoia && (
-          <kbd className="rounded-md border border-vetro-bordo bg-white/5 px-1.5 text-[11px] text-testo-3">
+          <kbd className="rounded-md border border-vetro-bordo bg-velo px-1.5 text-[11px] text-testo-3">
             {props.scorciatoia}
           </kbd>
         )}

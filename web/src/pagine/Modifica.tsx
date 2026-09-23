@@ -141,7 +141,7 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
             valore={cue.nota}
             placeholder="Nota (facoltativa)"
             onCambia={(v) => salva(() => api.modificaCue(cue.id, { nota: v }))}
-            className="w-full rounded-[10px] border border-vetro-bordo bg-white/5 px-2 py-1.5 text-[13px] text-testo-2 focus:border-brand-chiaro focus:outline-none"
+            className="w-full rounded-[10px] border border-vetro-bordo bg-velo px-2 py-1.5 text-[13px] text-testo-2 focus:border-brand-chiaro focus:outline-none"
           />
 
           {/* Zona di rilascio / scelta file */}
@@ -221,7 +221,7 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
                 type="button"
                 onClick={props.onDuplicata}
                 aria-label="Duplica casella"
-                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-white/5 hover:text-testo"
+                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
               >
                 <Copy size={15} strokeWidth={1.75} />
               </button>

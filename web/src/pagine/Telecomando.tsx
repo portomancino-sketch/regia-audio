@@ -7,6 +7,7 @@ import { ClientWs } from "../ws";
 import { BarraLive } from "../componenti/BarraLive";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { Vetro } from "../componenti/ui/Vetro";
+import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { Pulsante } from "../componenti/ui/Pulsante";
 
 const CHIAVE_PIN = "regia-pin";
@@ -301,7 +302,7 @@ export function PaginaTelecomando() {
       <button
         type="button"
         onClick={() => setScegliFormat(true)}
-        className="tocco mb-3 inline-flex max-w-full items-center gap-1.5 rounded-[10px] border border-transparent px-2 py-1 text-[13px] text-testo-2 hover:bg-white/5 hover:text-testo"
+        className="tocco mb-3 inline-flex max-w-full items-center gap-1.5 rounded-[10px] border border-transparent px-2 py-1 text-[13px] text-testo-2 hover:bg-velo hover:text-testo"
       >
         <span className="truncate">{format.nome}</span>
         <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
@@ -346,6 +347,7 @@ export function PaginaTelecomando() {
       </div>
       <BarraLive
         telefono
+        extra={<InterruttoreTema chiave="tema-telecomando" />}
         attivi={stato?.attivi ?? []}
         master={stato?.master ?? 0.8}
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}

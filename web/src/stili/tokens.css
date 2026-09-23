@@ -1,9 +1,15 @@
 /* I token del design system "liquid glass". Nessun colore scritto a mano
-   nei componenti: tutto passa da qui. */
+   nei componenti: tutto passa da qui.
+   Tema scuro = valori di base; tema chiaro = override su [data-tema="chiaro"]. */
 
 :root {
+  color-scheme: dark;
+
   /* Sfondo e testo */
   --sfondo: #0a0c10;
+  --sfondo-gradienti:
+    radial-gradient(1200px 800px at 15% -10%, rgba(62, 104, 91, 0.28), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(255, 255, 255, 0.04), transparent 60%);
   --testo: rgba(255, 255, 255, 0.92);
   --testo-2: rgba(255, 255, 255, 0.62);
   --testo-3: rgba(255, 255, 255, 0.4);
@@ -14,7 +20,7 @@
   --brand-glow: rgba(111, 168, 147, 0.35);
 
   /* Pericolo: SOLO per STOP TUTTO */
-  --rosso: #ff453a;
+  --rosso: #d93b31; /* il più vicino ad #ff453a con bianco ≥ 4.5:1 */
 
   /* Tinte discrete dei tipi di cue (pillole e barre sottili, mai pulsanti interi) */
   --tipo-sottofondo: #5aa0ff;
@@ -23,10 +29,21 @@
 
   /* Vetro */
   --vetro-fondo: rgba(255, 255, 255, 0.06);
+  --vetro-dock-fondo: rgba(255, 255, 255, 0.06);
   --vetro-bordo: rgba(255, 255, 255, 0.1);
   --vetro-bordo-chiaro: rgba(255, 255, 255, 0.22);
   --vetro-luce: rgba(255, 255, 255, 0.08);
+  --vetro-hairline: transparent;
   --vetro-ombra: 0 10px 40px rgba(0, 0, 0, 0.35);
+
+  /* Superfici e comandi */
+  --velo: rgba(255, 255, 255, 0.05);
+  --menu-fondo: rgba(24, 28, 34, 0.95);
+  --seg-traccia: rgba(255, 255, 255, 0.06);
+  --seg-selezione: rgba(255, 255, 255, 0.12);
+  --seg-ombra: inset 0 1px 0 var(--vetro-luce);
+  --slider-traccia: rgba(255, 255, 255, 0.15);
+  --barra-fondo: rgba(255, 255, 255, 0.1);
 
   /* Raggi */
   --raggio-card: 20px;
@@ -38,7 +55,46 @@
   --curva: cubic-bezier(0.2, 0.8, 0.4, 1);
 }
 
-/* Esposizione a Tailwind (v4): text-brand, bg-vetro-fondo, ecc. */
+/* ---- Tema chiaro ---- */
+:root[data-tema="chiaro"] {
+  color-scheme: light;
+
+  --sfondo: #f4f5f7;
+  --sfondo-gradienti:
+    radial-gradient(1200px 800px at 15% -10%, rgba(62, 104, 91, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(255, 214, 150, 0.22), transparent 60%);
+  --testo: #111418;
+  --testo-2: rgba(17, 20, 24, 0.62);
+  --testo-3: rgba(17, 20, 24, 0.42);
+
+  --brand: #3e685b;
+  --brand-chiaro: #3e685b;
+  --brand-glow: rgba(62, 104, 91, 0.28);
+
+  --rosso: #e0312c; /* il più vicino ad #e5322d con bianco ≥ 4.5:1 */
+
+  --tipo-sottofondo: #2f6fdb;
+  --tipo-brano: #7a4fd8;
+  --tipo-effetto: #d97a00;
+
+  --vetro-fondo: rgba(255, 255, 255, 0.58);
+  --vetro-dock-fondo: rgba(255, 255, 255, 0.72);
+  --vetro-bordo: rgba(255, 255, 255, 0.75);
+  --vetro-bordo-chiaro: rgba(62, 104, 91, 0.45);
+  --vetro-luce: rgba(255, 255, 255, 0.9);
+  --vetro-hairline: rgba(0, 0, 0, 0.06);
+  --vetro-ombra: 0 8px 30px rgba(20, 30, 40, 0.1);
+
+  --velo: rgba(0, 0, 0, 0.04);
+  --menu-fondo: rgba(255, 255, 255, 0.96);
+  --seg-traccia: rgba(0, 0, 0, 0.06);
+  --seg-selezione: #ffffff;
+  --seg-ombra: 0 1px 4px rgba(20, 30, 40, 0.18);
+  --slider-traccia: rgba(0, 0, 0, 0.1);
+  --barra-fondo: rgba(0, 0, 0, 0.1);
+}
+
+/* Esposizione a Tailwind (v4): text-brand, bg-velo, ecc. */
 @theme inline {
   --color-sfondo: var(--sfondo);
   --color-testo: var(--testo);
@@ -53,6 +109,7 @@
   --color-vetro-fondo: var(--vetro-fondo);
   --color-vetro-bordo: var(--vetro-bordo);
   --color-vetro-bordo-chiaro: var(--vetro-bordo-chiaro);
+  --color-velo: var(--velo);
   --font-sans:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Tight", "Segoe UI", Roboto,
     sans-serif;
@@ -65,13 +122,17 @@
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-radius: var(--raggio-card);
-  box-shadow: var(--vetro-ombra), inset 0 1px 0 var(--vetro-luce);
+  box-shadow:
+    var(--vetro-ombra),
+    inset 0 1px 0 var(--vetro-luce),
+    inset 0 0 0 1px var(--vetro-hairline);
 }
 .vetro-campo {
   border-radius: var(--raggio-campo);
 }
 .vetro-dock {
   border-radius: var(--raggio-dock);
+  background: var(--vetro-dock-fondo);
 }
 
 /* --- Movimento --- */
@@ -150,7 +211,7 @@
   background: linear-gradient(
     to right,
     var(--brand-chiaro) var(--riempimento, 50%),
-    rgba(255, 255, 255, 0.15) var(--riempimento, 50%)
+    var(--slider-traccia) var(--riempimento, 50%)
   );
 }
 .slider-liquido::-webkit-slider-thumb {
@@ -166,7 +227,7 @@
 .slider-liquido::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--slider-traccia);
 }
 .slider-liquido::-moz-range-progress {
   height: 4px;

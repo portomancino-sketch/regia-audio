@@ -13,6 +13,7 @@ import { BarraLive } from "../componenti/BarraLive";
 import { InputInline } from "../componenti/comuni";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Pulsante } from "../componenti/ui/Pulsante";
+import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 
 type Vista = "modifica" | "live";
 
@@ -351,7 +352,7 @@ export function PaginaRegia() {
                 type="button"
                 onClick={tornaAllaHome}
                 aria-label="Torna ai format"
-                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-white/5 hover:text-testo"
+                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-velo hover:text-testo"
               >
                 <ChevronLeft size={18} strokeWidth={1.75} />
               </button>
@@ -383,11 +384,12 @@ export function PaginaRegia() {
               onCambia={(v) => (v === "live" ? passaAlive(formatAperto) : setVista("modifica"))}
             />
           )}
+          <InterruttoreTema chiave="tema-regia" />
           <PannelloTelecomando telefoni={telefoni} />
         </div>
         {!sonoIlMotore && (
           <div className="mx-auto mt-2 max-w-6xl">
-            <span className="inline-block rounded-full border border-vetro-bordo bg-white/5 px-3 py-1 text-[12px] text-testo-2">
+            <span className="inline-block rounded-full border border-vetro-bordo bg-velo px-3 py-1 text-[12px] text-testo-2">
               Un'altra finestra Regia è già attiva: qui puoi modificare, ma i suoni escono dall'altra finestra.
             </span>
           </div>

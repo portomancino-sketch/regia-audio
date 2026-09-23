@@ -37,7 +37,7 @@ function CardFormat(props: {
             {...attributes}
             {...listeners}
             aria-label="Trascina per riordinare"
-            className="cursor-grab rounded-[10px] p-1.5 text-testo-3 hover:bg-white/5 hover:text-testo"
+            className="cursor-grab rounded-[10px] p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
           >
             <GripVertical size={16} strokeWidth={1.75} />
           </button>
@@ -65,7 +65,7 @@ function CardFormat(props: {
               setRinomina(false);
               props.onRinomina(nome);
             }}
-            className="w-full rounded-[10px] border border-brand-chiaro bg-white/5 px-1.5 py-0.5 text-[22px] font-semibold focus:outline-none"
+            className="w-full rounded-[10px] border border-brand-chiaro bg-velo px-1.5 py-0.5 text-[22px] font-semibold focus:outline-none"
           />
         ) : (
           <div className="line-clamp-2 text-[22px] font-semibold leading-tight text-testo">{props.format.nome}</div>

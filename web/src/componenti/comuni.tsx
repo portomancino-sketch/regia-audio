@@ -25,7 +25,7 @@ export function BottoneConferma(props: {
         `tocco rounded-[10px] border px-3 py-1.5 text-[13px] ${
           chiede
             ? "border-transparent bg-rosso text-white"
-            : "border-vetro-bordo bg-white/5 text-testo-2 hover:text-testo"
+            : "border-vetro-bordo bg-velo text-testo-2 hover:text-testo"
         }`
       }
       onClick={(e) => {
@@ -80,7 +80,7 @@ export function InputInline(props: {
       }}
       className={
         props.className ??
-        "w-full rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:bg-white/5 focus:outline-none"
+        "w-full rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:bg-velo focus:outline-none"
       }
     />
   );
