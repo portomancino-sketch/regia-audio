@@ -212,3 +212,22 @@ nell'end-to-end simulando la caduta della connessione (hook di prova
   con CSV). Il test "finestra congelata" ora ammutolisce il WS via hook di
   prova (Page.setWebLifecycleState non congela più la tab attiva).
   Screenshot in docs/screenshots/s6/.
+
+## S7 — 23 settembre 2026 — pacchetto aggiornato e ri-verifica completa
+
+Le due richieste di S7 erano già state costruite in S5/S5-bis (cartella
+autosufficiente; telecomando robusto al blocco schermo con coda da 1 comando,
+pillola "Ricollego…" e foglio con memoria-data): in S7 sono state RI-VERIFICATE
+sul codice attuale e il pacchetto è stato rigenerato con tutte le novità S6.
+- Versione 1.1.0: `npm run pacchetto` → Regia-v1.1.0.zip (80 MB; cartella
+  240 MB → 124 MB dopo il primo avvio, resta una sola architettura). Bundle
+  esbuild in un file solo, nessun ripiego su node_modules.
+- Verifica vera ripetuta da zero: zip scompattato sulla Scrivania, quarantena
+  "0081;;;" ricorsiva (AirDrop simulato), avvio con PATH SENZA node → parte
+  col Node della cartella (v24 LTS), demo creata CON riga Sempre, telecomando
+  e diario raggiungibili, export/import ok, secondo doppio click non duplica,
+  quarantena rimossa da sola. Dati intatti in ~/Regia-dati.
+- Parte A (blocco schermo): coperta dai controlli end-to-end esistenti
+  (68/68 sul commit corrente): "Ricollego…", tocco in coda spedito al
+  ricollegamento, PIN che resta dopo la ricarica, foglio una volta per
+  serata/format, icona libro.
