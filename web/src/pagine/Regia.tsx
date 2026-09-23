@@ -348,6 +348,9 @@ export function PaginaRegia() {
       proponiBlocco();
     };
     motoreRef.current = m;
+    if (new URLSearchParams(location.search).has("prova")) {
+      (window as unknown as { __motore?: MotoreAudio }).__motore = m;
+    }
     setAudioAttivo(m.sbloccato);
     inviaStato();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -391,7 +394,8 @@ export function PaginaRegia() {
         titolo: passo.cue.titolo,
         fase: passo.fase.nome,
         esito: r.esito,
-        piccoDb: r.picco === null ? null : piccoInDb(r.picco),
+        // Se l'analisi dell'importazione c'è, vale quella; altrimenti la misura al volo.
+        piccoDb: passo.cue.analisi ? passo.cue.analisi.picco : r.picco === null ? null : piccoInDb(r.picco),
       });
       if (corso.annullato) break;
       await new Promise((ok) => setTimeout(ok, SOUNDCHECK_PAUSA_MS));

@@ -27,7 +27,7 @@ export const api = {
 
   creaFormat: (nome: string) => chiama<Format>("POST", "/api/formats", { nome }),
   rinominaFormat: (id: string, nome: string) => chiama<Format>("PATCH", `/api/formats/${id}`, { nome }),
-  modificaFormat: (id: string, dati: { nome?: string; notaInizio?: string }) =>
+  modificaFormat: (id: string, dati: { nome?: string; notaInizio?: string; crossfade?: number }) =>
     chiama<Format>("PATCH", `/api/formats/${id}`, dati),
   riordinaFormats: (ordine: string[]) => chiama<string[]>("POST", "/api/formats/riordina", { ordine }),
   duplicaFormat: (id: string) => chiama<Format>("POST", `/api/formats/${id}/duplica`),

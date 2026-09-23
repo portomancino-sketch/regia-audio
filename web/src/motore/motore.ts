@@ -94,8 +94,10 @@ export class MotoreAudio {
     this.applica(parla(this.stato, acceso));
   }
 
-  /** Precarica in memoria i file corti di un format (latenza zero in serata). */
+  /** Precarica in memoria i file corti di un format (latenza zero in serata).
+   *  Imposta anche il passaggio morbido tra sottofondi del format (default 2 s). */
   async caricaFormat(format: Format): Promise<void> {
+    this.stato = { ...this.stato, crossfadeMs: Math.round((format.crossfade ?? 2) * 1000) };
     const daCaricare: Cue[] = [];
     for (const fase of format.fasi) {
       for (const cue of fase.cue) {
@@ -212,7 +214,7 @@ export class MotoreAudio {
       el.addEventListener("ended", () => this.segnalaFinita(a.istanzaId));
       if (!a.inPausa) {
         void el.play().catch(() => this.segnalaFinita(a.istanzaId));
-        this.rampaGain(gain, a.guadagno, RAMPA_AVVIO_MS);
+        this.rampaGain(gain, a.guadagno, a.rampMs ?? RAMPA_AVVIO_MS);
       }
     } else {
       let buffer = this.cache.get(file);
@@ -231,7 +233,7 @@ export class MotoreAudio {
       istanza.buffer = buffer;
       if (!a.inPausa) {
         this.avviaSorgenteBuffer(a.istanzaId, istanza, 0);
-        this.rampaGain(gain, a.guadagno, RAMPA_AVVIO_MS);
+        this.rampaGain(gain, a.guadagno, a.rampMs ?? RAMPA_AVVIO_MS);
       }
     }
     this.onCambiamento?.();
@@ -261,13 +263,31 @@ export class MotoreAudio {
     this.applica(finita(this.stato, istanzaId));
   }
 
+  /** Ferma un'istanza con una rampa. Se stava già sfumando (sottofondo in uscita
+   *  durante un passaggio), la rampa nuova sostituisce quella vecchia: così
+   *  STOP TUTTO e FADE OUT interrompono anche un passaggio in corso. */
   private ferma(istanzaId: string, rampMs: number): void {
     const istanza = this.istanze.get(istanzaId);
     if (!istanza) return;
     istanza.terminata = true;
     if (istanza.timerPendente) clearTimeout(istanza.timerPendente);
     this.rampaGain(istanza.gain, 0, rampMs);
-    istanza.timerPendente = window.setTimeout(() => this.pulisci(istanzaId), rampMs + 30);
+    istanza.timerPendente = window.setTimeout(() => {
+      this.pulisci(istanzaId);
+      // Un sottofondo in uscita ha finito: le regole lo tolgono dall'elenco.
+      if (this.stato.uscite.some((u) => u.istanzaId === istanzaId)) this.applica(finita(this.stato, istanzaId));
+    }, rampMs + 30);
+  }
+
+  /** Solo per le prove: il guadagno attuale di ogni nodo vivo (attivi e in uscita). */
+  guadagniAttuali(): { istanzaId: string; cueId: string; gain: number; inUscita: boolean }[] {
+    const attivi = new Set(this.stato.attivi.map((i) => i.istanzaId));
+    return [...this.istanze.entries()].map(([id, m]) => ({
+      istanzaId: id,
+      cueId: m.cue.id,
+      gain: m.gain.gain.value,
+      inUscita: !attivi.has(id),
+    }));
   }
 
   private pulisci(istanzaId: string): void {

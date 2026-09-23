@@ -323,6 +323,11 @@ export function PulsanteCue(props: {
           </button>
         )}
         <span className="flex-1" />
+        {cue.ritocco !== undefined && cue.ritocco !== 0 && (
+          <span className="text-[11px] tabular-nums text-testo-3" title="Ritocco di volume di questa casella">
+            {cue.ritocco > 0 ? `+${cue.ritocco}` : cue.ritocco} dB
+          </span>
+        )}
         <span
           className={`text-[12px] tabular-nums ${rimanente?.ambra ? "font-semibold text-[var(--tipo-effetto)]" : "text-testo-3"}`}
         >

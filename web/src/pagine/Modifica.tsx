@@ -9,8 +9,11 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Lock, Music, Plus, Star, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Headphones, Lock, Music, Plus, Star, Trash2, Waves } from "lucide-react";
 import { Pulsante } from "../componenti/ui/Pulsante";
+import { analizzaDalServer, analizzaFile, ascoltaAnteprima } from "../motore/analisi";
+import { guadagnoCasellaDb } from "../../../shared/livello";
+import { BarraAvanzamento } from "../componenti/ui/BarraAvanzamento";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { MAX_EVIDENZA, inEvidenza, puoMettereInEvidenza } from "../../../shared/sempre";
 import { api } from "../api";
@@ -23,6 +26,12 @@ import { Slider } from "../componenti/ui/Slider";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 
 type Salva = (fn: () => Promise<unknown>) => void;
+
+/** Analizza un file appena importato e salva livello medio, picco e guadagno automatico. */
+async function analizzaESalva(cueId: string, file: File): Promise<void> {
+  const r = await analizzaFile(file);
+  await api.modificaCue(cueId, r);
+}
 
 function CasellaCue(props: {
   cue: Cue;
@@ -67,11 +76,21 @@ function CasellaCue(props: {
     salva(async () => {
       try {
         await api.caricaAudio(cue.id, file);
+        // Livello automatico: l'analisi si fa qui, all'importazione, mai in Live.
+        await analizzaESalva(cue.id, file);
       } catch (e) {
         setErrore(e instanceof Error ? e.message : "Caricamento non riuscito");
         throw e;
       }
     });
+  }
+  const [ritocco, setRitocco] = useState(cue.ritocco ?? 0);
+  useEffect(() => setRitocco(cue.ritocco ?? 0), [cue.ritocco]);
+  const timerRitocco = useRef<number | null>(null);
+  function cambiaRitocco(v: number) {
+    setRitocco(v);
+    if (timerRitocco.current) clearTimeout(timerRitocco.current);
+    timerRitocco.current = window.setTimeout(() => salva(() => api.modificaCue(cue.id, { ritocco: v })), 300);
   }
 
   return (
@@ -222,9 +241,45 @@ function CasellaCue(props: {
 
           {cue.tipo !== "promemoria" && (
             <div className="flex items-center gap-2">
-              <span className="etichetta w-14">Volume</span>
-              <Slider valore={volume} onCambia={cambiaVolume} className="flex-1" aria-label="Volume del suono" />
+              <span className="etichetta w-20">Livello base</span>
+              <Slider valore={volume} onCambia={cambiaVolume} className="flex-1" aria-label="Livello base del suono" />
               <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{Math.round(volume * 100)}</span>
+            </div>
+          )}
+
+          {cue.tipo !== "promemoria" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="etichetta w-20">Volume</span>
+              <input
+                type="range"
+                min={-12}
+                max={12}
+                step={1}
+                value={ritocco}
+                onChange={(e) => cambiaRitocco(Number(e.target.value))}
+                aria-label="Volume in dB (ritocco)"
+                className="min-w-24 flex-1 accent-[var(--brand)]"
+              />
+              <span className="w-14 text-right text-[13px] tabular-nums text-testo" data-ritocco>
+                {ritocco > 0 ? `+${ritocco}` : ritocco} dB
+              </span>
+              <span className="text-[12px] tabular-nums text-testo-3" data-auto title="Livello automatico calcolato all'importazione">
+                {cue.guadagnoAuto === undefined
+                  ? "auto —"
+                  : `auto ${cue.guadagnoAuto > 0 ? "+" : ""}${Math.round(cue.guadagnoAuto)} dB`}
+              </span>
+              <button
+                type="button"
+                disabled={!cue.file}
+                title="Suona 3 secondi col volume attuale"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (cue.file) void ascoltaAnteprima(cue.file, guadagnoCasellaDb({ ...cue, ritocco }), cue.volume);
+                }}
+                className="tocco inline-flex items-center gap-1.5 rounded-[10px] border border-vetro-bordo bg-velo px-2.5 py-1 text-[13px] font-medium text-testo-2 hover:text-testo disabled:opacity-40"
+              >
+                <Headphones size={14} strokeWidth={1.75} aria-hidden /> Ascolta
+              </button>
             </div>
           )}
 
@@ -359,7 +414,13 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
           e.preventDefault();
           setInDrop(false);
           const files = [...e.dataTransfer.files];
-          salva(() => api.caricaAudioMultipli(fase.id, files));
+          salva(async () => {
+            const { creati } = await api.caricaAudioMultipli(fase.id, files);
+            for (const c of creati) {
+              const f = files.find((x) => x.name === c.fileOriginale);
+              if (f) await analizzaESalva(c.id, f).catch(() => undefined);
+            }
+          });
         }
       }}
     >
@@ -475,6 +536,28 @@ export function Modifica(props: {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
   const [confermaSblocco, setConfermaSblocco] = useState(false);
+  // "Analizza tutti i suoni": barra di avanzamento, si può interrompere.
+  const [analisi, setAnalisi] = useState<{ fatti: number; totale: number } | null>(null);
+  const analisiAnnulla = useRef(false);
+  async function analizzaTutti() {
+    const caselle = format.fasi.flatMap((f) => f.cue).filter((c) => c.file && c.tipo !== "promemoria");
+    analisiAnnulla.current = false;
+    setAnalisi({ fatti: 0, totale: caselle.length });
+    let fatti = 0;
+    for (const c of caselle) {
+      if (analisiAnnulla.current) break;
+      try {
+        const r = await analizzaDalServer(c.file!);
+        await api.modificaCue(c.id, r);
+      } catch {
+        /* file rotto o mancante: lo dirà il soundcheck */
+      }
+      fatti++;
+      setAnalisi({ fatti, totale: caselle.length });
+    }
+    setAnalisi(null);
+    await props.onRicarica();
+  }
   const notifica = props.onSalvataggio;
 
   useEffect(() => notifica?.(pendenti), [pendenti, notifica]);
@@ -548,13 +631,64 @@ export function Modifica(props: {
       className={`m-0 min-w-0 space-y-4 border-0 p-0 md:space-y-5 ${props.bloccato ? "mt-4 opacity-80" : ""}`}
     >
       <div className="vetro p-5">
-        <div className="etichetta mb-2">Prima di iniziare</div>
+        <div className="mb-2 flex items-center gap-2">
+          <div className="etichetta flex-1">Prima di iniziare</div>
+          {analisi ? (
+            <div className="flex items-center gap-2" data-analisi>
+              <span className="text-[12px] tabular-nums text-testo-2">
+                Analizzo {analisi.fatti} / {analisi.totale}
+              </span>
+              <span className="w-32">
+                <BarraAvanzamento frazione={analisi.totale ? analisi.fatti / analisi.totale : 0} colore="var(--brand-chiaro)" spessa />
+              </span>
+              <Pulsante misura="sm" variante="secondario" onClick={() => (analisiAnnulla.current = true)}>
+                Interrompi
+              </Pulsante>
+            </div>
+          ) : (
+            <Menu
+              etichetta="Menu del format"
+              voci={[
+                {
+                  testo: "Analizza tutti i suoni",
+                  icona: <Waves size={15} strokeWidth={1.75} />,
+                  onScelta: () => void analizzaTutti(),
+                },
+              ]}
+            />
+          )}
+        </div>
         <AreaInline
           valore={format.notaInizio ?? ""}
           righe={3}
           placeholder="Le cose da ricordare prima della serata. Compare all'apertura del format in Live."
           onCambia={(v) => salva(() => api.modificaFormat(format.id, { notaInizio: v }))}
         />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="etichetta">Passaggio tra sottofondi</span>
+          <input
+            type="range"
+            min={0}
+            max={5}
+            step={0.5}
+            defaultValue={format.crossfade ?? 2}
+            key={`cf-${format.crossfade ?? 2}`}
+            aria-label="Passaggio tra sottofondi, in secondi"
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              window.clearTimeout((window as unknown as { __tcf?: number }).__tcf);
+              (window as unknown as { __tcf?: number }).__tcf = window.setTimeout(
+                () => salva(() => api.modificaFormat(format.id, { crossfade: v })),
+                300,
+              );
+            }}
+            className="w-48 accent-[var(--brand)]"
+          />
+          <span className="text-[13px] tabular-nums text-testo-2" data-crossfade>
+            {(format.crossfade ?? 2).toLocaleString("it-IT")} s
+          </span>
+          <span className="text-[12px] text-testo-3">quando parte un sottofondo mentre un altro suona</span>
+        </div>
       </div>
       {fasiOrdinate.length === 0 && (
         <Vetro className="mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
