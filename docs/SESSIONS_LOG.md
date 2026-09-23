@@ -24,3 +24,12 @@ Nota di questo Mac: `~/Regia` coincide con la cartella del progetto `~/regia`
 La variabile `REGIA_DIR` resta prioritaria.
 
 Repo: https://github.com/portomancino-sketch/regia-audio (branch main).
+
+## S1-bis — 23 settembre 2026 — cartella dati
+
+La cartella dati di default è ora **`~/Regia-dati` su qualsiasi Mac** (prima era
+`~/Regia` con ripiego automatico): su macOS il disco non distingue le maiuscole,
+quindi `~/Regia` coincide con la cartella del codice `~/regia` e i dati sarebbero
+finiti nel repository. Tolto il rilevamento della collisione, aggiornati README e
+guida. `REGIA_DIR` resta prioritaria. Verificato l'avvio pulito: senza `REGIA_DIR`
+il server crea `~/Regia-dati` con demo, audio e backup.

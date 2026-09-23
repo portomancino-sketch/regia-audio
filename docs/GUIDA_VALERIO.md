@@ -16,6 +16,9 @@
 9. Collega il telefono dell'assistente: pannello **📱 Telecomando**,
    inquadra il QR, scrivi il PIN. Metti il blocco schermo del telefono su **Mai**.
 
+Tutto quello che prepari si salva da solo nella cartella **Regia-dati**
+(dentro la tua cartella Inizio). Non serve toccarla, ma non cancellarla.
+
 ## Durante la serata
 
 - Il Mac resta acceso con la Regia aperta. Non chiudere la finestra nera.

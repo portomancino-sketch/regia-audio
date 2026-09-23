@@ -32,9 +32,8 @@ Niente cloud, niente abbonamenti: tutto resta sul Mac.
 
 ## I dati
 
-Tutto quello che prepari (format, fasi, suoni) sta nella cartella `~/Regia`
-(su questo Mac: `~/Regia-dati`, perché `~/Regia` coincide con la cartella del codice).
-Dentro trovi:
+Tutto quello che prepari (format, fasi, suoni) sta nella cartella `~/Regia-dati`
+(nella cartella Inizio dell'utente). Dentro trovi:
 - `regia.json` — la configurazione;
 - `audio/` — i file audio;
 - `backup/` — le ultime 50 copie di sicurezza automatiche.
