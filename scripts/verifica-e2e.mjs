@@ -426,6 +426,13 @@ rifiuto && rifiuto.code === 4001 && rifiuto.reason === "PIN errato"
 
 // --- 11. Pagina telecomando nel browser: PIN e pulsanti ---
 const tel = await nuovaScheda(`${BASE}/telecomando?prova`);
+// S10: sul telefono STOP TUTTO parte solo con pressione lunga (600 ms).
+const stopTuttoTelefono = async () => {
+  const pd = (tipo) => tel.js(`(() => { const b = document.querySelector('[data-stop-lungo]'); if (!b) return false; b.dispatchEvent(new PointerEvent('${tipo}', { bubbles: true, pointerId: 1, isPrimary: true })); return true; })()`);
+  await pd("pointerdown");
+  await attendi(750);
+  await pd("pointerup");
+};
 // Parte sempre dalla schermata PIN, anche se un giro precedente l'ha salvato.
 await tel.finoA(`document.readyState === 'complete'`);
 await tel.cmd("Page.enable");
@@ -473,7 +480,7 @@ spuntaSulMac ? ok("...e la spunta si vede sul Mac") : ko("Spunta sul Mac");
 await tel.clickCue("Treno in corsa");
 s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "Treno in corsa"), 5000);
 s ? ok("Pulsante premuto sul telefono → suona sul Mac") : ko("Play dal telefono");
-await tel.click("STOP TUTTO");
+await stopTuttoTelefono();
 await osservatore.finoA((x) => x.attivi.length === 0, 4000);
 
 // --- S5-bis: blocco schermo simulato sul telefono ---
@@ -486,8 +493,10 @@ s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "Treno in c
 s ? ok("Tocco in coda spedito da solo appena ricollegati") : ko("Coda comandi");
 const viaRicollego = await tel.finoA(`!document.body.innerText.includes('Ricollego')`, 5000);
 viaRicollego ? ok("Ricollegato: pillola sparita, stato aggiornato") : ko("Fine ricollegamento");
-await tel.clickCue("Treno in corsa"); // toggle: silenzio
-await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+await tel.js(`(() => { window.__inviati = []; const o = window.__ws.invia.bind(window.__ws); window.__ws.invia = (m) => { window.__inviati.push(m); o(m); }; })()`);
+const cliccato = await tel.clickCue("Treno in corsa"); // toggle: silenzio
+s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+s ? ok("Tocco dopo il ricollegamento: toggle, silenzio") : ko("Toggle dopo ricollegamento", `cliccato=${cliccato} inviati=${JSON.stringify(await tel.js(`window.__inviati`))} aperta=${await tel.js(`window.__ws.aperta`)} testo=${(await tel.js(`document.body.innerText.slice(0, 200)`)).split("\n").join(" | ")} attivi=${JSON.stringify(osservatore.ultimo?.attivi.map((a) => a.istanzaId + " " + a.titolo))}`);
 
 // 2) Ricarica completa (come dopo un blocco schermo lungo): il PIN resta,
 //    il foglio "Prima di iniziare" NON ricompare (memoria con data).
@@ -564,8 +573,9 @@ await tel.scatta("03-telecomando-riga-sempre");
     window.scrollTo(0, 0);
     await new Promise(r => setTimeout(r, 120));
     const dock = document.querySelector('.fixed.bottom-0').getBoundingClientRect();
-    const cs = [...document.querySelectorAll('.grid > [role=button]')].map(c => c.getBoundingClientRect());
-    const gap = cs.length > 1 ? Math.round(cs[1].top - cs[0].bottom) : 12;
+    const tutte = [...document.querySelectorAll('.grid > [role=button]')];
+    const cs = tutte.filter(c => !c.textContent.includes('Sfuma')).map(c => c.getBoundingClientRect()); // a riposo
+    const gap = tutte.length > 1 ? Math.round(tutte[1].getBoundingClientRect().top - tutte[0].getBoundingClientRect().bottom) : 12;
     const massimo = Math.min(cs.length, Math.floor((dock.top - cs[0].top + gap) / (96 + gap)));
     return { altezze: cs.map(c => Math.round(c.height)), visibili: cs.filter(c => c.bottom <= dock.top).length, massimo, dock: Math.round(844 - dock.top) };
   })()`);
@@ -614,7 +624,7 @@ t2 && t1 !== t2 ? ok("Il conteggio scorre", `${t1} → ${t2}`) : ko("Conteggio f
 // S9 (a): ripremere un effetto che suona lo FERMA, non lo raddoppia (tastiera e telefono).
 await regia3.tasto("q", "KeyQ", 81);
 s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
-s ? ok("Tasto Q di nuovo → l'effetto si ferma, nessuna istanza") : ko("Effetto raddoppiato con Q", `attivi=${osservatore.ultimo?.attivi.length}`);
+s ? ok("Tasto Q di nuovo → l'effetto si ferma, nessuna istanza") : ko("Effetto raddoppiato con Q", `attivi=${JSON.stringify(osservatore.ultimo?.attivi.map((a) => [a.istanzaId, a.titolo]))} testo=${(await regia3.js(`document.querySelector('.vetro-dock')?.innerText.slice(0, 120)`))?.split("\n").join(" | ")}`);
 {
   const cfg2 = await (await fetch(`${BASE}/api/config`)).json();
   const vs = cfg2.formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre).cue.find((c) => c.titolo === "voce-sala");
@@ -669,6 +679,125 @@ s ? ok("Tasto Q di nuovo → l'effetto si ferma, nessuna istanza") : ko("Effetto
   quarta.status === 200 && quinta.status === 400
     ? ok("API: la quarta 'in evidenza' passa, la quinta è rifiutata (Massimo 4)")
     : ko("API: limite in evidenza", `quarta=${quarta.status} quinta=${quinta.status}`);
+}
+
+// ================= S10 =================
+const chiudiSuggerimento = async (p) => {
+  if (await p.js(`document.body.innerText.includes('Vuoi bloccare le modifiche')`)) await p.click("No");
+};
+// --- A1: soundcheck "Prova tutti" ---
+{
+  const eventiPrima = (await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json()).eventi.length;
+  await regia3.click("Prova tutti");
+  const c1 = await regia3.finoA(`/\\b1 \\/ \\d+/.test(document.body.innerText)`, 4000);
+  c1 ? ok("Soundcheck: parte, contatore 1 / N nel dock") : ko("Soundcheck: contatore");
+  const c2 = await regia3.finoA(`/\\b2 \\/ \\d+/.test(document.body.innerText)`, 6000);
+  c2 ? ok("Soundcheck: il contatore avanza") : ko("Soundcheck: contatore fermo");
+  const telSc = await tel.finoA(`document.body.innerText.includes('Soundcheck in corso')`, 3000);
+  telSc ? ok("Telefono: pillola 'Soundcheck in corso'") : ko("Telefono: pillola soundcheck");
+  // un comando dal telefono viene ignorato
+  osservatore.comando({ comando: "stopTutto" });
+  await attendi(400);
+  const ancora = await regia3.js(`/\\b\\d+ \\/ \\d+/.test(document.body.innerText)`);
+  ancora ? ok("Durante il soundcheck i comandi del telefono sono ignorati") : ko("Comando telefono non ignorato");
+  await regia3.tasto("Escape", "Escape", 27);
+  const esito = await regia3.finoA(`document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]') !== null`, 4000);
+  esito ? ok("ESC interrompe il soundcheck e mostra l'esito") : ko("Esito soundcheck");
+  const picchi = await regia3.js(`document.querySelector('[role="dialog"]')?.innerText.includes('dB')`);
+  picchi ? ok("Esito: picchi in dB") : ko("Esito senza picchi");
+  await regia3.click("Chiudi");
+  await attendi(300);
+  await chiudiSuggerimento(regia3);
+  await attendi(500);
+  const giorni = await (await fetch(`${BASE}/api/diario`)).json();
+  const { eventi } = await (await fetch(`${BASE}/api/diario/${giorni[0].data}`)).json();
+  const nuovi = eventi.slice(eventiPrima);
+  const sc = nuovi.filter((e) => e.tipo === "soundcheck");
+  const partiti = nuovi.filter((e) => e.tipo === "suono partito");
+  sc.length === 1 && sc[0].dettagli?.caselle >= 2 && partiti.length === 0
+    ? ok("Diario: un solo evento 'soundcheck', nessun 'suono partito' di prova", `caselle=${sc[0].dettagli.caselle}`)
+    : ko("Diario soundcheck", `soundcheck=${sc.length} partiti=${partiti.length}`);
+}
+
+// --- A2: STOP TUTTO a pressione lunga sul telefono ---
+{
+  await tel.clickCue("Treno in corsa");
+  await osservatore.finoA((x) => x.attivi.length > 0, 4000);
+  await tel.js(`(() => { window.__inviati = []; const o = window.__ws.invia.bind(window.__ws); window.__ws.invia = (m) => { window.__inviati.push(m); o(m); }; })()`);
+  const pd = (tipo) => tel.js(`(() => { const b = document.querySelector('[data-stop-lungo]'); b.dispatchEvent(new PointerEvent('${tipo}', { bubbles: true, pointerId: 1, isPrimary: true })); return true; })()`);
+  const conta = () => tel.js(`window.__inviati.filter(m => m.comando === 'stopTutto').length`);
+  await pd("pointerdown");
+  await attendi(200);
+  await pd("pointerup");
+  await attendi(150);
+  const tieni = await tel.js(`document.body.innerText.includes('Tieni premuto')`);
+  const breve = await conta();
+  tieni && breve === 0 ? ok("Telefono: tocco breve su STOP TUTTO → nessun comando, 'Tieni premuto'") : ko("Tocco breve", `tieni=${tieni} inviati=${breve}`);
+  (osservatore.ultimo?.attivi.length ?? 0) > 0 ? ok("...e il suono continua") : ko("Il tocco breve ha fermato il suono");
+  await attendi(1600);
+  await pd("pointerdown");
+  await attendi(750);
+  await pd("pointerup");
+  const lungo = await conta();
+  s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  lungo === 1 && s ? ok("Telefono: pressione 600 ms → STOP TUTTO inviato una sola volta, silenzio") : ko("Pressione lunga", `inviati=${lungo}`);
+}
+
+// --- A3: blocco modifiche ---
+{
+  await regia3.js(`[...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Blocca modifiche')?.click()`);
+  const on = await regia3.finoA(`[...document.querySelectorAll('button')].some(b => (b.getAttribute('aria-label') || '').startsWith('Modifiche bloccate'))`, 4000);
+  on ? ok("Lucchetto: modifiche bloccate (salvato nella config)") : ko("Blocco modifiche");
+  const cfgB = await (await fetch(`${BASE}/api/config`)).json();
+  cfgB.impostazioni.bloccoModifiche === true ? ok("Config: bloccoModifiche = true") : ko("Config senza blocco");
+  await regia3.click("Modifica");
+  const banner = await regia3.finoA(`document.body.innerText.includes('Serata in corso — modifiche bloccate')`, 3000);
+  const disab = await regia3.js(`[...document.querySelectorAll('fieldset input, fieldset textarea')].length > 0 && [...document.querySelectorAll('fieldset input, fieldset textarea')].every(i => i.matches(':disabled'))`);
+  banner && disab ? ok("Modifica in sola lettura: banner e campi disabilitati") : ko("Modifica bloccata", `banner=${banner} disab=${disab}`);
+  const rifiuto = await fetch(`${BASE}/api/fasi/${fase1.id}/cue`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+  rifiuto.status === 423 ? ok("Il server rifiuta le scritture con 423 (il drop non salva)") : ko("Server con blocco", String(rifiuto.status));
+  await regia3.click("Sblocca");
+  await attendi(200);
+  await regia3.click("Sì, sblocca");
+  const off = await regia3.finoA(`!document.body.innerText.includes('modifiche bloccate')`, 4000);
+  off ? ok("'Sblocca' con conferma → torna modificabile") : ko("Sblocco");
+  const { eventi } = await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json();
+  eventi.some((e) => e.tipo === "blocco_on") && eventi.some((e) => e.tipo === "blocco_off")
+    ? ok("Diario: eventi blocco_on / blocco_off")
+    : ko("Diario: eventi blocco");
+  await regia3.click("Live");
+  await attendi(500);
+  await regia3.click("Ok, pronti");
+}
+
+// --- A4: usi previsti 2 → dopo 2 partenze la card è attenuata, la terza funziona ---
+{
+  const camp = fase1.cue.find((c) => c.titolo === "Campanello");
+  await fetch(`${BASE}/api/cue/${camp.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ usiPrevisti: 2 }) });
+  await attendi(1200);
+  osservatore.comando({ comando: "azzeraSerata", faseId: fase1.id });
+  await attendi(300);
+  await regia3.click(fase1.nome);
+  await attendi(300);
+  for (let i = 0; i < 2; i++) {
+    osservatore.comando({ comando: "play", cueId: camp.id });
+    await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === camp.id), 4000);
+    await osservatore.finoA((x) => !x.attivi.some((a) => a.cueId === camp.id), 6000);
+  }
+  const usi2 = osservatore.ultimo?.usi?.[camp.id];
+  usi2 === 2 ? ok("Stato condiviso: usi = 2 dopo due partenze") : ko("Contatore usi", `usi=${usi2}`);
+  const attenuata = await regia3.finoA(`(() => { const c = [...document.querySelectorAll('.grid > [role=button]')].find(x => x.textContent.includes('Campanello')); return !!c && c.className.includes('opacity-55') && c.textContent.includes('fatto'); })()`, 3000);
+  attenuata ? ok("Card attenuata con badge 'fatto' a 2/2") : ko("Card non attenuata");
+  const telFatto = await tel.finoA(`[...document.querySelectorAll('.grid > [role=button]')].some(c => c.textContent.includes('Campanello') && c.textContent.includes('fatto'))`, 3000);
+  telFatto ? ok("...anche sul telefono") : ko("Telefono: badge fatto");
+  osservatore.comando({ comando: "play", cueId: camp.id });
+  s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === camp.id), 4000);
+  s ? ok("La terza partenza funziona comunque (mai bloccare un suono)") : ko("Terza partenza bloccata");
+  await osservatore.finoA((x) => x.attivi.length === 0, 6000);
+  osservatore.comando({ comando: "azzeraSerata", faseId: fase1.id });
+  s = await osservatore.finoA((x) => !x.usi || !x.usi[camp.id], 3000);
+  s ? ok("'Azzera serata' azzera i contatori") : ko("Azzera serata");
+  await chiudiSuggerimento(regia3);
 }
 
 // --- Ultimi 10 secondi: numero e barra in ambra (Tensione dura 8 s) ---
@@ -732,7 +861,7 @@ await regia3.click("Ok, pronti");
 await attendi(300);
 
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---
-await tel.click("STOP TUTTO");
+await stopTuttoTelefono();
 await attendi(300);
 const regia4 = await nuovaScheda(`${BASE}/?prova`);
 await attendi(800); // regia4 nasce in sola lettura: scalza col pulsante

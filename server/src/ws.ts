@@ -179,11 +179,15 @@ export class Hub {
       }
 
       if (m.tipo === "rilascio") {
-        // La pagina sta per chiudersi: passa subito il comando.
+        // La pagina sta per chiudersi: passa subito il comando ed esce dai
+        // clienti (il socket può restare aperto ancora un po' dopo un ricaricamento:
+        // un "fantasma" non deve mai essere promosso al posto di una pagina viva).
+        this.clienti.delete(client);
         if (client === this.motore) {
           this.motore = null;
           this.promuoviOppureOffline(client);
         }
+        this.aggiornaTelefoni();
         return;
       }
 
