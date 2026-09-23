@@ -30,7 +30,13 @@ function CardFormat(props: {
       className="vetro tocco flex min-h-[150px] cursor-pointer flex-col p-5"
     >
       <div className="flex items-start justify-between">
-        <Clapperboard size={20} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+        <span
+          aria-hidden
+          className="flex h-9 w-9 items-center justify-center rounded-full"
+          style={{ backgroundColor: "color-mix(in srgb, var(--brand) 14%, transparent)" }}
+        >
+          <Clapperboard size={18} strokeWidth={1.75} className="text-brand-chiaro" />
+        </span>
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
@@ -119,7 +125,13 @@ export function Home(props: {
       <h1 className="mb-6 text-[28px] font-semibold text-testo">Le tue serate</h1>
       {formats.length === 0 ? (
         <div className="vetro mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
-          <Clapperboard size={32} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+          <span
+            aria-hidden
+            className="flex h-14 w-14 items-center justify-center rounded-full"
+            style={{ backgroundColor: "color-mix(in srgb, var(--brand) 14%, transparent)" }}
+          >
+            <Clapperboard size={26} strokeWidth={1.75} className="text-brand-chiaro" />
+          </span>
           <p className="text-testo-2">Nessun format: crea la tua prima serata.</p>
           <Pulsante variante="primario" disabled={occupato} onClick={() => void nuovo()}>
             <Plus size={16} strokeWidth={1.75} /> Nuovo format

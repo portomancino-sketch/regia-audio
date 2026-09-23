@@ -27,7 +27,7 @@ export function ControlloSegmentato(props: {
       {/* La selezione che scorre */}
       <div
         aria-hidden
-        className="absolute bottom-1 top-1 rounded-[10px] bg-[var(--seg-selezione)] shadow-[var(--seg-ombra)] transition-transform duration-[var(--durata)]"
+        className="absolute bottom-1 top-1 rounded-[10px] bg-[var(--seg-selezione)] shadow-[var(--seg-ombra)] transition-transform duration-[260ms] ease-[cubic-bezier(0.2,0.8,0.2,1)]"
         style={{
           width: `calc((100% - 8px) / ${n})`,
           transform: `translateX(${indice * 100}%)`,

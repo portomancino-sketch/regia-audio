@@ -1,0 +1,102 @@
+/* Lo sfondo "mesh": base + quattro macchie sfocate + grana. */
+
+.sfondo-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: var(--sfondo);
+}
+
+.macchia {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: var(--macchie-opacita);
+  will-change: transform;
+}
+
+/* Posizioni: alto-sinistra, alto-destra, basso-destra (nell'angolo, non sotto
+   il dock centrale), centro-sinistra. */
+.macchia-1 {
+  width: 60vw;
+  height: 60vw;
+  left: -18vw;
+  top: -22vw;
+  background: radial-gradient(circle, var(--macchia-1), transparent 70%);
+}
+.macchia-2 {
+  width: 55vw;
+  height: 55vw;
+  right: -16vw;
+  top: -18vw;
+  background: radial-gradient(circle, var(--macchia-2), transparent 70%);
+}
+.macchia-3 {
+  width: 65vw;
+  height: 65vw;
+  right: -30vw;
+  bottom: -38vw;
+  background: radial-gradient(circle, var(--macchia-3), transparent 70%);
+}
+.macchia-4 {
+  width: 45vw;
+  height: 45vw;
+  left: -12vw;
+  top: 38vh;
+  background: radial-gradient(circle, var(--macchia-4), transparent 70%);
+}
+
+/* Deriva lentissima, durate diverse per macchia (solo dove richiesto). */
+@keyframes deriva-1 {
+  to {
+    transform: translate(5vw, 3vw) scale(1.08);
+  }
+}
+@keyframes deriva-2 {
+  to {
+    transform: translate(-4vw, 5vw) scale(0.95);
+  }
+}
+@keyframes deriva-3 {
+  to {
+    transform: translate(-6vw, -4vw) scale(1.05);
+  }
+}
+@keyframes deriva-4 {
+  to {
+    transform: translate(6vw, -5vw) scale(0.97);
+  }
+}
+.sfondo-animato .macchia-1 {
+  animation: deriva-1 55s ease-in-out infinite alternate;
+}
+.sfondo-animato .macchia-2 {
+  animation: deriva-2 70s ease-in-out infinite alternate;
+}
+.sfondo-animato .macchia-3 {
+  animation: deriva-3 45s ease-in-out infinite alternate;
+}
+.sfondo-animato .macchia-4 {
+  animation: deriva-4 62s ease-in-out infinite alternate;
+}
+
+/* Grana: SVG feTurbulence in data-URI, tile piccolo ripetuto. */
+.grana {
+  position: absolute;
+  inset: 0;
+  opacity: var(--grana-opacita);
+  mix-blend-mode: var(--grana-blend);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='160'%20height='160'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.8'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sfondo-animato .macchia-1,
+  .sfondo-animato .macchia-2,
+  .sfondo-animato .macchia-3,
+  .sfondo-animato .macchia-4 {
+    animation: none;
+  }
+}

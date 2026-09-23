@@ -59,7 +59,7 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
-        ...(inDrop ? { borderColor: "var(--brand-chiaro)" } : {}),
+        ...(inDrop ? { borderColor: "var(--brand)", transform: "scale(1.01)" } : {}),
       }}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
@@ -274,7 +274,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
         transform: CSS.Transform.toString(sortFase.transform),
         transition: sortFase.transition,
         opacity: sortFase.isDragging ? 0.6 : 1,
-        ...(inDrop ? { borderColor: "var(--brand-chiaro)" } : {}),
+        ...(inDrop ? { borderColor: "var(--brand)", transform: "scale(1.01)" } : {}),
       }}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {

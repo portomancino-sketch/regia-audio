@@ -10,7 +10,8 @@ const BASE =
 const VARIANTI: Record<Variante, string> = {
   primario: "bg-brand text-white border border-transparent hover:bg-brand-chiaro/90",
   secondario: "vetro vetro-campo text-testo",
-  pericolo: "bg-rosso text-white border border-transparent font-semibold",
+  pericolo:
+    "text-white border border-transparent font-semibold bg-[image:var(--rosso-grad)] shadow-[var(--rosso-ombra),inset_0_1px_0_rgba(255,255,255,0.25)]",
 };
 
 const MISURE: Record<Misura, string> = {

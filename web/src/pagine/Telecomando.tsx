@@ -303,7 +303,7 @@ export function PaginaTelecomando() {
 
   return (
     <div
-      className="mx-auto max-w-md px-3 pb-44"
+      className="pagina-telefono mx-auto max-w-md px-3 pb-44"
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       {pillolaOffline}
@@ -372,12 +372,13 @@ export function PaginaTelecomando() {
           <Info size={14} strokeWidth={1.75} aria-hidden /> nota della fase
         </button>
       )}
-      <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
-        {cue.map((c) => (
+      <div key={fase?.id ?? "x"} className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
+        {cue.map((c, i) => (
           <PulsanteCue
             key={c.id}
             cue={c}
             compatto
+            ritardoEntrataMs={Math.min(i, 9) * 25}
             attivi={stato?.attivi ?? []}
             disabilitato={!motoreOnline}
             onPremi={() => premi(c)}

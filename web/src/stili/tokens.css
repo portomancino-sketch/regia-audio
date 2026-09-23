@@ -7,9 +7,14 @@
 
   /* Sfondo e testo */
   --sfondo: #0a0c10;
-  --sfondo-gradienti:
-    radial-gradient(1200px 800px at 15% -10%, rgba(62, 104, 91, 0.28), transparent 60%),
-    radial-gradient(900px 600px at 100% 100%, rgba(255, 255, 255, 0.04), transparent 60%);
+  /* Macchie dello sfondo mesh */
+  --macchia-1: rgba(62, 104, 91, 0.45);
+  --macchia-2: rgba(40, 60, 110, 0.45);
+  --macchia-3: rgba(120, 80, 30, 0.3);
+  --macchia-4: rgba(90, 110, 140, 0.3);
+  --macchie-opacita: 0.45;
+  --grana-opacita: 0.06;
+  --grana-blend: overlay;
   --testo: rgba(255, 255, 255, 0.92);
   --testo-2: rgba(255, 255, 255, 0.62);
   --testo-3: rgba(255, 255, 255, 0.4);
@@ -29,13 +34,19 @@
   --tipo-promemoria: #9aa4b2;
 
   /* Vetro */
-  --vetro-fondo: rgba(255, 255, 255, 0.06);
-  --vetro-dock-fondo: rgba(255, 255, 255, 0.06);
-  --vetro-bordo: rgba(255, 255, 255, 0.1);
-  --vetro-bordo-chiaro: rgba(255, 255, 255, 0.22);
-  --vetro-luce: rgba(255, 255, 255, 0.08);
+  --vetro-fondo: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  --vetro-dock-fondo: rgba(255, 255, 255, 0.1);
+  --vetro-bordo: rgba(255, 255, 255, 0.14);
+  --vetro-bordo-chiaro: rgba(255, 255, 255, 0.26);
+  --vetro-luce: rgba(255, 255, 255, 0.12);
   --vetro-hairline: transparent;
-  --vetro-ombra: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --vetro-ombra: 0 12px 36px rgba(0, 0, 0, 0.45);
+  --vetro-ombra-hover: 0 18px 46px rgba(0, 0, 0, 0.55);
+  --dock-ombra: 0 20px 60px rgba(0, 0, 0, 0.55);
+  --hairline-barra: rgba(255, 255, 255, 0.08);
+  --anello-attivo: rgba(111, 168, 147, 0.2);
+  --rosso-grad: linear-gradient(#d93b31, #b02a22);
+  --rosso-ombra: 0 8px 24px rgba(217, 59, 49, 0.35);
 
   /* Superfici e comandi */
   --velo: rgba(255, 255, 255, 0.05);
@@ -60,10 +71,14 @@
 :root[data-tema="chiaro"] {
   color-scheme: light;
 
-  --sfondo: #f4f5f7;
-  --sfondo-gradienti:
-    radial-gradient(1200px 800px at 15% -10%, rgba(62, 104, 91, 0.18), transparent 60%),
-    radial-gradient(900px 600px at 100% 100%, rgba(255, 214, 150, 0.22), transparent 60%);
+  --sfondo: #f5f6f8;
+  --macchia-1: rgba(62, 104, 91, 0.4);
+  --macchia-2: rgba(246, 215, 176, 0.7);
+  --macchia-3: rgba(207, 224, 245, 0.75);
+  --macchia-4: rgba(255, 250, 240, 0.9);
+  --macchie-opacita: 0.55;
+  --grana-opacita: 0.04;
+  --grana-blend: multiply;
   --testo: #111418;
   --testo-2: rgba(17, 20, 24, 0.62);
   --testo-3: rgba(17, 20, 24, 0.42);
@@ -79,13 +94,19 @@
   --tipo-effetto: #d97a00;
   --tipo-promemoria: #5b6572;
 
-  --vetro-fondo: rgba(255, 255, 255, 0.58);
-  --vetro-dock-fondo: rgba(255, 255, 255, 0.72);
-  --vetro-bordo: rgba(255, 255, 255, 0.75);
+  --vetro-fondo: linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.5));
+  --vetro-dock-fondo: rgba(255, 255, 255, 0.78);
+  --vetro-bordo: rgba(255, 255, 255, 0.85);
   --vetro-bordo-chiaro: rgba(62, 104, 91, 0.45);
   --vetro-luce: rgba(255, 255, 255, 0.9);
   --vetro-hairline: rgba(0, 0, 0, 0.06);
-  --vetro-ombra: 0 8px 30px rgba(20, 30, 40, 0.1);
+  --vetro-ombra: 0 1px 2px rgba(20, 30, 40, 0.06), 0 12px 32px rgba(20, 30, 40, 0.1);
+  --vetro-ombra-hover: 0 18px 40px rgba(20, 30, 40, 0.14);
+  --dock-ombra: 0 20px 60px rgba(20, 30, 40, 0.18);
+  --hairline-barra: rgba(0, 0, 0, 0.06);
+  --anello-attivo: rgba(62, 104, 91, 0.16);
+  --rosso-grad: linear-gradient(#e0312c, #c9241f);
+  --rosso-ombra: 0 8px 24px rgba(229, 50, 45, 0.35);
 
   --velo: rgba(0, 0, 0, 0.04);
   --menu-fondo: rgba(255, 255, 255, 0.96);
@@ -121,8 +142,8 @@
 .vetro {
   background: var(--vetro-fondo);
   border: 1px solid var(--vetro-bordo);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-radius: var(--raggio-card);
   box-shadow:
     var(--vetro-ombra),
@@ -135,6 +156,10 @@
 .vetro-dock {
   border-radius: var(--raggio-dock);
   background: var(--vetro-dock-fondo);
+  box-shadow:
+    var(--dock-ombra),
+    inset 0 1px 0 var(--vetro-luce),
+    inset 0 0 0 1px var(--vetro-hairline);
 }
 /* Vetro quasi opaco: menu, fogli e pannelli sopra ad altro contenuto.
    (Le utility bg-* di Tailwind non vincono su .vetro: serve questa classe.) */
@@ -145,18 +170,120 @@
 /* --- Movimento --- */
 .tocco {
   transition:
-    transform var(--durata) var(--curva),
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
     border-color var(--durata) var(--curva),
     background-color var(--durata) var(--curva),
     box-shadow var(--durata) var(--curva),
     opacity var(--durata) var(--curva);
 }
-.tocco:hover:not(:disabled) {
-  transform: translateY(-1px);
-  border-color: var(--vetro-bordo-chiaro);
+@media (hover: hover) and (pointer: fine) {
+  .tocco:hover:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-2px);
+    border-color: var(--vetro-bordo-chiaro);
+    box-shadow:
+      var(--vetro-ombra-hover),
+      inset 0 1px 0 var(--vetro-luce),
+      inset 0 0 0 1px var(--vetro-hairline);
+  }
 }
-.tocco:active:not(:disabled) {
+.tocco:active:not(:disabled):not([aria-disabled="true"]) {
   transform: scale(0.97);
+  transition-duration: 120ms;
+}
+
+/* "Scatto" programmato: la card sul Mac reagisce anche ai comandi dal telefono. */
+@keyframes scatto {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.scatto {
+  animation: scatto 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Il glow della card che suona "respira". */
+@keyframes respira {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.respira {
+  animation: respira 2.4s ease-in-out infinite;
+}
+
+/* Equalizzatore a 3 barre. */
+@keyframes eq-barra {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.eq-barra {
+  transform-origin: bottom;
+  animation: eq-barra 0.9s ease-in-out infinite;
+}
+
+/* Entrata a cascata delle card. */
+@keyframes entra {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.entra {
+  animation: entra 220ms ease-out both;
+}
+.pagina-telefono .entra {
+  animation-duration: 160ms;
+}
+
+/* Cross-fade del titolo nel dock. */
+@keyframes dissolvi {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.dissolvi {
+  animation: dissolvi 160ms ease-out;
+}
+
+/* Sul telefono niente sfocatura sulle card (batteria) e ombre più leggere;
+   la sfocatura resta sul dock. */
+.pagina-telefono .vetro {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 var(--vetro-luce),
+    inset 0 0 0 1px var(--vetro-hairline);
+}
+.pagina-telefono .vetro-dock {
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow:
+    var(--dock-ombra),
+    inset 0 1px 0 var(--vetro-luce),
+    inset 0 0 0 1px var(--vetro-hairline);
 }
 
 @keyframes pulsa-piano {
@@ -179,7 +306,12 @@
     transition: none;
     transform: none;
   }
-  .pulsa-piano {
+  .pulsa-piano,
+  .respira,
+  .eq-barra,
+  .scatto,
+  .entra,
+  .dissolvi {
     animation: none;
   }
   * {
@@ -248,6 +380,16 @@
   background: #fff;
   border: none;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+.slider-liquido:active::-webkit-slider-thumb {
+  box-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.4),
+    0 0 0 7px var(--brand-glow);
+}
+.slider-liquido:active::-moz-range-thumb {
+  box-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.4),
+    0 0 0 7px var(--brand-glow);
 }
 .slider-liquido:disabled {
   opacity: 0.4;

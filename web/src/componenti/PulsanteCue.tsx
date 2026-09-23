@@ -1,9 +1,31 @@
 // Il pulsante grande di un cue nella vista Live (Mac e telefono).
-import { AudioLines, CircleCheck, Square } from "lucide-react";
-import type { Cue, CueAttivo } from "../../../shared/tipi";
-import { coloreCue, NOMI_TIPO } from "../util";
+import { useEffect, useRef, useState } from "react";
+import { AudioLines, CircleCheck, Music, Square, Zap } from "lucide-react";
+import type { Cue, CueAttivo, TipoCue } from "../../../shared/tipi";
+import { coloreCue, formattaTempo, NOMI_TIPO } from "../util";
 import { BarraAvanzamento } from "./ui/BarraAvanzamento";
 import { Pillola } from "./ui/Pillola";
+import { Equalizzatore } from "./ui/Equalizzatore";
+
+const ICONE_TIPO: Record<TipoCue, typeof Music> = {
+  sottofondo: AudioLines,
+  brano: Music,
+  effetto: Zap,
+  promemoria: CircleCheck,
+};
+
+/** Il cerchietto 36px con la tinta del tipo al 14%. */
+function Cerchietto(props: { colore: string; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+      style={{ backgroundColor: `color-mix(in srgb, ${props.colore} 14%, transparent)` }}
+    >
+      {props.children}
+    </span>
+  );
+}
 
 export function PulsanteCue(props: {
   cue: Cue;
@@ -20,10 +42,34 @@ export function PulsanteCue(props: {
   disabilitato?: boolean;
   scorciatoia?: string;
   compatto?: boolean;
+  /** Ritardo dell'entrata a cascata, in ms. */
+  ritardoEntrataMs?: number;
 }) {
   const { cue } = props;
+  const istanze = props.attivi.filter((a) => a.cueId === cue.id);
+  const attiva = istanze[0];
+  const colore = coloreCue(cue);
+  const Icona = ICONE_TIPO[cue.tipo];
 
-  // I promemoria non suonano: sono spunte da segnare durante la serata.
+  // "Scatto": la card reagisce anche quando il comando arriva da tastiera o telefono.
+  const [scatta, setScatta] = useState(false);
+  const istanzePrima = useRef(istanze.length);
+  const fattoPrima = useRef(props.fatto);
+  useEffect(() => {
+    const partita = istanze.length > istanzePrima.current;
+    const spuntata = cue.tipo === "promemoria" && props.fatto !== fattoPrima.current;
+    istanzePrima.current = istanze.length;
+    fattoPrima.current = props.fatto;
+    if (partita || spuntata) {
+      setScatta(true);
+      const t = setTimeout(() => setScatta(false), 260);
+      return () => clearTimeout(t);
+    }
+  }, [istanze.length, props.fatto, cue.tipo]);
+
+  const stile = { animationDelay: `${props.ritardoEntrataMs ?? 0}ms` };
+
+  // ---- Promemoria: spunta da segnare, non suona ----
   if (cue.tipo === "promemoria") {
     const fatto = props.fatto === true;
     return (
@@ -41,48 +87,47 @@ export function PulsanteCue(props: {
             props.onSpunta?.();
           }
         }}
-        className={`vetro tocco relative flex cursor-pointer select-none flex-col justify-between p-4 text-left ${
-          props.compatto ? "min-h-[88px]" : "min-h-[112px]"
-        } ${props.disabilitato ? "cursor-default opacity-40" : ""}`}
+        style={stile}
+        className={`vetro tocco entra relative flex min-h-[152px] cursor-pointer select-none flex-col p-4 text-left ${
+          scatta ? "scatto" : ""
+        } ${props.disabilitato ? "cursor-default opacity-40" : ""} ${fatto ? "opacity-75" : ""}`}
       >
         <div className="flex w-full items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2.5">
+          <Cerchietto colore={colore}>
             <CircleCheck
-              size={24}
+              size={20}
               strokeWidth={1.75}
-              aria-hidden
-              className={fatto ? "mt-0.5 shrink-0 text-brand-chiaro" : "mt-0.5 shrink-0 text-testo-3"}
+              className={fatto ? "text-brand-chiaro" : "text-testo-3"}
               fill={fatto ? "var(--brand-glow)" : "none"}
             />
-            <div className="min-w-0">
-              <div
-                className={`line-clamp-2 text-[20px] font-semibold leading-tight ${
-                  fatto ? "text-testo-3 line-through" : "text-testo"
-                }`}
-              >
-                {cue.titolo}
-              </div>
-              {cue.nota && (
-                <div className={`mt-1 truncate ${fatto ? "text-testo-3" : "text-testo-2"} ${props.compatto ? "text-[14px]" : "text-[13px]"}`}>
-                  {cue.nota}
-                </div>
-              )}
-            </div>
+          </Cerchietto>
+          <Pillola colore={colore}>{fatto ? "fatto" : NOMI_TIPO[cue.tipo]}</Pillola>
+        </div>
+        <div className="mt-3 min-w-0">
+          <div
+            className={`line-clamp-2 text-[20px] font-semibold leading-tight ${
+              fatto ? "text-testo-3 line-through" : "text-testo"
+            }`}
+          >
+            {cue.titolo}
           </div>
-          <Pillola colore={coloreCue(cue)}>{fatto ? "fatto" : NOMI_TIPO[cue.tipo]}</Pillola>
+          {cue.nota && (
+            <div className={`mt-1 line-clamp-2 text-[14px] ${fatto ? "text-testo-3" : "text-testo-2"}`}>
+              {cue.nota}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  const istanze = props.attivi.filter((a) => a.cueId === cue.id);
-  const attiva = istanze[0];
-  const colore = coloreCue(cue);
+  // ---- Cue audio ----
   const spento = props.disabilitato || !cue.file;
   const avanzamento =
     attiva && attiva.durataSec && attiva.durataSec > 0
       ? Math.min(1, attiva.posizioneSec / attiva.durataSec)
       : 0;
+  const inPausa = attiva?.inPausa === true;
 
   return (
     <div
@@ -98,46 +143,50 @@ export function PulsanteCue(props: {
           props.onPremi();
         }
       }}
-      className={`vetro tocco relative flex cursor-pointer select-none flex-col justify-between overflow-hidden p-4 text-left ${
-        props.compatto ? "min-h-[88px]" : "min-h-[112px]"
+      style={{
+        ...stile,
+        ...(attiva
+          ? inPausa
+            ? { borderColor: "var(--testo-3)" }
+            : {
+                borderColor: "var(--brand)",
+                boxShadow:
+                  "0 0 0 3px var(--anello-attivo), var(--vetro-ombra), inset 0 1px 0 var(--vetro-luce), inset 0 0 0 1px var(--vetro-hairline)",
+              }
+          : {}),
+      }}
+      className={`vetro tocco entra relative flex min-h-[152px] cursor-pointer select-none flex-col overflow-hidden p-4 text-left ${
+        scatta ? "scatto" : ""
       } ${spento ? "cursor-default opacity-40" : ""}`}
-      style={
-        attiva
-          ? {
-              borderColor: "var(--brand-chiaro)",
-              boxShadow: "0 0 24px var(--brand-glow), inset 0 1px 0 var(--vetro-luce)",
-            }
-          : undefined
-      }
     >
+      {/* Il glow che respira, solo mentre suona */}
+      {attiva && !inPausa && (
+        <span
+          aria-hidden
+          className="respira pointer-events-none absolute inset-0 rounded-[inherit]"
+          style={{ boxShadow: "inset 0 0 26px var(--brand-glow)" }}
+        />
+      )}
+
       <div className="flex w-full items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="line-clamp-2 text-[20px] font-semibold leading-tight text-testo">
-            {cue.titolo}
-          </div>
-          {cue.nota && (
-            <div className={`mt-1 truncate text-testo-2 ${props.compatto ? "text-[14px]" : "text-[13px]"}`}>
-              {cue.nota}
-            </div>
+        <Cerchietto colore={colore}>
+          {attiva && !inPausa ? (
+            <Equalizzatore colore={colore} altezza={16} />
+          ) : (
+            <Icona size={20} strokeWidth={1.75} style={{ color: colore }} />
           )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {attiva && !attiva.inPausa && (
-            <AudioLines
-              size={16}
-              strokeWidth={1.75}
-              className="pulsa-piano text-brand-chiaro"
-              aria-label="sta suonando"
-            />
-          )}
-          <Pillola colore={colore}>{NOMI_TIPO[cue.tipo]}</Pillola>
-        </div>
+        </Cerchietto>
+        <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
       </div>
+
+      <div className="mt-3 min-w-0 flex-1">
+        <div className="line-clamp-2 text-[20px] font-semibold leading-tight text-testo">{cue.titolo}</div>
+        {cue.nota && <div className="mt-1 line-clamp-2 text-[14px] text-testo-2">{cue.nota}</div>}
+        {!cue.file && <div className="mt-1 text-[12px] text-testo-3">manca il file</div>}
+      </div>
+
       <div className="mt-2 flex w-full items-center gap-2">
-        {!cue.file && <span className="text-[12px] text-testo-3">manca il file</span>}
-        {attiva?.inPausa && <Pillola>in pausa</Pillola>}
         {istanze.length > 1 && <span className="text-[12px] text-brand-chiaro">×{istanze.length}</span>}
-        <span className="flex-1" />
         {attiva && props.onSfuma && (
           <button
             type="button"
@@ -165,15 +214,22 @@ export function PulsanteCue(props: {
             <Square size={13} strokeWidth={2} fill="currentColor" />
           </button>
         )}
+        <span className="flex-1" />
+        <span className="text-[12px] tabular-nums text-testo-3">
+          {attiva
+            ? `${formattaTempo(attiva.posizioneSec)} / ${formattaTempo(attiva.durataSec)}`
+            : formattaTempo(cue.durataSec)}
+        </span>
         {!attiva && props.scorciatoia && (
-          <kbd className="rounded-md border border-vetro-bordo bg-velo px-1.5 text-[11px] text-testo-3">
+          <span className="rounded-full border border-vetro-bordo bg-velo px-1.5 text-[11px] tabular-nums text-testo-3">
             {props.scorciatoia}
-          </kbd>
+          </span>
         )}
       </div>
-      {attiva && !attiva.inPausa && (
+
+      {attiva && !inPausa && (
         <div className="absolute inset-x-0 bottom-0">
-          <BarraAvanzamento frazione={avanzamento} colore={colore} />
+          <BarraAvanzamento frazione={avanzamento} colore={colore} spessa />
         </div>
       )}
     </div>

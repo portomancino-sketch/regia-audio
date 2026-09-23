@@ -1,5 +1,6 @@
 // Il dock in basso: cosa sta suonando, master, FADE, STOP.
 import { Volume2 } from "lucide-react";
+import { Equalizzatore } from "./ui/Equalizzatore";
 import type { CueAttivo } from "../../../shared/tipi";
 import { formattaTempo } from "../util";
 import { Dock } from "./ui/Dock";
@@ -22,11 +23,14 @@ export function BarraLive(props: {
   return (
     <Dock fisso={props.telefono}>
       <div className="min-w-0 flex-1 basis-40">
-        <div className="etichetta">Sta suonando</div>
+        <div className="flex items-center gap-2">
+          <span className="etichetta">Sta suonando</span>
+          {attivi.some((a) => !a.inPausa) && <Equalizzatore altezza={10} colore="var(--brand-chiaro)" />}
+        </div>
         {attivi.length === 0 ? (
-          <div className="truncate text-[15px] text-testo-3">Silenzio</div>
+          <div key="silenzio" className="dissolvi truncate text-[15px] text-testo-3">Silenzio</div>
         ) : (
-          <div className="truncate">
+          <div key={attivi.map((a) => a.istanzaId).join(",")} className="dissolvi truncate">
             {attivi.map((a) => (
               <span key={a.istanzaId} className="mr-3 whitespace-nowrap text-[15px]">
                 <span className="font-medium text-testo">{a.titolo}</span>{" "}

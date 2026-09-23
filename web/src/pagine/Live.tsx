@@ -86,8 +86,11 @@ export function Live(props: {
           <p className="text-testo-2">Nessun suono in questa fase.</p>
         </Vetro>
       ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4">
-          {cue.map((c) => (
+        <div
+          key={fase.id /* rimonta la griglia al cambio fase: entrata a cascata */}
+          className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 md:gap-4"
+        >
+          {cue.map((c, i) => (
             <PulsanteCue
               key={c.id}
               cue={c}
@@ -95,6 +98,7 @@ export function Live(props: {
               fatto={props.fatti?.includes(c.id)}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
+              ritardoEntrataMs={Math.min(i, 9) * 35}
               onPremi={() => props.onPremi(c)}
               onFerma={() => props.onFerma(c)}
               onSfuma={() => props.onSfuma(c)}

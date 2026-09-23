@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./stili/tokens.css";
+@import "./stili/sfondo.css";
 
 html,
 body,
@@ -10,8 +11,6 @@ body,
 body {
   font-family: var(--font-sans);
   background-color: var(--sfondo);
-  background-image: var(--sfondo-gradienti);
-  background-attachment: fixed;
   color: var(--testo);
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
