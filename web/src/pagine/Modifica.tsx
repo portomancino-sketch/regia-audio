@@ -1,23 +1,38 @@
 // La vista Modifica: fasi e caselle cue, con trascinamenti e caricamenti.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Trash2 } from "lucide-react";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { api } from "../api";
-import { BottoneConferma, Chip, InputInline } from "../componenti/comuni";
+import { InputInline } from "../componenti/comuni";
 import { COLORI_TIPO, NOMI_TIPO, SCELTE_COLORE, formattaTempo } from "../util";
+import { Vetro } from "../componenti/ui/Vetro";
+import { Menu } from "../componenti/ui/Menu";
+import { Pillola } from "../componenti/ui/Pillola";
+import { Slider } from "../componenti/ui/Slider";
+import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 
 type Salva = (fn: () => Promise<unknown>) => void;
 
-function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void }) {
+function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; onDuplicata: () => void }) {
   const { cue, salva } = props;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cue.id });
+  const [aperta, setAperta] = useState(false);
   const [volume, setVolume] = useState(cue.volume);
   const [inDrop, setInDrop] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
   const timerVolume = useRef<number | null>(null);
   const inputFile = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => setVolume(cue.volume), [cue.volume]);
 
   function cambiaVolume(v: number) {
     setVolume(v);
@@ -40,7 +55,12 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void }) 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        ...(inDrop ? { borderColor: "var(--brand-chiaro)" } : {}),
+      }}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
           e.preventDefault();
@@ -57,142 +77,174 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void }) 
           caricaFile(e.dataTransfer.files[0]!);
         }
       }}
-      className={`flex flex-col gap-2 rounded-xl border p-3 ${
-        inDrop ? "border-blue-400 bg-blue-950/40" : "border-neutral-800 bg-neutral-900"
-      }`}
+      className="vetro flex flex-col"
     >
-      <div className="flex items-center gap-1">
-        <button type="button" {...attributes} {...listeners} className="cursor-grab px-1 text-neutral-600 hover:text-neutral-300">
-          ⠿
+      {/* Riga compatta: titolo, pillola tipo, nota */}
+      <div
+        className="flex cursor-pointer items-center gap-2 p-3"
+        onClick={() => setAperta(!aperta)}
+      >
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Trascina per riordinare"
+          onClick={(e) => e.stopPropagation()}
+          className="cursor-grab rounded-[10px] p-1 text-testo-3 hover:text-testo"
+        >
+          <GripVertical size={16} strokeWidth={1.75} />
         </button>
-        <InputInline
-          valore={cue.titolo}
-          placeholder="Titolo"
-          onCambia={(v) => salva(() => api.modificaCue(cue.id, { titolo: v }))}
-          className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 font-semibold hover:border-neutral-700 focus:border-neutral-500 focus:outline-none"
-        />
-        <BottoneConferma
-          testo="✕"
-          testoConferma="Elimina?"
-          onConfermato={props.onEliminata}
-          className="rounded-lg px-2 py-1 text-sm text-neutral-500 hover:bg-red-900/40 hover:text-red-300"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {(Object.keys(NOMI_TIPO) as TipoCue[]).map((t) => (
-          <Chip
-            key={t}
-            attivo={cue.tipo === t}
-            colore={COLORI_TIPO[t]}
-            onClick={() => salva(() => api.modificaCue(cue.id, { tipo: t }))}
-          >
-            {NOMI_TIPO[t]}
-          </Chip>
-        ))}
-      </div>
-
-      <InputInline
-        valore={cue.nota}
-        placeholder="Nota (facoltativa)"
-        onCambia={(v) => salva(() => api.modificaCue(cue.id, { nota: v }))}
-        className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-sm text-neutral-400 hover:border-neutral-700 focus:border-neutral-500 focus:outline-none"
-      />
-
-      {/* File audio */}
-      <div className="rounded-lg bg-neutral-950 p-2 text-sm">
-        {cue.file ? (
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-neutral-300">
-              🎵 {cue.fileOriginale ?? cue.file}{" "}
-              <span className="text-neutral-500">({formattaTempo(cue.durataSec)})</span>
-            </span>
-            <button type="button" onClick={() => inputFile.current?.click()} className="shrink-0 text-blue-400 hover:underline">
-              Cambia
-            </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <InputInline
+              valore={cue.titolo}
+              placeholder="Titolo"
+              onCambia={(v) => salva(() => api.modificaCue(cue.id, { titolo: v }))}
+              className="w-full rounded-[10px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-semibold transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
+            />
+            <Pillola colore={cue.colore ?? COLORI_TIPO[cue.tipo]}>{NOMI_TIPO[cue.tipo]}</Pillola>
           </div>
-        ) : (
-          <button type="button" onClick={() => inputFile.current?.click()} className="w-full py-1 text-neutral-400 hover:text-neutral-200">
-            Trascina qui un file audio, o clicca per sceglierlo
-          </button>
-        )}
-        <input
-          ref={inputFile}
-          type="file"
-          accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) caricaFile(f);
-            e.target.value = "";
-          }}
+          <div className="mt-0.5 flex items-center gap-2 px-1 text-[13px] text-testo-2">
+            {cue.file ? (
+              <span className="inline-flex items-center gap-1 truncate">
+                <Music size={12} strokeWidth={1.75} aria-hidden />
+                <span className="truncate">{cue.fileOriginale ?? cue.file}</span>
+                <span className="tabular-nums text-testo-3">({formattaTempo(cue.durataSec)})</span>
+              </span>
+            ) : (
+              <span className="text-testo-3">nessun file</span>
+            )}
+            {cue.nota && <span className="truncate">· {cue.nota}</span>}
+          </div>
+        </div>
+        <ChevronDown
+          size={16}
+          strokeWidth={1.75}
+          className={`shrink-0 text-testo-3 transition-transform duration-[var(--durata)] ${aperta ? "rotate-180" : ""}`}
+          aria-hidden
         />
-        {errore && <div className="mt-1 text-red-400">{errore}</div>}
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-neutral-400">
-        Volume
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={Math.round(volume * 100)}
-          onChange={(e) => cambiaVolume(Number(e.target.value) / 100)}
-          className="h-2 flex-1 accent-blue-500"
-        />
-        <span className="w-8 text-right tabular-nums">{Math.round(volume * 100)}</span>
-      </label>
+      {/* Riga dei controlli */}
+      {aperta && (
+        <div className="space-y-3 border-t border-vetro-bordo p-3">
+          <div>
+            <div className="etichetta mb-1.5">Tipo</div>
+            <ControlloSegmentato
+              segmenti={(Object.keys(NOMI_TIPO) as TipoCue[]).map((t) => ({ id: t, testo: NOMI_TIPO[t] }))}
+              valore={cue.tipo}
+              onCambia={(t) => salva(() => api.modificaCue(cue.id, { tipo: t as TipoCue }))}
+            />
+          </div>
 
-      {cue.tipo !== "sottofondo" && (
-        <div className="text-sm">
-          <div className="mb-1 text-neutral-500">Quando parte, il suono base…</div>
-          <div className="flex gap-1.5">
-            <Chip attivo={cue.sulSottofondo === "niente"} onClick={() => salva(() => api.modificaCue(cue.id, { sulSottofondo: "niente" }))}>
-              Resta
-            </Chip>
-            <Chip attivo={cue.sulSottofondo === "abbassa"} onClick={() => salva(() => api.modificaCue(cue.id, { sulSottofondo: "abbassa" }))}>
-              Si abbassa
-            </Chip>
-            <Chip attivo={cue.sulSottofondo === "pausa"} onClick={() => salva(() => api.modificaCue(cue.id, { sulSottofondo: "pausa" }))}>
-              Si ferma
-            </Chip>
+          <InputInline
+            valore={cue.nota}
+            placeholder="Nota (facoltativa)"
+            onCambia={(v) => salva(() => api.modificaCue(cue.id, { nota: v }))}
+            className="w-full rounded-[10px] border border-vetro-bordo bg-white/5 px-2 py-1.5 text-[13px] text-testo-2 focus:border-brand-chiaro focus:outline-none"
+          />
+
+          {/* Zona di rilascio / scelta file */}
+          <button
+            type="button"
+            onClick={() => inputFile.current?.click()}
+            className={`tocco flex w-full items-center justify-center gap-2 rounded-[var(--raggio-campo)] border border-dashed px-3 py-2.5 text-[13px] ${
+              inDrop ? "border-brand-chiaro text-brand-chiaro" : "border-vetro-bordo-chiaro text-testo-2 hover:text-testo"
+            }`}
+          >
+            <FileAudio size={15} strokeWidth={1.75} aria-hidden />
+            {cue.file ? "Cambia il file audio" : "Trascina qui un file audio, o clicca per sceglierlo"}
+          </button>
+          <input
+            ref={inputFile}
+            type="file"
+            accept=".mp3,.wav,.m4a,.aac,.ogg,audio/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) caricaFile(f);
+              e.target.value = "";
+            }}
+          />
+          {errore && <div className="text-[13px] text-rosso">{errore}</div>}
+
+          <div className="flex items-center gap-2">
+            <span className="etichetta w-14">Volume</span>
+            <Slider valore={volume} onCambia={cambiaVolume} className="flex-1" aria-label="Volume del suono" />
+            <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{Math.round(volume * 100)}</span>
+          </div>
+
+          {cue.tipo !== "sottofondo" && (
+            <div>
+              <div className="etichetta mb-1.5">Quando parte, il suono base…</div>
+              <ControlloSegmentato
+                segmenti={[
+                  { id: "niente", testo: "Resta" },
+                  { id: "abbassa", testo: "Si abbassa" },
+                  { id: "pausa", testo: "Si ferma" },
+                ]}
+                valore={cue.sulSottofondo}
+                onCambia={(v) =>
+                  salva(() => api.modificaCue(cue.id, { sulSottofondo: v as Cue["sulSottofondo"] }))
+                }
+              />
+            </div>
+          )}
+
+          {cue.tipo === "sottofondo" && (
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-testo-2">
+              <input
+                type="checkbox"
+                checked={cue.loop}
+                onChange={(e) => salva(() => api.modificaCue(cue.id, { loop: e.target.checked }))}
+                className="h-4 w-4 accent-[var(--brand)]"
+              />
+              Ripeti da capo quando finisce
+            </label>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {SCELTE_COLORE.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => salva(() => api.modificaCue(cue.id, { colore: cue.colore === c ? null : c }))}
+                  className={`tocco h-5 w-5 rounded-full border-2 ${cue.colore === c ? "border-white" : "border-transparent"}`}
+                  style={{ backgroundColor: c }}
+                  aria-label="Colore del pulsante"
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={props.onDuplicata}
+                aria-label="Duplica casella"
+                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-white/5 hover:text-testo"
+              >
+                <Copy size={15} strokeWidth={1.75} />
+              </button>
+              <Menu
+                voci={[
+                  {
+                    testo: "Elimina casella",
+                    icona: <Trash2 size={15} strokeWidth={1.75} />,
+                    pericolosa: true,
+                    conferma: true,
+                    onScelta: props.onEliminata,
+                  },
+                ]}
+              />
+            </div>
           </div>
         </div>
       )}
-
-      {cue.tipo === "sottofondo" && (
-        <label className="flex items-center gap-2 text-sm text-neutral-400">
-          <input
-            type="checkbox"
-            checked={cue.loop}
-            onChange={(e) => salva(() => api.modificaCue(cue.id, { loop: e.target.checked }))}
-            className="h-4 w-4 accent-blue-500"
-          />
-          Ripeti da capo quando finisce
-        </label>
-      )}
-
-      <div className="flex items-center gap-1.5">
-        {SCELTE_COLORE.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => salva(() => api.modificaCue(cue.id, { colore: cue.colore === c ? null : c }))}
-            className={`h-6 w-6 rounded-full border-2 ${cue.colore === c ? "border-white" : "border-transparent"}`}
-            style={{ backgroundColor: c }}
-            title="Colore del pulsante"
-          />
-        ))}
-      </div>
     </div>
   );
 }
 
-function SezioneFase(props: {
-  fase: Fase;
-  salva: Salva;
-  onRicarica: () => void;
-}) {
+function SezioneFase(props: { fase: Fase; salva: Salva }) {
   const { fase, salva } = props;
   const sortFase = useSortable({ id: `fase-${fase.id}` });
   const [inDrop, setInDrop] = useState(false);
@@ -207,9 +259,15 @@ function SezioneFase(props: {
   }
 
   return (
-    <section
+    <div
       ref={sortFase.setNodeRef}
-      style={{ transform: CSS.Transform.toString(sortFase.transform), transition: sortFase.transition, opacity: sortFase.isDragging ? 0.6 : 1 }}
+      className="vetro p-5"
+      style={{
+        transform: CSS.Transform.toString(sortFase.transform),
+        transition: sortFase.transition,
+        opacity: sortFase.isDragging ? 0.6 : 1,
+        ...(inDrop ? { borderColor: "var(--brand-chiaro)" } : {}),
+      }}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes("Files")) {
           e.preventDefault();
@@ -225,54 +283,81 @@ function SezioneFase(props: {
           salva(() => api.caricaAudioMultipli(fase.id, files));
         }
       }}
-      className={`rounded-2xl border p-4 ${inDrop ? "border-blue-400 bg-blue-950/30" : "border-neutral-800 bg-neutral-950"}`}
     >
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <button
           type="button"
           {...sortFase.attributes}
           {...sortFase.listeners}
-          className="cursor-grab px-1 text-neutral-600 hover:text-neutral-300"
-          title="Trascina per riordinare le fasi"
+          aria-label="Trascina per riordinare le fasi"
+          className="cursor-grab rounded-[10px] p-1 text-testo-3 hover:text-testo"
         >
-          ⠿
+          <GripVertical size={17} strokeWidth={1.75} />
         </button>
         <InputInline
           valore={fase.nome}
           onCambia={(v) => salva(() => api.rinominaFase(fase.id, v))}
-          className="w-full max-w-md rounded-md border border-transparent bg-transparent px-1 py-0.5 text-xl font-semibold hover:border-neutral-700 focus:border-neutral-500 focus:outline-none"
+          className="w-full max-w-md rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 text-[17px] font-semibold tracking-[-0.01em] transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
         />
-        <span className="text-sm text-neutral-500">{fase.cue.length} suoni</span>
-        <BottoneConferma testo="Elimina fase" onConfermato={() => salva(() => api.eliminaFase(fase.id))} />
+        <span className="shrink-0 text-[13px] text-testo-3">{fase.cue.length} suoni</span>
+        <Menu
+          voci={[
+            {
+              testo: "Duplica fase",
+              icona: <Copy size={15} strokeWidth={1.75} />,
+              onScelta: () => salva(() => api.duplicaFase(fase.id)),
+            },
+            {
+              testo: "Elimina fase",
+              icona: <Trash2 size={15} strokeWidth={1.75} />,
+              pericolosa: true,
+              conferma: true,
+              onScelta: () => salva(() => api.eliminaFase(fase.id)),
+            },
+          ]}
+        />
       </div>
 
       <DndContext collisionDetection={closestCenter} onDragEnd={fineTrascinamentoCue}>
         <SortableContext items={cueOrdinati.map((c) => c.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 md:gap-4">
             {cueOrdinati.map((c) => (
-              <CasellaCue key={c.id} cue={c} salva={salva} onEliminata={() => salva(() => api.eliminaCue(c.id))} />
+              <CasellaCue
+                key={c.id}
+                cue={c}
+                salva={salva}
+                onEliminata={() => salva(() => api.eliminaCue(c.id))}
+                onDuplicata={() => salva(() => api.duplicaCue(c.id))}
+              />
             ))}
             <button
               type="button"
               onClick={() => salva(() => api.creaCue(fase.id, {}))}
-              className="min-h-32 rounded-xl border-2 border-dashed border-neutral-700 text-neutral-500 hover:border-neutral-500 hover:text-neutral-300"
+              className="tocco flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-[var(--raggio-card)] border border-dashed border-vetro-bordo-chiaro text-testo-3 hover:border-brand-chiaro hover:text-brand-chiaro"
             >
-              + Casella
+              <Plus size={18} strokeWidth={1.75} />
+              <span className="text-[13px] font-medium">Casella</span>
             </button>
           </div>
         </SortableContext>
       </DndContext>
-      <p className="mt-2 text-xs text-neutral-600">
+      <p className="mt-3 text-[12px] text-testo-3">
         Puoi trascinare più file audio su questa fase: ogni file diventa una casella.
       </p>
-    </section>
+    </div>
   );
 }
 
-export function Modifica(props: { format: Format; onRicarica: () => Promise<void> }) {
+export function Modifica(props: {
+  format: Format;
+  onRicarica: () => Promise<void>;
+  onSalvataggio?: (pendenti: number) => void;
+}) {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
-  const [salvatoAlmeno, setSalvatoAlmeno] = useState(false);
+  const notifica = props.onSalvataggio;
+
+  useEffect(() => notifica?.(pendenti), [pendenti, notifica]);
 
   const salva: Salva = (fn) => {
     setPendenti((p) => p + 1);
@@ -280,7 +365,6 @@ export function Modifica(props: { format: Format; onRicarica: () => Promise<void
       try {
         await fn();
         await props.onRicarica();
-        setSalvatoAlmeno(true);
       } catch {
         /* l'errore è mostrato dal componente che ha chiamato */
       } finally {
@@ -300,15 +384,18 @@ export function Modifica(props: { format: Format; onRicarica: () => Promise<void
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-4 pb-28 pt-4">
-      <div className="flex items-center justify-end text-sm text-neutral-400" aria-live="polite">
-        {pendenti > 0 ? "Salvataggio…" : salvatoAlmeno ? "Salvato ✓" : " "}
-      </div>
+    <div className="mx-auto max-w-6xl space-y-4 px-4 pb-32 pt-5 md:space-y-5">
+      {fasiOrdinate.length === 0 && (
+        <Vetro className="mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
+          <Music size={30} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+          <p className="text-testo-2">Questo format è vuoto: aggiungi la prima fase.</p>
+        </Vetro>
+      )}
       <DndContext collisionDetection={closestCenter} onDragEnd={fineTrascinamentoFasi}>
         <SortableContext items={fasiOrdinate.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-5">
+          <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} onRicarica={() => void props.onRicarica()} />
+              <SezioneFase key={f.id} fase={f} salva={salva} />
             ))}
           </div>
         </SortableContext>
@@ -316,9 +403,9 @@ export function Modifica(props: { format: Format; onRicarica: () => Promise<void
       <button
         type="button"
         onClick={() => salva(() => api.creaFase(format.id, "Nuova fase"))}
-        className="w-full rounded-2xl border-2 border-dashed border-neutral-700 py-4 text-lg text-neutral-400 hover:border-neutral-500 hover:text-neutral-200"
+        className="tocco flex w-full items-center justify-center gap-2 rounded-[var(--raggio-card)] border border-dashed border-vetro-bordo-chiaro py-4 text-[15px] font-medium text-testo-3 hover:border-brand-chiaro hover:text-brand-chiaro"
       >
-        + Fase
+        <Plus size={17} strokeWidth={1.75} /> Fase
       </button>
     </div>
   );

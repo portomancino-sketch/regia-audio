@@ -4,12 +4,15 @@ import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../.
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
+import { ChevronLeft, Volume2 } from "lucide-react";
 import { Home } from "./Home";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
 import { PannelloTelecomando } from "./PannelloTelecomando";
 import { BarraLive } from "../componenti/BarraLive";
 import { InputInline } from "../componenti/comuni";
+import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
+import { Pulsante } from "../componenti/ui/Pulsante";
 
 type Vista = "modifica" | "live";
 
@@ -29,6 +32,10 @@ export function PaginaRegia() {
     formatId: null,
     faseId: null,
   });
+  // Indicatore "Salvato" nella barra in alto.
+  const [salvataggi, setSalvataggi] = useState(0);
+  const [salvatoAlmeno, setSalvatoAlmeno] = useState(false);
+  const salvataggiPrima = useRef(0);
   const liveRef = useRef(liveIds);
   const motoreRef = useRef<MotoreAudio | null>(null);
   const wsRef = useRef<ClientWs | null>(null);
@@ -291,7 +298,7 @@ export function PaginaRegia() {
   }
 
   if (!config) {
-    return <div className="p-8 text-neutral-400">Carico…</div>;
+    return <div className="p-8 text-testo-2">Carico…</div>;
   }
 
   const idFormatAperto = percorso.startsWith("/format/") ? percorso.slice("/format/".length) : null;
@@ -304,73 +311,104 @@ export function PaginaRegia() {
     <div className="min-h-full">
       {/* Overlay per sbloccare l'audio al primo caricamento. */}
       {serveSblocco && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-          <button
-            type="button"
+        <div className="vetro fixed inset-0 z-50 flex items-center justify-center rounded-none border-0 bg-black/60">
+          <Pulsante
+            variante="primario"
+            misura="lg"
+            className="px-10 py-6 text-[22px] shadow-2xl"
             onClick={() => {
               void motoreRef.current?.sblocca().then(() => setAudioAttivo(true));
             }}
-            className="rounded-2xl bg-blue-600 px-10 py-6 text-2xl font-bold text-white shadow-2xl hover:bg-blue-500"
           >
-            🔊 Attiva audio
-          </button>
+            <Volume2 size={24} strokeWidth={1.75} aria-hidden /> Attiva audio
+          </Pulsante>
         </div>
       )}
 
-      {!sonoIlMotore && (
-        <div className="bg-amber-900/60 px-4 py-2 text-center text-sm text-amber-200">
-          Un'altra finestra Regia è già attiva: qui puoi modificare, ma i suoni escono dall'altra finestra.
-        </div>
-      )}
-
-      {!formatAperto ? (
-        <Home config={config} onConfigCambiata={(c) => { configRef.current = c; setConfig(c); }} onApriFormat={apriFormat} />
-      ) : (
-        <div>
-          <header className="sticky top-0 z-30 border-b border-neutral-800 bg-neutral-950/95 px-4 py-3 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center gap-3">
-              <button type="button" onClick={tornaAllaHome} className="rounded-lg bg-neutral-800 px-3 py-2 text-neutral-300 hover:bg-neutral-700">
-                ‹ Format
+      {/* Barra superiore */}
+      <header className="sticky top-0 z-30 border-b border-vetro-bordo bg-sfondo/80 px-4 py-3 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center gap-3">
+          <div className="flex shrink-0 items-baseline gap-2">
+            <span className="text-[17px] font-semibold tracking-[-0.01em] text-testo">Regia</span>
+            <span className="hidden text-[12px] text-testo-3 sm:block">Porto Mancino</span>
+          </div>
+          {formatAperto && (
+            <>
+              <button
+                type="button"
+                onClick={tornaAllaHome}
+                aria-label="Torna ai format"
+                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-white/5 hover:text-testo"
+              >
+                <ChevronLeft size={18} strokeWidth={1.75} />
               </button>
-              <div className="min-w-0 flex-1 text-xl font-semibold">
+              <div className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">
                 <InputInline
                   valore={formatAperto.nome}
                   onCambia={(v) => void api.rinominaFormat(formatAperto.id, v).then(() => void ricaricaConfig())}
                 />
               </div>
-              <div className="flex rounded-xl bg-neutral-800 p-1">
-                <button
-                  type="button"
-                  onClick={() => setVista("modifica")}
-                  className={`rounded-lg px-4 py-2 font-medium ${vista === "modifica" ? "bg-neutral-600 text-white" : "text-neutral-400"}`}
-                >
-                  Modifica
-                </button>
-                <button
-                  type="button"
-                  onClick={() => passaAlive(formatAperto)}
-                  className={`rounded-lg px-4 py-2 font-medium ${vista === "live" ? "bg-blue-600 text-white" : "text-neutral-400"}`}
-                >
-                  Live
-                </button>
-              </div>
-              <PannelloTelecomando telefoni={telefoni} />
-            </div>
-          </header>
-
-          {vista === "modifica" ? (
-            <Modifica format={formatAperto} onRicarica={async () => void (await ricaricaConfig())} />
-          ) : (
-            <Live
-              format={formatAperto}
-              faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
-              attivi={attivi}
-              onCambiaFase={cambiaFase}
-              onPremi={premiCue}
-              disabilitato={!motoreOnline}
+            </>
+          )}
+          {!formatAperto && <div className="flex-1" />}
+          <span
+            aria-live="polite"
+            className={`hidden shrink-0 text-[12px] transition-opacity duration-300 sm:block ${
+              salvataggi > 0 ? "text-testo-2" : salvatoAlmeno ? "text-testo-3" : "opacity-0"
+            }`}
+          >
+            {salvataggi > 0 ? "Salvataggio…" : "Salvato"}
+          </span>
+          {formatAperto && (
+            <ControlloSegmentato
+              className="shrink-0"
+              segmenti={[
+                { id: "modifica", testo: "Modifica" },
+                { id: "live", testo: "Live" },
+              ]}
+              valore={vista}
+              onCambia={(v) => (v === "live" ? passaAlive(formatAperto) : setVista("modifica"))}
             />
           )}
+          <PannelloTelecomando telefoni={telefoni} />
         </div>
+        {!sonoIlMotore && (
+          <div className="mx-auto mt-2 max-w-6xl">
+            <span className="inline-block rounded-full border border-vetro-bordo bg-white/5 px-3 py-1 text-[12px] text-testo-2">
+              Un'altra finestra Regia è già attiva: qui puoi modificare, ma i suoni escono dall'altra finestra.
+            </span>
+          </div>
+        )}
+      </header>
+
+      {!formatAperto ? (
+        <Home
+          config={config}
+          onConfigCambiata={(c) => {
+            configRef.current = c;
+            setConfig(c);
+          }}
+          onApriFormat={apriFormat}
+        />
+      ) : vista === "modifica" ? (
+        <Modifica
+          format={formatAperto}
+          onRicarica={async () => void (await ricaricaConfig())}
+          onSalvataggio={(pendenti) => {
+            setSalvataggi(pendenti);
+            if (pendenti === 0 && salvataggiPrima.current > 0) setSalvatoAlmeno(true);
+            salvataggiPrima.current = pendenti;
+          }}
+        />
+      ) : (
+        <Live
+          format={formatAperto}
+          faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
+          attivi={attivi}
+          onCambiaFase={cambiaFase}
+          onPremi={premiCue}
+          disabilitato={!motoreOnline}
+        />
       )}
 
       {(vista === "live" || attivi.length > 0) && formatAperto && (

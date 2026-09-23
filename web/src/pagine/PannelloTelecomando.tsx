@@ -1,8 +1,11 @@
 // Il pannello apribile con QR, indirizzo, PIN e telefoni collegati.
 import { useEffect, useState } from "react";
+import { Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import type { InfoRete } from "../../../shared/tipi";
 import { api } from "../api";
+import { Vetro } from "../componenti/ui/Vetro";
+import { Pulsante } from "../componenti/ui/Pulsante";
 
 export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
   const [aperto, setAperto] = useState(false);
@@ -27,24 +30,25 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
 
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setAperto(!aperto)}
-        className="rounded-xl bg-neutral-800 px-4 py-2 font-medium text-neutral-200 hover:bg-neutral-700"
-      >
-        📱 Telecomando {props.telefoni.length > 0 && `(${props.telefoni.length})`}
-      </button>
+      <Pulsante variante="secondario" onClick={() => setAperto(!aperto)}>
+        <Smartphone size={16} strokeWidth={1.75} aria-hidden />
+        Telecomando{props.telefoni.length > 0 && ` (${props.telefoni.length})`}
+      </Pulsante>
       {aperto && (
-        <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-neutral-700 bg-neutral-900 p-4 shadow-2xl">
+        <Vetro className="absolute right-0 top-14 z-50 w-80 bg-[#14181e]/95 p-5">
           {!rete ? (
-            <p className="text-neutral-400">Un attimo…</p>
+            <p className="text-testo-2">Un attimo…</p>
           ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-neutral-300">Inquadra col telefono (stesso WiFi del Mac):</p>
-              {qr && <img src={qr} alt="QR del telecomando" className="mx-auto rounded-lg bg-white p-2" />}
-              <p className="break-all text-center font-mono text-sm text-blue-300">{rete.urlTelecomando}</p>
-              <label className="flex items-center justify-between gap-2 text-sm">
-                <span className="text-neutral-400">PIN</span>
+            <div className="space-y-4">
+              <p className="text-[13px] text-testo-2">Inquadra col telefono (stesso WiFi del Mac):</p>
+              {qr && (
+                <div className="mx-auto w-fit rounded-2xl bg-white p-3">
+                  <img src={qr} alt="QR del telecomando" className="block h-44 w-44" />
+                </div>
+              )}
+              <p className="break-all text-center font-mono text-[13px] text-brand-chiaro">{rete.urlTelecomando}</p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="etichetta">PIN</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -52,18 +56,22 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
                   value={pinBozza}
                   onChange={(e) => setPinBozza(e.target.value.replace(/\D/g, ""))}
                   onBlur={() => void salvaPin()}
-                  className="w-24 rounded-lg border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-center font-mono text-xl tracking-widest"
+                  aria-label="PIN del telecomando"
+                  className="vetro vetro-campo w-28 bg-white/5 px-2 py-1.5 text-center text-[24px] font-semibold tabular-nums tracking-[0.3em] text-testo focus:border-brand-chiaro focus:outline-none"
                 />
-              </label>
-              <div className="text-sm text-neutral-400">
+              </div>
+              <div className="text-[13px] text-testo-2">
                 {props.telefoni.length === 0 ? (
-                  "Nessun telefono collegato"
+                  <span className="text-testo-3">Nessun telefono collegato</span>
                 ) : (
                   <>
-                    Telefoni collegati:
-                    <ul className="mt-1 list-inside list-disc">
+                    <div className="etichetta mb-1.5">Telefoni collegati</div>
+                    <ul className="space-y-1">
                       {props.telefoni.map((t, i) => (
-                        <li key={i} className="font-mono">{t.ip.replace(/^::ffff:/, "")}</li>
+                        <li key={i} className="flex items-center gap-2 font-mono tabular-nums">
+                          <span aria-hidden className="h-2 w-2 rounded-full bg-brand-chiaro" />
+                          {t.ip.replace(/^::ffff:/, "")}
+                        </li>
                       ))}
                     </ul>
                   </>
@@ -71,7 +79,7 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
               </div>
             </div>
           )}
-        </div>
+        </Vetro>
       )}
     </div>
   );

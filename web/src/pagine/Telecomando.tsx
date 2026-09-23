@@ -1,10 +1,13 @@
 // La pagina per il telefono: solo Live, nessun suono esce da qui.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight, Delete, Smartphone } from "lucide-react";
 import type { Config, Cue, StatoLive } from "../../../shared/tipi";
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { BarraLive } from "../componenti/BarraLive";
 import { PulsanteCue } from "../componenti/PulsanteCue";
+import { Vetro } from "../componenti/ui/Vetro";
+import { Pulsante } from "../componenti/ui/Pulsante";
 
 const CHIAVE_PIN = "regia-pin";
 
@@ -80,9 +83,77 @@ function useSchermoAcceso(attivo: boolean) {
   }, [attivo]);
 }
 
+/** Schermata PIN: card vetro con tastierino numerico grande. */
+function SchermataPin(props: { errore: boolean; onEntra: (pin: string) => void }) {
+  const [pin, setPin] = useState("");
+  const tasti = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"];
+  function premi(t: string) {
+    if (t === "⌫") setPin((p) => p.slice(0, -1));
+    else if (t && pin.length < 4) setPin((p) => p + t);
+  }
+  return (
+    <div
+      className="flex min-h-full flex-col items-center justify-center p-6"
+      style={{ paddingTop: "max(24px, env(safe-area-inset-top))", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}
+    >
+      <Vetro className="w-full max-w-xs p-6">
+        <div className="mb-1 flex items-center justify-center gap-2 text-[17px] font-semibold tracking-[-0.01em]">
+          <Smartphone size={18} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+          Telecomando
+        </div>
+        <p className="text-center text-[13px] text-testo-2">
+          Scrivi il PIN che vedi sulla pagina Regia del Mac
+        </p>
+        {props.errore && <p className="mt-1 text-center text-[13px] text-rosso">PIN errato, riprova</p>}
+
+        {/* Le 4 cifre */}
+        <div className="my-5 flex justify-center gap-2" aria-label="PIN inserito">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="vetro vetro-campo flex h-14 w-12 items-center justify-center text-[28px] font-semibold tabular-nums"
+              style={pin[i] ? { borderColor: "var(--brand-chiaro)" } : undefined}
+            >
+              {pin[i] ?? ""}
+            </div>
+          ))}
+        </div>
+
+        {/* Tastierino */}
+        <div className="grid grid-cols-3 gap-2">
+          {tasti.map((t, i) =>
+            t === "" ? (
+              <span key={i} />
+            ) : (
+              <button
+                key={i}
+                type="button"
+                onClick={() => premi(t)}
+                aria-label={t === "⌫" ? "Cancella" : t}
+                className="vetro vetro-campo tocco flex min-h-16 items-center justify-center text-[24px] font-medium tabular-nums text-testo"
+              >
+                {t === "⌫" ? <Delete size={22} strokeWidth={1.75} /> : t}
+              </button>
+            ),
+          )}
+        </div>
+
+        <Pulsante
+          variante="primario"
+          misura="lg"
+          disabled={pin.length !== 4}
+          onClick={() => props.onEntra(pin)}
+          className="mt-4 w-full"
+        >
+          Entra
+        </Pulsante>
+      </Vetro>
+    </div>
+  );
+}
+
 export function PaginaTelecomando() {
   const [pin, setPin] = useState<string | null>(localStorage.getItem(CHIAVE_PIN));
-  const [pinBozza, setPinBozza] = useState("");
   const [pinSbagliato, setPinSbagliato] = useState(false);
   const [autenticato, setAutenticato] = useState(false);
   const [config, setConfig] = useState<Config | null>(null);
@@ -132,37 +203,18 @@ export function PaginaTelecomando() {
   // ---- Schermata PIN ----
   if (!pin) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-6 p-6">
-        <h1 className="text-3xl font-bold">🎭 Telecomando</h1>
-        <p className="text-center text-neutral-400">
-          Scrivi il PIN che vedi sulla pagina Regia del Mac{pinSbagliato && <span className="block text-red-400">PIN errato, riprova</span>}
-        </p>
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={4}
-          autoFocus
-          value={pinBozza}
-          onChange={(e) => setPinBozza(e.target.value.replace(/\D/g, ""))}
-          className="w-44 rounded-2xl border border-neutral-700 bg-neutral-900 px-4 py-4 text-center font-mono text-4xl tracking-[0.5em]"
-        />
-        <button
-          type="button"
-          disabled={pinBozza.length !== 4}
-          onClick={() => {
-            localStorage.setItem(CHIAVE_PIN, pinBozza);
-            setPinSbagliato(false);
-            setPin(pinBozza);
-          }}
-          className="min-h-16 w-44 rounded-2xl bg-blue-600 text-xl font-bold text-white disabled:opacity-40"
-        >
-          Entra
-        </button>
-      </div>
+      <SchermataPin
+        errore={pinSbagliato}
+        onEntra={(p) => {
+          localStorage.setItem(CHIAVE_PIN, p);
+          setPinSbagliato(false);
+          setPin(p);
+        }}
+      />
     );
   }
 
-  if (!config) return <div className="p-8 text-neutral-400">Carico…</div>;
+  if (!config) return <div className="p-8 text-testo-2">Carico…</div>;
 
   const motoreOnline = stato?.motoreOnline ?? false;
   const formats = [...config.formats].sort((a, b) => a.ordine - b.ordine);
@@ -181,16 +233,23 @@ export function PaginaTelecomando() {
     invia({ tipo: "comando", comando: "play", cueId: c.id });
   }
 
+  const pillolaOffline = !motoreOnline && (
+    <div className="mb-3 flex justify-center">
+      <span className="inline-flex items-center gap-2 rounded-full bg-rosso px-4 py-1.5 text-[13px] font-semibold text-white">
+        Regia non collegata
+      </span>
+    </div>
+  );
+
   // ---- Scelta del format ----
   if (!format || scegliFormat) {
     return (
-      <div className="mx-auto max-w-md p-4 pb-8">
-        {!motoreOnline && (
-          <div className="mb-4 rounded-xl bg-red-700 px-4 py-3 text-center font-semibold text-white">
-            Regia non collegata
-          </div>
-        )}
-        <h1 className="mb-4 text-2xl font-bold">Scegli la serata</h1>
+      <div
+        className="mx-auto max-w-md p-4 pb-8"
+        style={{ paddingTop: "max(16px, env(safe-area-inset-top))" }}
+      >
+        {pillolaOffline}
+        <h1 className="mb-4 text-[28px] font-semibold">Scegli la serata</h1>
         <div className="space-y-3">
           {formats.map((f) => (
             <button
@@ -206,75 +265,85 @@ export function PaginaTelecomando() {
                   setFormatDaConfermare(f.id);
                 }
               }}
-              className={`min-h-16 w-full rounded-2xl px-4 text-left text-xl font-semibold disabled:opacity-40 ${
-                formatDaConfermare === f.id ? "bg-blue-600 text-white" : "bg-neutral-800 text-neutral-100"
+              className={`tocco min-h-16 w-full rounded-[var(--raggio-card)] border px-4 text-left text-[20px] font-semibold disabled:opacity-40 ${
+                formatDaConfermare === f.id
+                  ? "border-transparent bg-brand text-white"
+                  : "vetro text-testo"
               }`}
             >
               {formatDaConfermare === f.id ? `Confermi "${f.nome}"?` : f.nome}
             </button>
           ))}
-          {formats.length === 0 && <p className="text-neutral-400">Nessun format: crealo prima sul Mac.</p>}
+          {formats.length === 0 && <p className="text-testo-2">Nessun format: crealo prima sul Mac.</p>}
         </div>
         {format && (
-          <button
-            type="button"
+          <Pulsante
+            variante="secondario"
+            className="mt-6 w-full"
             onClick={() => {
               setScegliFormat(false);
               setFormatDaConfermare(null);
             }}
-            className="mt-6 w-full rounded-xl bg-neutral-800 py-3 text-neutral-300"
           >
             Annulla
-          </button>
+          </Pulsante>
         )}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-md px-3 pb-36 pt-3">
-      {!motoreOnline && (
-        <div className="mb-3 rounded-xl bg-red-700 px-4 py-3 text-center font-semibold text-white">
-          Regia non collegata
-        </div>
-      )}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => setScegliFormat(true)}
-          className="truncate rounded-lg bg-neutral-800 px-3 py-2 text-sm text-neutral-300"
-        >
-          {format.nome} ▾
-        </button>
-      </div>
+    <div
+      className="mx-auto max-w-md px-3 pb-44"
+      style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
+    >
+      {pillolaOffline}
+      <button
+        type="button"
+        onClick={() => setScegliFormat(true)}
+        className="tocco mb-3 inline-flex max-w-full items-center gap-1.5 rounded-[10px] border border-transparent px-2 py-1 text-[13px] text-testo-2 hover:bg-white/5 hover:text-testo"
+      >
+        <span className="truncate">{format.nome}</span>
+        <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
+      </button>
       <div className="mb-4 flex items-center gap-2">
         <button
           type="button"
           disabled={!motoreOnline || indiceFase <= 0}
           onClick={() => vaiAFase(-1)}
-          className="min-h-16 w-16 rounded-2xl bg-neutral-800 text-2xl text-neutral-200 disabled:opacity-30"
+          aria-label="Fase precedente"
+          className="vetro tocco flex min-h-16 w-16 items-center justify-center text-testo disabled:opacity-30"
         >
-          ‹
+          <ChevronLeft size={24} strokeWidth={1.75} />
         </button>
-        <div className="min-h-16 flex flex-1 items-center justify-center rounded-2xl bg-neutral-900 px-2 text-center text-lg font-semibold">
+        <div className="vetro flex min-h-16 flex-1 items-center justify-center px-2 text-center text-[17px] font-semibold tracking-[-0.01em]">
           {fase?.nome ?? "—"}
         </div>
         <button
           type="button"
           disabled={!motoreOnline || indiceFase < 0 || indiceFase >= fasi.length - 1}
           onClick={() => vaiAFase(1)}
-          className="min-h-16 w-16 rounded-2xl bg-neutral-800 text-2xl text-neutral-200 disabled:opacity-30"
+          aria-label="Fase successiva"
+          className="vetro tocco flex min-h-16 w-16 items-center justify-center text-testo disabled:opacity-30"
         >
-          ›
+          <ChevronRight size={24} strokeWidth={1.75} />
         </button>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
         {cue.map((c) => (
-          <PulsanteCue key={c.id} cue={c} attivi={stato?.attivi ?? []} disabilitato={!motoreOnline} onPremi={() => premi(c)} />
+          <PulsanteCue
+            key={c.id}
+            cue={c}
+            compatto
+            attivi={stato?.attivi ?? []}
+            disabilitato={!motoreOnline}
+            onPremi={() => premi(c)}
+          />
         ))}
-        {cue.length === 0 && <p className="text-neutral-400">Nessun suono in questa fase.</p>}
+        {cue.length === 0 && <p className="text-testo-2">Nessun suono in questa fase.</p>}
       </div>
       <BarraLive
+        telefono
         attivi={stato?.attivi ?? []}
         master={stato?.master ?? 0.8}
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}

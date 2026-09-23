@@ -35,6 +35,7 @@ export const api = {
   rinominaFase: (id: string, nome: string) => chiama<Fase>("PATCH", `/api/fasi/${id}`, { nome }),
   riordinaFasi: (formatId: string, ordine: string[]) =>
     chiama<string[]>("POST", `/api/formats/${formatId}/fasi/riordina`, { ordine }),
+  duplicaFase: (id: string) => chiama<Fase>("POST", `/api/fasi/${id}/duplica`),
   eliminaFase: (id: string) => chiama<{ fatto: boolean }>("DELETE", `/api/fasi/${id}`),
 
   creaCue: (faseId: string, dati: Partial<Cue>) => chiama<Cue>("POST", `/api/fasi/${faseId}/cue`, dati),

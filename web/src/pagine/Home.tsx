@@ -3,9 +3,12 @@ import { useState } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Config, Format } from "../../../shared/tipi";
 import { api } from "../api";
-import { BottoneConferma, InputInline } from "../componenti/comuni";
+import { InputInline } from "../componenti/comuni";
+import { Menu } from "../componenti/ui/Menu";
+import { Pulsante } from "../componenti/ui/Pulsante";
 
 function CardFormat(props: {
   format: Format;
@@ -17,46 +20,59 @@ function CardFormat(props: {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: props.format.id,
   });
+  const [rinomina, setRinomina] = useState(false);
   const nCue = props.format.fasi.reduce((n, f) => n + f.cue.length, 0);
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }}
-      className="flex flex-col gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-5 hover:border-neutral-600"
+      onClick={props.onApri}
+      className="vetro tocco flex min-h-[150px] cursor-pointer flex-col p-5"
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="self-start cursor-grab rounded px-1 text-neutral-600 hover:text-neutral-300"
-        title="Trascina per riordinare"
-      >
-        ⠿
-      </button>
-      <div className="cursor-pointer" onClick={props.onApri}>
-        <div className="text-xl font-semibold" onClick={(e) => e.stopPropagation()}>
-          <InputInline valore={props.format.nome} onCambia={props.onRinomina} />
-        </div>
-        <div className="mt-1 text-sm text-neutral-400">
-          {props.format.fasi.length} fasi · {nCue} suoni
+      <div className="flex items-start justify-between">
+        <Clapperboard size={20} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Trascina per riordinare"
+            className="cursor-grab rounded-[10px] p-1.5 text-testo-3 hover:bg-white/5 hover:text-testo"
+          >
+            <GripVertical size={16} strokeWidth={1.75} />
+          </button>
+          <Menu
+            voci={[
+              { testo: "Rinomina", icona: <Pencil size={15} strokeWidth={1.75} />, onScelta: () => setRinomina(true) },
+              { testo: "Duplica", icona: <Copy size={15} strokeWidth={1.75} />, onScelta: props.onDuplica },
+              {
+                testo: "Elimina",
+                icona: <Trash2 size={15} strokeWidth={1.75} />,
+                pericolosa: true,
+                conferma: true,
+                onScelta: props.onElimina,
+              },
+            ]}
+          />
         </div>
       </div>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={props.onApri}
-          className="flex-1 rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-500"
-        >
-          Apri
-        </button>
-        <button
-          type="button"
-          onClick={props.onDuplica}
-          className="rounded-lg bg-neutral-800 px-3 py-2 text-sm text-neutral-300 hover:bg-neutral-700"
-        >
-          Duplica
-        </button>
-        <BottoneConferma testo="Elimina" onConfermato={props.onElimina} />
+      <div className="mt-auto pt-4">
+        {rinomina ? (
+          <InputInline
+            valore={props.format.nome}
+            autoFocus
+            onCambia={(nome) => {
+              setRinomina(false);
+              props.onRinomina(nome);
+            }}
+            className="w-full rounded-[10px] border border-brand-chiaro bg-white/5 px-1.5 py-0.5 text-[22px] font-semibold focus:outline-none"
+          />
+        ) : (
+          <div className="truncate text-[22px] font-semibold leading-tight text-testo">{props.format.nome}</div>
+        )}
+        <div className="mt-1 text-[13px] text-testo-2">
+          {props.format.fasi.length} fasi · {nCue} suoni
+        </div>
       </div>
     </div>
   );
@@ -100,23 +116,19 @@ export function Home(props: {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">🎭 Regia</h1>
-        <button
-          type="button"
-          disabled={occupato}
-          onClick={() => void nuovo()}
-          className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
-        >
-          + Nuovo format
-        </button>
-      </div>
+      <h1 className="mb-6 text-[28px] font-semibold text-testo">Le tue serate</h1>
       {formats.length === 0 ? (
-        <p className="text-neutral-400">Nessun format. Premi "+ Nuovo format" per iniziare.</p>
+        <div className="vetro mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
+          <Clapperboard size={32} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+          <p className="text-testo-2">Nessun format: crea la tua prima serata.</p>
+          <Pulsante variante="primario" disabled={occupato} onClick={() => void nuovo()}>
+            <Plus size={16} strokeWidth={1.75} /> Nuovo format
+          </Pulsante>
+        </div>
       ) : (
         <DndContext collisionDetection={closestCenter} onDragEnd={(e) => void fineTrascinamento(e)}>
           <SortableContext items={formats.map((f) => f.id)} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 md:gap-4">
               {formats.map((f) => (
                 <CardFormat
                   key={f.id}
@@ -133,6 +145,15 @@ export function Home(props: {
                   }}
                 />
               ))}
+              <button
+                type="button"
+                disabled={occupato}
+                onClick={() => void nuovo()}
+                className="tocco flex min-h-[150px] flex-col items-center justify-center gap-2 rounded-[var(--raggio-card)] border border-dashed border-vetro-bordo-chiaro text-testo-3 hover:border-brand-chiaro hover:text-brand-chiaro disabled:opacity-40"
+              >
+                <Plus size={22} strokeWidth={1.75} />
+                <span className="text-[15px] font-medium">Nuovo format</span>
+              </button>
             </div>
           </SortableContext>
         </DndContext>

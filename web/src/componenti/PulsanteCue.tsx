@@ -1,6 +1,9 @@
 // Il pulsante grande di un cue nella vista Live (Mac e telefono).
+import { AudioLines } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
 import { coloreCue, NOMI_TIPO } from "../util";
+import { BarraAvanzamento } from "./ui/BarraAvanzamento";
+import { Pillola } from "./ui/Pillola";
 
 export function PulsanteCue(props: {
   cue: Cue;
@@ -8,6 +11,7 @@ export function PulsanteCue(props: {
   onPremi: () => void;
   disabilitato?: boolean;
   scorciatoia?: string;
+  compatto?: boolean;
 }) {
   const { cue } = props;
   const istanze = props.attivi.filter((a) => a.cueId === cue.id);
@@ -23,33 +27,55 @@ export function PulsanteCue(props: {
       type="button"
       disabled={props.disabilitato || !cue.file}
       onClick={props.onPremi}
-      className={`relative min-h-16 overflow-hidden rounded-2xl border-2 p-3 text-left transition-transform active:scale-95 disabled:opacity-40 sm:min-h-24 ${
-        attiva ? "shadow-lg" : ""
+      className={`vetro tocco relative flex flex-col justify-between overflow-hidden p-4 text-left disabled:opacity-40 ${
+        props.compatto ? "min-h-[88px]" : "min-h-[112px]"
       }`}
-      style={{
-        borderColor: attiva ? colore : "#333",
-        backgroundColor: attiva ? `${colore}33` : "#1a1a1f",
-        boxShadow: attiva ? `0 0 16px ${colore}66` : undefined,
-      }}
+      style={
+        attiva
+          ? {
+              borderColor: "var(--brand-chiaro)",
+              boxShadow: "0 0 24px var(--brand-glow), inset 0 1px 0 var(--vetro-luce)",
+            }
+          : undefined
+      }
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex w-full items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="truncate text-lg font-semibold leading-tight">{cue.titolo}</div>
-          {cue.nota && <div className="mt-0.5 truncate text-sm text-neutral-400">{cue.nota}</div>}
+          <div className="truncate text-[20px] font-semibold leading-tight text-testo">
+            {cue.titolo}
+          </div>
+          {cue.nota && (
+            <div className={`mt-1 truncate text-testo-2 ${props.compatto ? "text-[14px]" : "text-[13px]"}`}>
+              {cue.nota}
+            </div>
+          )}
         </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {attiva && !attiva.inPausa && (
+            <AudioLines
+              size={16}
+              strokeWidth={1.75}
+              className="pulsa-piano text-brand-chiaro"
+              aria-label="sta suonando"
+            />
+          )}
+          <Pillola colore={colore}>{NOMI_TIPO[cue.tipo]}</Pillola>
+        </div>
+      </div>
+      <div className="mt-2 flex w-full items-center gap-2">
+        {!cue.file && <span className="text-[12px] text-testo-3">manca il file</span>}
+        {attiva?.inPausa && <Pillola>in pausa</Pillola>}
+        {istanze.length > 1 && <span className="text-[12px] text-brand-chiaro">×{istanze.length}</span>}
+        <span className="flex-1" />
         {props.scorciatoia && (
-          <span className="rounded bg-neutral-800 px-1.5 text-xs text-neutral-500">{props.scorciatoia}</span>
+          <kbd className="rounded-md border border-vetro-bordo bg-white/5 px-1.5 text-[11px] text-testo-3">
+            {props.scorciatoia}
+          </kbd>
         )}
       </div>
-      <div className="mt-1 flex items-center gap-2 text-xs" style={{ color: colore }}>
-        <span>{NOMI_TIPO[cue.tipo]}</span>
-        {!cue.file && <span className="text-neutral-500">— manca il file</span>}
-        {attiva?.inPausa && <span className="text-neutral-300">in pausa</span>}
-        {istanze.length > 1 && <span>×{istanze.length}</span>}
-      </div>
       {attiva && !attiva.inPausa && (
-        <div className="absolute inset-x-0 bottom-0 h-1.5 bg-neutral-800">
-          <div className="h-full transition-[width]" style={{ width: `${avanzamento * 100}%`, backgroundColor: colore }} />
+        <div className="absolute inset-x-0 bottom-0">
+          <BarraAvanzamento frazione={avanzamento} colore={colore} />
         </div>
       )}
     </button>
