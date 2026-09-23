@@ -102,7 +102,8 @@ describe("configurazione", () => {
     r = await app.inject({ method: "GET", url: "/api/config" });
     const c = r.json();
     const f = c.formats.find((x: { id: string }) => x.id === format.id);
-    expect(f.fasi[0].cue[0].nota).toBe("forte");
+    const faseNormale = f.fasi.find((x: { sempre?: boolean }) => !x.sempre);
+    expect(faseNormale.cue[0].nota).toBe("forte");
 
     // Elimina
     r = await app.inject({ method: "DELETE", url: `/api/cue/${cue.id}` });
@@ -119,6 +120,38 @@ describe("configurazione", () => {
     expect(ids.indexOf(b.id)).toBeLessThan(ids.indexOf(a.id));
     await app.inject({ method: "DELETE", url: `/api/formats/${a.id}` });
     await app.inject({ method: "DELETE", url: `/api/formats/${b.id}` });
+  });
+});
+
+describe("riga Sempre", () => {
+  it("nasce con il format, non si elimina e non si rinomina", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Con sempre" } })).json();
+    const sempre = format.fasi.find((f: { sempre?: boolean }) => f.sempre);
+    expect(sempre).toBeDefined();
+    expect(sempre.nome).toBe("Sempre");
+    expect(sempre.ordine).toBe(-1);
+
+    let r = await app.inject({ method: "DELETE", url: `/api/fasi/${sempre.id}` });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().errore).toBe("La riga Sempre non si può eliminare");
+
+    r = await app.inject({ method: "PATCH", url: `/api/fasi/${sempre.id}`, payload: { nome: "Altro" } });
+    expect(r.json().nome).toBe("Sempre");
+
+    // Il riordino delle fasi la lascia in cima.
+    const f1 = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Uno" } })).json();
+    const f2 = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Due" } })).json();
+    await app.inject({
+      method: "POST",
+      url: `/api/formats/${format.id}/fasi/riordina`,
+      payload: { ordine: [f2.id, f1.id, sempre.id] },
+    });
+    const dopo = (await app.inject({ method: "GET", url: "/api/config" })).json()
+      .formats.find((x: { id: string }) => x.id === format.id);
+    const ordinate = [...dopo.fasi].sort((a: { ordine: number }, b: { ordine: number }) => a.ordine - b.ordine);
+    expect(ordinate[0].sempre).toBe(true);
+    expect(ordinate[1].nome).toBe("Due");
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
   });
 });
 
@@ -204,7 +237,7 @@ describe("duplicazione", () => {
     const r = await app.inject({ method: "POST", url: `/api/formats/${format.id}/duplica` });
     const copia = r.json();
     expect(copia.nome).toBe("Orig (copia)");
-    const cueCopiato = copia.fasi[0].cue[0];
+    const cueCopiato = copia.fasi.find((x: { sempre?: boolean }) => !x.sempre).cue[0];
     expect(cueCopiato.id).not.toBe(cue.id);
     expect(cueCopiato.file).not.toBe(`${cue.id}.wav`);
     expect(fs.existsSync(path.join(tempDir, "audio", cueCopiato.file))).toBe(true);
