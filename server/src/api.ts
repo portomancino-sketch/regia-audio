@@ -9,6 +9,7 @@ import archiver from "archiver";
 import AdmZip from "adm-zip";
 import { parseFile } from "music-metadata";
 import type { Config, Cue, Fase, Format } from "../../shared/tipi";
+import { puoMettereInEvidenza } from "../../shared/sempre";
 import type { Store } from "./store";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
@@ -90,6 +91,7 @@ function cueNuovo(ordine: number, parziale?: Partial<Cue>): Cue {
     sulSottofondo: tipo === "brano" ? "pausa" : tipo === "effetto" ? "abbassa" : "niente",
     colore: null,
     ordine,
+    evidenza: false,
     ...parziale,
     ...(parziale?.id ? {} : {}),
   };
@@ -300,6 +302,16 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       c.sulSottofondo = corpo.sulSottofondo;
     }
     if (corpo.colore === null || typeof corpo.colore === "string") c.colore = corpo.colore ?? null;
+    if (typeof corpo.evidenza === "boolean") {
+      // "In evidenza" vale solo nella riga Sempre, massimo 4.
+      if (corpo.evidenza && !trovato.fase.sempre) {
+        return reply.status(400).send({ errore: "Solo le caselle della riga Sempre possono essere in evidenza" });
+      }
+      if (corpo.evidenza && !puoMettereInEvidenza(trovato.fase.cue, c.id)) {
+        return reply.status(400).send({ errore: "Massimo 4 in evidenza" });
+      }
+      c.evidenza = corpo.evidenza;
+    }
     cambiata();
     return c;
   });
@@ -318,6 +330,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (!trovato) return reply.status(404).send({ errore: "Casella non trovata" });
     const copia = duplicaCue(trovato.cue, trovato.fase.cue.length);
     copia.titolo = `${trovato.cue.titolo} (copia)`;
+    copia.evidenza = false; // la copia non ruba un posto tra le 4 in evidenza
     trovato.fase.cue.push(copia);
     cambiata();
     return copia;

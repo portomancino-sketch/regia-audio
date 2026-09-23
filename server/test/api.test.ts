@@ -153,6 +153,38 @@ describe("riga Sempre", () => {
     expect(ordinate[1].nome).toBe("Due");
     await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
   });
+
+  it("'in evidenza': massimo 4, solo nella riga Sempre, la copia non lo eredita", async () => {
+    const format = (await app.inject({ method: "POST", url: "/api/formats", payload: { nome: "Evidenza" } })).json();
+    const sempre = format.fasi.find((f: { sempre?: boolean }) => f.sempre);
+    const ids: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const c = (await app.inject({ method: "POST", url: `/api/fasi/${sempre.id}/cue`, payload: { titolo: `s${i}` } })).json();
+      expect(c.evidenza).toBe(false);
+      ids.push(c.id);
+    }
+    for (let i = 0; i < 4; i++) {
+      const r = await app.inject({ method: "PATCH", url: `/api/cue/${ids[i]}`, payload: { evidenza: true } });
+      expect(r.statusCode).toBe(200);
+      expect(r.json().evidenza).toBe(true);
+    }
+    let r = await app.inject({ method: "PATCH", url: `/api/cue/${ids[4]}`, payload: { evidenza: true } });
+    expect(r.statusCode).toBe(400);
+    expect(r.json().errore).toBe("Massimo 4 in evidenza");
+    // Toglierne una libera il posto.
+    await app.inject({ method: "PATCH", url: `/api/cue/${ids[0]}`, payload: { evidenza: false } });
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${ids[4]}`, payload: { evidenza: true } });
+    expect(r.statusCode).toBe(200);
+    // La copia di una casella in evidenza non è in evidenza.
+    const copia = (await app.inject({ method: "POST", url: `/api/cue/${ids[1]}/duplica` })).json();
+    expect(copia.evidenza).toBe(false);
+    // Fuori dalla riga Sempre non si può.
+    const fase = (await app.inject({ method: "POST", url: `/api/formats/${format.id}/fasi`, payload: { nome: "Uno" } })).json();
+    const fuori = (await app.inject({ method: "POST", url: `/api/fasi/${fase.id}/cue`, payload: {} })).json();
+    r = await app.inject({ method: "PATCH", url: `/api/cue/${fuori.id}`, payload: { evidenza: true } });
+    expect(r.statusCode).toBe(400);
+    await app.inject({ method: "DELETE", url: `/api/formats/${format.id}` });
+  });
 });
 
 describe("upload audio", () => {

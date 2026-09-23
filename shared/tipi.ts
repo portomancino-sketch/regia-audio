@@ -19,6 +19,9 @@ export interface Cue {
   sulSottofondo: SulSottofondo;
   colore: string | null;
   ordine: number;
+  /** Solo riga "Sempre": pillola sempre visibile in Live (massimo 4; assente = no).
+   *  Se la riga ha 4 caselle o meno, sono tutte in evidenza da sole. */
+  evidenza?: boolean;
 }
 
 export interface Fase {

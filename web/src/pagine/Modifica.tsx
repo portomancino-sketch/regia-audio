@@ -9,8 +9,9 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Star, Trash2 } from "lucide-react";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
+import { MAX_EVIDENZA, inEvidenza, puoMettereInEvidenza } from "../../../shared/sempre";
 import { api } from "../api";
 import { AreaInline, InputInline } from "../componenti/comuni";
 import { COLORI_TIPO, NOMI_TIPO, SCELTE_COLORE, formattaTempo } from "../util";
@@ -22,8 +23,28 @@ import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 
 type Salva = (fn: () => Promise<unknown>) => void;
 
-function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; onDuplicata: () => void }) {
+function CasellaCue(props: {
+  cue: Cue;
+  salva: Salva;
+  onEliminata: () => void;
+  onDuplicata: () => void;
+  /** Solo riga Sempre: tutte le caselle della riga, per la stella "In evidenza". */
+  rigaSempre?: Cue[];
+}) {
   const { cue, salva } = props;
+  const [avviso, setAvviso] = useState<string | null>(null);
+  // Stella: in evidenza in Live (con 4 caselle o meno lo sono tutte da sole).
+  const inSempre = props.rigaSempre !== undefined;
+  const evidente = inSempre && inEvidenza(props.rigaSempre!).some((c) => c.id === cue.id);
+  function alternaEvidenza() {
+    if (!props.rigaSempre) return;
+    if (!cue.evidenza && !puoMettereInEvidenza(props.rigaSempre, cue.id)) {
+      setAvviso(`Massimo ${MAX_EVIDENZA} in evidenza`);
+      window.setTimeout(() => setAvviso(null), 2500);
+      return;
+    }
+    salva(() => api.modificaCue(cue.id, { evidenza: !cue.evidenza }));
+  }
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cue.id });
   const [aperta, setAperta] = useState(false);
   const [volume, setVolume] = useState(cue.volume);
@@ -102,8 +123,32 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
               onCambia={(v) => salva(() => api.modificaCue(cue.id, { titolo: v }))}
               className="w-full rounded-[10px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-semibold transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
             />
+            {inSempre && (
+              <button
+                type="button"
+                aria-label="In evidenza"
+                aria-pressed={evidente}
+                title={
+                  evidente
+                    ? cue.evidenza
+                      ? "In evidenza in Live: togli"
+                      : "In evidenza da sola (4 caselle o meno)"
+                    : "Metti in evidenza in Live (massimo 4)"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  alternaEvidenza();
+                }}
+                className={`tocco shrink-0 rounded-[10px] border border-transparent p-1 hover:bg-velo ${
+                  evidente ? "text-[var(--tipo-effetto)]" : "text-testo-3 hover:text-testo"
+                }`}
+              >
+                <Star size={16} strokeWidth={1.75} fill={evidente ? "currentColor" : "none"} />
+              </button>
+            )}
             <Pillola colore={cue.colore ?? COLORI_TIPO[cue.tipo]}>{NOMI_TIPO[cue.tipo]}</Pillola>
           </div>
+          {avviso && <div className="mt-0.5 px-1 text-[13px] font-medium text-rosso">{avviso}</div>}
           <div className="mt-0.5 flex items-center gap-2 px-1 text-[13px] text-testo-2">
             {cue.tipo === "promemoria" ? (
               <span className="inline-flex items-center gap-1 text-testo-3">
@@ -362,6 +407,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
                 key={c.id}
                 cue={c}
                 salva={salva}
+                rigaSempre={sempre ? cueOrdinati : undefined}
                 onEliminata={() => salva(() => api.eliminaCue(c.id))}
                 onDuplicata={() => salva(() => api.duplicaCue(c.id))}
               />
@@ -379,6 +425,13 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
       </DndContext>
       <p className="mt-3 text-[12px] text-testo-3">
         Puoi trascinare più file audio su questa fase: ogni file diventa una casella.
+        {sempre && (
+          <>
+            {" "}
+            In Live le caselle con la stella (massimo {MAX_EVIDENZA}) sono sempre visibili, le altre stanno in
+            &laquo;Altri&raquo;.
+          </>
+        )}
       </p>
     </div>
   );

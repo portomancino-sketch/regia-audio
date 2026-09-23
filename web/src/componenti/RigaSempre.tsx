@@ -2,9 +2,11 @@
 // Sul Mac sono card compatte; sul telefono diventano pillole da 44px
 // (solo icona del tipo + titolo) in una striscia scorrevole senza barra.
 import { useEffect, useRef, useState } from "react";
-import { CircleCheck } from "lucide-react";
+import { ChevronDown, CircleCheck } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
+import { altriSempre, inEvidenza } from "../../../shared/sempre";
 import { coloreCue } from "../util";
+import { AltriSempre } from "./AltriSempre";
 import { ICONE_TIPO, PulsanteCue } from "./PulsanteCue";
 import { Equalizzatore } from "./ui/Equalizzatore";
 
@@ -112,21 +114,33 @@ export function RigaSempre(props: {
   disabilitato?: boolean;
   telefono?: boolean;
 }) {
+  // Chiamato PRIMA di ogni return (regola degli hook).
+  const [altriAperti, setAltriAperti] = useState(false);
   if (props.cue.length === 0) return null;
 
-  // Le scorciatoie Q W E R T valgono per le prime cinque caselle audio (solo Mac).
+  // In evidenza (max 4, nell'ordine di Modifica) + "Altri (N)".
+  const evidenza = inEvidenza(props.cue);
+  const altri = altriSempre(props.cue);
+  const altroCheSuona = altri.find((c) => props.attivi.some((a) => a.cueId === c.id && !a.inPausa));
+
+  // Le scorciatoie Q W E R T seguono le pillole in evidenza, nell'ordine (solo Mac).
   let n = 0;
   const scorciatoie = new Map<string, string>();
-  for (const c of props.cue) {
+  for (const c of evidenza) {
     if (c.tipo !== "promemoria" && n < TASTI_SEMPRE.length) scorciatoie.set(c.id, TASTI_SEMPRE[n++]!);
+  }
+
+  function scegli(c: Cue) {
+    if (c.tipo === "promemoria") props.onSpunta(c);
+    else props.onPremi(c);
   }
 
   // Un solo layout: striscia scorrevole senza barra, dentro il vetro del dock.
   // Il padding interno pari a quello del vetro (px-5) con margine negativo fa
   // scorrere le caselle fino al bordo del vetro senza tagliarle a metà.
   return (
-    <div className="striscia-senza-barra -mx-5 flex min-w-0 gap-2 overflow-x-auto px-5 py-1" aria-label="Sempre">
-      {props.cue.map((c) =>
+    <div className="striscia-senza-barra -mx-5 flex min-w-0 items-center gap-2 overflow-x-auto px-5 py-1" aria-label="Sempre">
+      {evidenza.map((c) =>
         props.telefono ? (
           <PillolaSempre
             key={c.id}
@@ -153,6 +167,38 @@ export function RigaSempre(props: {
             />
           </div>
         ),
+      )}
+      {altri.length > 0 && (
+        <button
+          type="button"
+          data-altri
+          aria-haspopup="dialog"
+          aria-expanded={altriAperti}
+          title="Le altre caselle della riga Sempre"
+          onClick={() => setAltriAperti(true)}
+          className="tocco inline-flex h-11 shrink-0 select-none items-center gap-1.5 self-center rounded-full border border-vetro-bordo bg-velo px-3.5 text-[15px] font-semibold text-testo"
+        >
+          {altroCheSuona && (
+            <span
+              aria-label="uno degli altri suona"
+              className="respira h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: coloreCue(altroCheSuona) }}
+            />
+          )}
+          Altri ({altri.length})
+          <ChevronDown size={16} strokeWidth={1.75} aria-hidden className="text-testo-3" />
+        </button>
+      )}
+      {altriAperti && (
+        <AltriSempre
+          cue={altri}
+          attivi={props.attivi}
+          fatti={props.fatti}
+          disabilitato={props.disabilitato}
+          telefono={props.telefono}
+          onScelta={scegli}
+          onChiudi={() => setAltriAperti(false)}
+        />
       )}
     </div>
   );

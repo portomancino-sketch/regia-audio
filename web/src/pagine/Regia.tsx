@@ -1,6 +1,7 @@
 // La pagina Regia (sul Mac): Home, Modifica, Live e il motore audio.
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../../shared/tipi";
+import { inEvidenza } from "../../../shared/sempre";
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
@@ -389,12 +390,10 @@ export function PaginaRegia() {
       } else if (e.key === "p" || e.key === "P") {
         faiParla(!parlaUiRef.current);
       } else if (/^[qwert]$/i.test(e.key)) {
-        // Q W E R T: le prime cinque caselle audio della riga Sempre.
+        // Q W E R T: le pillole in evidenza della riga Sempre (audio), nell'ordine.
         const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
         const sempre = format?.fasi.find((f) => f.sempre);
-        const audio = sempre
-          ? [...sempre.cue].sort((a, b) => a.ordine - b.ordine).filter((c) => c.tipo !== "promemoria")
-          : [];
+        const audio = sempre ? inEvidenza(sempre.cue).filter((c) => c.tipo !== "promemoria") : [];
         const indice = "qwert".indexOf(e.key.toLowerCase());
         const cue = audio[indice];
         if (cue) premiCue(cue);
