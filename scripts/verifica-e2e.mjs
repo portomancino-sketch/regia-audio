@@ -558,6 +558,24 @@ await tel.scatta("03-telecomando-riga-sempre");
   const pillole = await tel.js(`[...document.querySelectorAll('[aria-label="Sempre"] button')].map(b => Math.round(b.getBoundingClientRect().height))`);
   pillole.every((h) => h === 44) ? ok("Pillole Sempre alte 44px (tocco minimo)") : ko("Altezza pillole", pillole.join("/"));
 
+  // S9 (c): card a riposo compatte (≤ 96 px) e nessuno spazio sprecato: sopra il
+  // dock ne stanno tante quante la geometria permette (390×844, 1 riga Sempre).
+  const compatte = await tel.js(`(async () => {
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 120));
+    const dock = document.querySelector('.fixed.bottom-0').getBoundingClientRect();
+    const cs = [...document.querySelectorAll('.grid > [role=button]')].map(c => c.getBoundingClientRect());
+    const gap = cs.length > 1 ? Math.round(cs[1].top - cs[0].bottom) : 12;
+    const massimo = Math.min(cs.length, Math.floor((dock.top - cs[0].top + gap) / (96 + gap)));
+    return { altezze: cs.map(c => Math.round(c.height)), visibili: cs.filter(c => c.bottom <= dock.top).length, massimo, dock: Math.round(844 - dock.top) };
+  })()`);
+  compatte.altezze.every((h) => h <= 96)
+    ? ok("Telefono: card a riposo alte ≤ 96px", compatte.altezze.join("/"))
+    : ko("Telefono: card troppo alte", compatte.altezze.join("/"));
+  compatte.visibili >= compatte.massimo
+    ? ok("Telefono: sopra il dock stanno tutte le card che la geometria permette", `${compatte.visibili} (dock ${compatte.dock}px)`)
+    : ko("Telefono: card visibili", `${compatte.visibili} < ${compatte.massimo}`);
+
   // S8-bis: pagina NON scrollata, la striscia Sempre sta dentro il vetro del dock
   // (quindi opaca): nessuna card "buca" la striscia. Al tocco, ogni punto lungo la
   // striscia risponde con un elemento del dock, mai con una card sotto.
@@ -593,14 +611,65 @@ t1 ? ok("'finisce tra' visibile", t1) : ko("'finisce tra' assente");
 await attendi(1500);
 const t2 = await regia3.js(`(document.body.innerText.match(/finisce tra (\\d+:\\d+)/) || [])[1] ?? null`);
 t2 && t1 !== t2 ? ok("Il conteggio scorre", `${t1} → ${t2}`) : ko("Conteggio fermo", `${t1} → ${t2}`);
-osservatore.comando({ comando: "stop", cueId: null }); // no-op difensivo
-// ferma la voce-sala (effetto: serve lo stop esplicito)
+// S9 (a): ripremere un effetto che suona lo FERMA, non lo raddoppia (tastiera e telefono).
+await regia3.tasto("q", "KeyQ", 81);
+s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+s ? ok("Tasto Q di nuovo → l'effetto si ferma, nessuna istanza") : ko("Effetto raddoppiato con Q", `attivi=${osservatore.ultimo?.attivi.length}`);
 {
   const cfg2 = await (await fetch(`${BASE}/api/config`)).json();
   const vs = cfg2.formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre).cue.find((c) => c.titolo === "voce-sala");
-  osservatore.comando({ comando: "stop", cueId: vs.id });
+  osservatore.comando({ comando: "play", cueId: vs.id });
+  s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === vs.id), 4000);
+  osservatore.comando({ comando: "play", cueId: vs.id });
+  s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  s ? ok("Premi-premi dal telefono su un effetto → 0 istanze") : ko("Premi-premi effetto dal telefono", `attivi=${osservatore.ultimo?.attivi.length}`);
+  const nonDoppio = !osservatore.stati.some((x) => x.attivi.filter((a) => a.cueId === vs.id).length > 1);
+  nonDoppio ? ok("Mai due istanze dello stesso effetto nello stato") : ko("Viste due istanze dello stesso effetto");
 }
-await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// S9 (b): riga Sempre con 7 caselle di cui 3 in evidenza → 3 pillole + "Altri (4)";
+//         il foglio si apre, un tocco su una voce la fa partire e chiude il foglio.
+{
+  const cfg3 = await (await fetch(`${BASE}/api/config`)).json();
+  const faseSempre = cfg3.formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre);
+  const fd = new FormData();
+  for (const n of ["sempre-4", "sempre-5", "sempre-6", "sempre-7"]) fd.append("file", new Blob([wavLungo(30)]), `${n}.wav`);
+  await fetch(`${BASE}/api/fasi/${faseSempre.id}/audio-multipli`, { method: "POST", body: fd });
+  const cfg4 = await (await fetch(`${BASE}/api/config`)).json();
+  const tutte = [...cfg4.formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre).cue].sort((a, b) => a.ordine - b.ordine);
+  for (const c of tutte.slice(0, 3)) {
+    await fetch(`${BASE}/api/cue/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ evidenza: true }) });
+  }
+  // Una quarta è ammessa, la quinta no; poi si torna a 3 in evidenza.
+  const patch = (id, evidenza) =>
+    fetch(`${BASE}/api/cue/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ evidenza }) });
+  const quarta = await patch(tutte[3].id, true);
+  const quinta = await patch(tutte[6].id, true);
+  await patch(tutte[3].id, false);
+  await attendi(1500); // configCambiata → le pagine ricaricano
+  const riga = await tel.finoA(
+    `[...document.querySelectorAll('[aria-label="Sempre"] button:not([data-altri])')].length === 3 && (document.querySelector('[aria-label="Sempre"] button[data-altri]')?.textContent.trim() ?? '') === 'Altri (4)'`,
+    5000,
+  );
+  riga ? ok("Telefono: 7 caselle Sempre, 3 in evidenza → 3 pillole + 'Altri (4)'") : ko("Riga Sempre con Altri", await tel.js(`document.querySelector('[aria-label="Sempre"]')?.innerText`));
+  const rigaMac = await regia3.js(`(document.querySelector('[aria-label="Sempre"] button[data-altri]')?.textContent.trim() ?? '') === 'Altri (4)'`);
+  rigaMac ? ok("Mac: stessa riga con 'Altri (4)'") : ko("Mac: Altri (4)");
+  await tel.js(`document.querySelector('[aria-label="Sempre"] button[data-altri]').click()`);
+  const foglio = await tel.finoA(`document.querySelector('[role="dialog"][aria-label="Altri suoni"]') !== null`, 3000);
+  foglio ? ok("Telefono: il foglio 'Altri suoni' si apre") : ko("Foglio Altri");
+  await tel.js(`[...document.querySelectorAll('[role="dialog"] button[title]')].find(b => b.title === 'sempre-5')?.click()`);
+  s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "sempre-5"), 4000);
+  const foglioChiuso = await tel.finoA(`document.querySelector('[role="dialog"]') === null`, 3000);
+  s && foglioChiuso ? ok("Tocco su una voce di 'Altri': parte e il foglio si chiude") : ko("Voce di Altri", `suona=${!!s} chiuso=${foglioChiuso}`);
+  const pallino = await tel.finoA(`document.querySelector('[aria-label="Sempre"] button[data-altri] span[aria-label]') !== null`, 3000);
+  pallino ? ok("La pillola 'Altri' mostra il pallino mentre uno degli altri suona") : ko("Pallino su Altri");
+  osservatore.comando({ comando: "stop", cueId: tutte[4].id });
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  // dal lato API: la quinta in evidenza è rifiutata
+  quarta.status === 200 && quinta.status === 400
+    ? ok("API: la quarta 'in evidenza' passa, la quinta è rifiutata (Massimo 4)")
+    : ko("API: limite in evidenza", `quarta=${quarta.status} quinta=${quinta.status}`);
+}
 
 // --- Ultimi 10 secondi: numero e barra in ambra (Tensione dura 8 s) ---
 await regia3.click("Atto 1 – Omicidio");
