@@ -33,6 +33,10 @@ export interface StatoRegole {
   attivi: Istanza[];
   /** Contatore per generare id di istanza deterministici. */
   contatore: number;
+  /** PARLA: l'operatore sta parlando al microfono (abbassa il sottofondo). */
+  parla: boolean;
+  /** 0..1 — a quanto scende il sottofondo mentre si parla. */
+  livelloParla: number;
 }
 
 /** Cosa deve fare il motore audio. */
@@ -52,6 +56,7 @@ export function statoIniziale(opzioni: {
   master: number;
   livelloAbbassa: number;
   fadeOutMs: number;
+  livelloParla?: number;
 }): StatoRegole {
   return {
     master: opzioni.master,
@@ -59,6 +64,8 @@ export function statoIniziale(opzioni: {
     fadeOutMs: opzioni.fadeOutMs,
     attivi: [],
     contatore: 0,
+    parla: false,
+    livelloParla: opzioni.livelloParla ?? 0.25,
   };
 }
 
@@ -75,18 +82,24 @@ export function livelloSottofondo(attivi: readonly Istanza[]): LivelloSottofondo
   return abbassa ? "abbassa" : "pieno";
 }
 
-function fattore(livello: LivelloSottofondo, livelloAbbassa: number): number {
-  if (livello === "pausa") return 0;
-  if (livello === "abbassa") return livelloAbbassa;
-  return 1;
+/** Il fattore del sottofondo: il minimo tra le regole dei cue attivi e PARLA.
+    "pausa" vince sempre (valore 0 + posizione mantenuta). */
+export interface FattoreSottofondo {
+  pausa: boolean;
+  valore: number;
+}
+
+export function fattoreStato(stato: StatoRegole): FattoreSottofondo {
+  const livello = livelloSottofondo(stato.attivi);
+  if (livello === "pausa") return { pausa: true, valore: 0 };
+  let valore = livello === "abbassa" ? stato.livelloAbbassa : 1;
+  if (stato.parla) valore = Math.min(valore, stato.livelloParla);
+  return { pausa: false, valore };
 }
 
 /** Guadagno effettivo di un'istanza: master × volume × fattore sottofondo. */
 export function guadagnoIstanza(stato: StatoRegole, istanza: Istanza): number {
-  const f =
-    istanza.tipo === "sottofondo"
-      ? fattore(livelloSottofondo(stato.attivi), stato.livelloAbbassa)
-      : 1;
+  const f = istanza.tipo === "sottofondo" ? fattoreStato(stato).valore : 1;
   return stato.master * istanza.volume * f;
 }
 
@@ -96,27 +109,28 @@ export function guadagnoIstanza(stato: StatoRegole, istanza: Istanza): number {
  * farlo riprendere o risalire.
  */
 function transizioneSottofondo(
-  prima: LivelloSottofondo,
+  prima: FattoreSottofondo,
   stato: StatoRegole,
 ): { stato: StatoRegole; azioni: Azione[] } {
-  const dopo = livelloSottofondo(stato.attivi);
-  if (prima === dopo) return { stato, azioni: [] };
+  const dopo = fattoreStato(stato);
+  if (prima.pausa === dopo.pausa && prima.valore === dopo.valore) return { stato, azioni: [] };
 
   const azioni: Azione[] = [];
   const attivi = stato.attivi.map((i) => {
     if (i.tipo !== "sottofondo") return i;
-    const guadagno = stato.master * i.volume * fattore(dopo, stato.livelloAbbassa);
-    if (dopo === "pausa") {
+    const guadagno = stato.master * i.volume * dopo.valore;
+    if (dopo.pausa) {
       if (!i.inPausa) azioni.push({ tipo: "mettiInPausa", istanzaId: i.istanzaId, rampMs: FADE_ABBASSA_MS });
       return { ...i, inPausa: true };
     }
     if (i.inPausa) {
-      // Riprende dalla stessa posizione; se restano cue "abbassa",
-      // risale solo fino a livelloAbbassa.
+      // Riprende dalla stessa posizione; risale solo fino al livello
+      // permesso da ciò che resta attivo (abbassa, PARLA...).
       azioni.push({ tipo: "riprendi", istanzaId: i.istanzaId, guadagno, rampMs: FADE_RIPRISTINO_MS });
       return { ...i, inPausa: false };
     }
-    const rampMs = dopo === "abbassa" && prima === "pieno" ? FADE_ABBASSA_MS : FADE_RIPRISTINO_MS;
+    // Scendere è rapido (300 ms), risalire è morbido (800 ms).
+    const rampMs = dopo.valore < prima.valore ? FADE_ABBASSA_MS : FADE_RIPRISTINO_MS;
     azioni.push({ tipo: "cambiaGuadagno", istanzaId: i.istanzaId, guadagno, rampMs });
     return i;
   });
@@ -127,7 +141,7 @@ function transizioneSottofondo(
 function rimuovi(stato: StatoRegole, istanzaId: string, rampMs: number): Risultato {
   const istanza = stato.attivi.find((i) => i.istanzaId === istanzaId);
   if (!istanza) return { stato, azioni: [] };
-  const prima = livelloSottofondo(stato.attivi);
+  const prima = fattoreStato(stato);
   const dopoStato: StatoRegole = {
     ...stato,
     attivi: stato.attivi.filter((i) => i.istanzaId !== istanzaId),
@@ -151,7 +165,7 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
 
   // Il livello del sottofondo si ricalcola UNA volta sola, alla fine,
   // così la sostituzione di un esclusivo non fa "rimbalzare" il sottofondo.
-  const prima = livelloSottofondo(stato.attivi);
+  const prima = fattoreStato(stato);
   let s = stato;
   const azioni: Azione[] = [];
 
@@ -178,8 +192,8 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
   let s2: StatoRegole = { ...s, contatore, attivi: [...s.attivi, nuova] };
 
   // Un sottofondo che parte mentre un cue "pausa" è attivo nasce in pausa.
-  const livelloAllaPartenza = livelloSottofondo(s2.attivi);
-  const nasceInPausa = nuova.tipo === "sottofondo" && livelloAllaPartenza === "pausa";
+  const fattoreAllaPartenza = fattoreStato(s2);
+  const nasceInPausa = nuova.tipo === "sottofondo" && fattoreAllaPartenza.pausa;
   if (nasceInPausa) {
     s2 = {
       ...s2,
@@ -188,9 +202,7 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
   }
 
   const guadagno =
-    s2.master *
-    nuova.volume *
-    (nuova.tipo === "sottofondo" ? fattore(livelloAllaPartenza, s2.livelloAbbassa) : 1);
+    s2.master * nuova.volume * (nuova.tipo === "sottofondo" ? fattoreAllaPartenza.valore : 1);
 
   azioni.push({
     tipo: "avvia",
@@ -238,7 +250,7 @@ export function sfumaCue(stato: StatoRegole, cueId: string): Risultato {
 export function finita(stato: StatoRegole, istanzaId: string): Risultato {
   const istanza = stato.attivi.find((i) => i.istanzaId === istanzaId);
   if (!istanza) return { stato, azioni: [] };
-  const prima = livelloSottofondo(stato.attivi);
+  const prima = fattoreStato(stato);
   const dopoStato: StatoRegole = {
     ...stato,
     attivi: stato.attivi.filter((i) => i.istanzaId !== istanzaId),
@@ -265,6 +277,15 @@ export function fadeOut(stato: StatoRegole): Risultato {
     rampMs: stato.fadeOutMs,
   }));
   return { stato: { ...stato, attivi: [] }, azioni };
+}
+
+/** PARLA: l'operatore parla al microfono; il sottofondo scende a livelloParla.
+    Nota: STOP TUTTO non lo spegne (è un'intenzione dell'operatore). */
+export function parla(stato: StatoRegole, acceso: boolean): Risultato {
+  if (stato.parla === acceso) return { stato, azioni: [] };
+  const prima = fattoreStato(stato);
+  const s: StatoRegole = { ...stato, parla: acceso };
+  return transizioneSottofondo(prima, s);
 }
 
 /** Cambio del volume master (0..1). */

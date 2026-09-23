@@ -122,6 +122,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (typeof corpo.volumeMaster === "number") imp.volumeMaster = Math.min(1, Math.max(0, corpo.volumeMaster));
     if (typeof corpo.fadeOutMs === "number") imp.fadeOutMs = Math.max(100, corpo.fadeOutMs);
     if (typeof corpo.livelloAbbassa === "number") imp.livelloAbbassa = Math.min(1, Math.max(0, corpo.livelloAbbassa));
+    if (typeof corpo.livelloParla === "number") imp.livelloParla = Math.min(0.6, Math.max(0, corpo.livelloParla));
     store.salva();
     if (imp.pin !== pinPrima) hub()?.pinCambiato();
     return imp;

@@ -48,6 +48,8 @@ export interface Impostazioni {
   fadeOutMs: number;
   /** 0..1 — a quanto scende il sottofondo con "abbassa". */
   livelloAbbassa: number;
+  /** 0..0.6 — a quanto scende il sottofondo mentre si parla (default 0.25). */
+  livelloParla?: number;
 }
 
 export interface Config {
@@ -81,6 +83,8 @@ export interface StatoLive {
   motoreOnline: boolean;
   /** Id dei promemoria già spuntati (condivisi tra Mac e telefoni). */
   fatti?: string[];
+  /** PARLA acceso (il sottofondo è abbassato per la voce). */
+  parla?: boolean;
 }
 
 export type Comando =
@@ -89,6 +93,7 @@ export type Comando =
   | { tipo: "comando"; comando: "sfuma"; cueId: string }
   | { tipo: "comando"; comando: "spunta"; cueId: string }
   | { tipo: "comando"; comando: "azzeraSpunte"; faseId: string }
+  | { tipo: "comando"; comando: "parla"; acceso: boolean }
   | { tipo: "comando"; comando: "fade" }
   | { tipo: "comando"; comando: "stopTutto" }
   | { tipo: "comando"; comando: "master"; valore: number }

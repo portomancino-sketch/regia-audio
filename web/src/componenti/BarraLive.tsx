@@ -1,5 +1,5 @@
 // Il dock in basso: cosa sta suonando, master, FADE, STOP.
-import { Volume2 } from "lucide-react";
+import { Mic, Volume2 } from "lucide-react";
 import { Equalizzatore } from "./ui/Equalizzatore";
 import type { CueAttivo } from "../../../shared/tipi";
 import { tempoRimanente } from "../util";
@@ -20,6 +20,9 @@ export function BarraLive(props: {
   extra?: React.ReactNode;
   /** Riga sopra il dock (le caselle "Sempre"). */
   sopra?: React.ReactNode;
+  /** PARLA: il sottofondo è abbassato per la voce. */
+  parla?: boolean;
+  onParla?: (acceso: boolean) => void;
 }) {
   const { attivi } = props;
   return (
@@ -68,6 +71,18 @@ export function BarraLive(props: {
       </div>
       <div className="flex items-center gap-2">
         {props.extra}
+        {props.onParla && (
+          <Pulsante
+            variante={props.parla ? "primario" : "secondario"}
+            misura={props.telefono ? "md" : "lg"}
+            disabled={props.disabilitata}
+            onClick={() => props.onParla!(!props.parla)}
+            aria-pressed={props.parla}
+            title="Abbassa il suono base mentre parli (tasto P)"
+          >
+            <Mic size={18} strokeWidth={1.75} aria-hidden /> PARLA
+          </Pulsante>
+        )}
         <Pulsante
           variante="secondario"
           misura={props.telefono ? "md" : "lg"}

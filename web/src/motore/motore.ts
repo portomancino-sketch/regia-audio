@@ -6,6 +6,7 @@ import {
   premi,
   stop,
   sfumaCue,
+  parla,
   stopTutto,
   fadeOut,
   master,
@@ -47,7 +48,7 @@ export class MotoreAudio {
   /** Chiamato a ogni cambiamento che merita un nuovo "stato" in giro. */
   onCambiamento: (() => void) | null = null;
 
-  constructor(opzioni: { master: number; livelloAbbassa: number; fadeOutMs: number }) {
+  constructor(opzioni: { master: number; livelloAbbassa: number; fadeOutMs: number; livelloParla?: number }) {
     this.ctx = new AudioContext();
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.value = 1; // il master è già dentro i guadagni delle istanze
@@ -68,9 +69,18 @@ export class MotoreAudio {
     return this.stato.master;
   }
 
-  aggiornaImpostazioni(o: { livelloAbbassa?: number; fadeOutMs?: number }): void {
+  aggiornaImpostazioni(o: { livelloAbbassa?: number; fadeOutMs?: number; livelloParla?: number }): void {
     if (o.livelloAbbassa !== undefined) this.stato = { ...this.stato, livelloAbbassa: o.livelloAbbassa };
     if (o.fadeOutMs !== undefined) this.stato = { ...this.stato, fadeOutMs: o.fadeOutMs };
+    if (o.livelloParla !== undefined) this.stato = { ...this.stato, livelloParla: o.livelloParla };
+  }
+
+  get parlaAttivo(): boolean {
+    return this.stato.parla;
+  }
+
+  setParla(acceso: boolean): void {
+    this.applica(parla(this.stato, acceso));
   }
 
   /** Precarica in memoria i file corti di un format (latenza zero in serata). */

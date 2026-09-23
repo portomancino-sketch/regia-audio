@@ -50,7 +50,7 @@ function useIntensita(chiave: string): [number, (v: number) => void] {
   return [valore, setValore];
 }
 
-export function InterruttoreTema(props: { chiave: string; className?: string; sopra?: boolean }) {
+export function InterruttoreTema(props: { chiave: string; className?: string; sopra?: boolean; extra?: React.ReactNode }) {
   const [scelta, imposta] = useTema(props.chiave);
   const [intensita, setIntensita] = useIntensita(props.chiave);
   const [aperto, setAperto] = useState(false);
@@ -104,6 +104,7 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
             />
             <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{intensita}</span>
           </div>
+          {props.extra}
         </Vetro>
       )}
     </div>

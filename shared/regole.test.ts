@@ -5,6 +5,7 @@ import {
   premi,
   stop,
   sfumaCue,
+  parla,
   finita,
   stopTutto,
   fadeOut,
@@ -42,7 +43,7 @@ const BRANO_PAUSA = cue({ id: "br1", tipo: "brano", sulSottofondo: "pausa" });
 const BRANO_ABBASSA = cue({ id: "br2", tipo: "brano", sulSottofondo: "abbassa" });
 
 function nuovo(): StatoRegole {
-  return statoIniziale({ master: 1, livelloAbbassa: 0.2, fadeOutMs: 1500 });
+  return statoIniziale({ master: 1, livelloAbbassa: 0.2, fadeOutMs: 1500, livelloParla: 0.25 });
 }
 
 function azione<T extends Azione["tipo"]>(azioni: Azione[], tipo: T) {
@@ -331,6 +332,68 @@ describe("promemoria", () => {
     expect(r.azioni).toHaveLength(0); // niente fade, niente pause, niente stop
     expect(r.stato.attivi.map((i) => i.cueId)).toEqual(primaAttivi);
     expect(livelloSottofondo(r.stato.attivi)).toBe("abbassa"); // invariato
+  });
+});
+
+describe("PARLA", () => {
+  it("acceso: il sottofondo scende a livelloParla in 300 ms; spento: risale in 800 ms", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = parla(r.stato, true);
+    let cambi = azione(r.azioni, "cambiaGuadagno");
+    expect(cambi).toHaveLength(1);
+    expect(cambi[0]?.guadagno).toBeCloseTo(0.9 * 0.25);
+    expect(cambi[0]?.rampMs).toBe(FADE_ABBASSA_MS);
+
+    r = parla(r.stato, false);
+    cambi = azione(r.azioni, "cambiaGuadagno");
+    expect(cambi[0]?.guadagno).toBeCloseTo(0.9);
+    expect(cambi[0]?.rampMs).toBe(FADE_RIPRISTINO_MS);
+  });
+
+  it("con un 'abbassa' attivo vince il livello più basso; spegnere PARLA risale solo a livelloAbbassa", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = premi(r.stato, EFFETTO_ABBASSA); // sottofondo a 0.2
+    r = parla(r.stato, true); // livelloParla 0.25 > 0.2: resta 0.2, nessuna azione
+    expect(azione(r.azioni, "cambiaGuadagno")).toHaveLength(0);
+    // spegnere PARLA con l'abbassa ancora attivo: resta a livelloAbbassa
+    r = parla(r.stato, false);
+    expect(azione(r.azioni, "cambiaGuadagno")).toHaveLength(0);
+    // quando l'effetto finisce, torna pieno
+    r = finita(r.stato, idIstanza(r.stato, "fx1"));
+    expect(azione(r.azioni, "cambiaGuadagno")[0]?.guadagno).toBeCloseTo(0.9);
+  });
+
+  it("PARLA sotto livelloAbbassa: comanda PARLA; e 'pausa' vince sempre", () => {
+    let r = statoIniziale({ master: 1, livelloAbbassa: 0.5, fadeOutMs: 1500, livelloParla: 0.1 });
+    let r2 = premi(r, SOTTOFONDO);
+    r2 = premi(r2.stato, EFFETTO_ABBASSA); // → 0.5
+    r2 = parla(r2.stato, true); // → 0.1 (più basso)
+    const cambi = azione(r2.azioni, "cambiaGuadagno");
+    expect(cambi[0]?.guadagno).toBeCloseTo(0.9 * 0.1);
+    // pausa vince: il sottofondo si ferma anche con PARLA acceso
+    r2 = premi(r2.stato, BRANO_PAUSA);
+    expect(azione(r2.azioni, "mettiInPausa")).toHaveLength(1);
+    // fine del brano: riprende ma solo fino a livello PARLA (0.1)
+    r2 = finita(r2.stato, idIstanza(r2.stato, "br1"));
+    expect(azione(r2.azioni, "riprendi")[0]?.guadagno).toBeCloseTo(0.9 * 0.1);
+  });
+
+  it("STOP TUTTO non spegne PARLA", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = parla(r.stato, true);
+    r = stopTutto(r.stato);
+    expect(r.stato.parla).toBe(true);
+    // un sottofondo nuovo parte già abbassato al livello PARLA
+    r = premi(r.stato, SOTTOFONDO);
+    const [avvia] = azione(r.azioni, "avvia");
+    expect(avvia?.guadagno).toBeCloseTo(0.9 * 0.25);
+  });
+
+  it("acceso due volte non produce azioni doppie", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = parla(r.stato, true);
+    r = parla(r.stato, true);
+    expect(r.azioni).toHaveLength(0);
   });
 });
 

@@ -477,6 +477,8 @@ export function PaginaTelecomando() {
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}
         onFade={() => invia({ tipo: "comando", comando: "fade" })}
         onStop={() => invia({ tipo: "comando", comando: "stopTutto" })}
+        parla={stato?.parla === true}
+        onParla={(acceso) => invia({ tipo: "comando", comando: "parla", acceso })}
         disabilitata={bloccato}
       />
     </div>

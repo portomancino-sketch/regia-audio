@@ -16,6 +16,7 @@ import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { useAttiviFluidi } from "../hooks";
+import { Slider } from "../componenti/ui/Slider";
 
 type Vista = "modifica" | "live";
 
@@ -36,6 +37,9 @@ export function PaginaRegia() {
     formatId: null,
     faseId: null,
   });
+  // PARLA (abbassa il sottofondo per la voce).
+  const [parlaUi, setParlaUi] = useState(false);
+  const parlaUiRef = useRef(false);
   // Promemoria spuntati (condivisi con i telefoni via stato).
   const [fatti, setFatti] = useState<string[]>([]);
   const fattiRef = useRef<string[]>([]);
@@ -56,6 +60,10 @@ export function PaginaRegia() {
     vistaRef.current = vista;
   }, [vista]);
 
+  useEffect(() => {
+    parlaUiRef.current = parlaUi;
+  }, [parlaUi]);
+
   // ---- Stato live in giro per tutti ----
   const inviaStato = useCallback(() => {
     const m = motoreRef.current;
@@ -68,18 +76,21 @@ export function PaginaRegia() {
       attivi: m.attivi(),
       motoreOnline: true,
       fatti: fattiRef.current,
+      parla: m.parlaAttivo,
     };
     wsRef.current?.invia(s);
     setAttivi(s.attivi);
     setMasterUi(s.master);
+    setParlaUi(s.parla === true);
   }, []);
 
   const impostaLive = useCallback(
     (formatId: string | null, faseId: string | null) => {
-      // Aprire un altro format azzera le spunte dei promemoria.
+      // Aprire un altro format azzera le spunte e spegne PARLA.
       if (formatId !== liveRef.current.formatId) {
         fattiRef.current = [];
         setFatti([]);
+        motoreRef.current?.setParla(false);
       }
       liveRef.current = { formatId, faseId };
       setLiveIds({ formatId, faseId });
@@ -143,6 +154,9 @@ export function PaginaRegia() {
         case "azzeraSpunte":
           azzeraSpunteFase(c.faseId);
           break;
+        case "parla":
+          m.setParla(c.acceso);
+          break;
         case "fade":
           m.fadeOut();
           break;
@@ -181,6 +195,7 @@ export function PaginaRegia() {
     motoreRef.current?.aggiornaImpostazioni({
       livelloAbbassa: c.impostazioni.livelloAbbassa,
       fadeOutMs: c.impostazioni.fadeOutMs,
+      livelloParla: c.impostazioni.livelloParla ?? 0.25,
     });
     return c;
   }, []);
@@ -213,6 +228,7 @@ export function PaginaRegia() {
           setMasterUi(s.master);
           fattiRef.current = s.fatti ?? [];
           setFatti(s.fatti ?? []);
+          setParlaUi(s.parla === true);
           liveRef.current = { formatId: s.formatId, faseId: s.faseId };
           setLiveIds({ formatId: s.formatId, faseId: s.faseId });
         }
@@ -266,6 +282,7 @@ export function PaginaRegia() {
       master: config.impostazioni.volumeMaster,
       livelloAbbassa: config.impostazioni.livelloAbbassa,
       fadeOutMs: config.impostazioni.fadeOutMs,
+      livelloParla: config.impostazioni.livelloParla ?? 0.25,
     });
     m.onCambiamento = inviaStato;
     motoreRef.current = m;
@@ -329,6 +346,13 @@ export function PaginaRegia() {
     if (m && sonoIlMotoreRef.current) m.setMaster(v);
     else wsRef.current?.invia({ tipo: "comando", comando: "master", valore: v });
   }, []);
+  const faiParla = useCallback((acceso: boolean) => {
+    setParlaUi(acceso);
+    const m = motoreRef.current;
+    if (m && sonoIlMotoreRef.current) m.setParla(acceso);
+    // Il comando viaggia comunque: serve al diario, e per il motore è un'eco innocua.
+    wsRef.current?.invia({ tipo: "comando", comando: "parla", acceso });
+  }, []);
   const faiFade = useCallback(() => {
     const m = motoreRef.current;
     if (m && sonoIlMotoreRef.current) m.fadeOut();
@@ -357,6 +381,8 @@ export function PaginaRegia() {
         faiStopTutto();
       } else if (e.key === "f" || e.key === "F") {
         faiFade();
+      } else if (e.key === "p" || e.key === "P") {
+        faiParla(!parlaUiRef.current);
       } else if (/^[qwert]$/i.test(e.key)) {
         // Q W E R T: le prime cinque caselle audio della riga Sempre.
         const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
@@ -388,7 +414,7 @@ export function PaginaRegia() {
     };
     window.addEventListener("keydown", suTasto);
     return () => window.removeEventListener("keydown", suTasto);
-  }, [premiCue, faiFade, faiStopTutto, cambiaFase]);
+  }, [premiCue, faiFade, faiStopTutto, cambiaFase, faiParla]);
 
   // ---- Navigazione ----
   function apriFormat(id: string) {
@@ -516,7 +542,28 @@ export function PaginaRegia() {
               onCambia={(v) => (v === "live" ? passaAlive(formatAperto) : setVista("modifica"))}
             />
           )}
-          <InterruttoreTema chiave="tema-regia" />
+          <InterruttoreTema
+            chiave="tema-regia"
+            extra={
+              <>
+                <div className="etichetta mb-1.5 mt-4">Volume del suono base quando parlo</div>
+                <div className="flex items-center gap-2">
+                  <Slider
+                    valore={(config.impostazioni.livelloParla ?? 0.25) / 0.6}
+                    onCambia={(v) => {
+                      const livello = Math.round(v * 60) / 100;
+                      void api.impostazioni({ livelloParla: livello }).then(() => void ricaricaConfig());
+                    }}
+                    className="flex-1"
+                    aria-label="Volume del suono base quando parlo"
+                  />
+                  <span className="w-10 text-right text-[13px] tabular-nums text-testo-2">
+                    {Math.round((config.impostazioni.livelloParla ?? 0.25) * 100)}%
+                  </span>
+                </div>
+              </>
+            }
+          />
           <PannelloTelecomando telefoni={telefoni} />
         </div>
         {!sonoIlMotore && (
@@ -592,6 +639,8 @@ export function PaginaRegia() {
           onMaster={cambiaMaster}
           onFade={faiFade}
           onStop={faiStopTutto}
+          parla={parlaUi}
+          onParla={faiParla}
           disabilitata={!motoreOnline}
         />
       )}
