@@ -2,7 +2,9 @@
 
 ## Prima della serata
 
-1. Doppio click su **Regia.command** sulla Scrivania.
+1. Doppio click su **Avvia Regia.command** nella cartella Regia (la prima volta
+   segui LEGGIMI.txt). Lascia aperta la finestra nera: è il cuore della Regia.
+   Mac collegato alla corrente e coperchio aperto.
 2. Premi **Attiva audio** quando appare.
 3. Scegli la serata, o creane una con **+ Nuovo format**.
 4. In cima al format c'è **"Prima di iniziare"**: scrivi le cose da ricordare
@@ -21,7 +23,8 @@
 9. Scegli cosa fa al suono base: **Resta / Si abbassa / Si ferma**.
 10. Prova tutto in **Live** prima che arrivi la gente.
 11. Collega il telefono dell'assistente: pannello **Telecomando**, inquadra il QR,
-    scrivi il PIN. Metti il blocco schermo del telefono su **Mai**.
+    scrivi il PIN. Se il telefono non si collega: LEGGIMI.txt, «Se il telefono
+    non vede il Mac». Metti il blocco schermo del telefono su **Mai**.
 12. Il **sole/luna** in alto cambia i colori: chiaro, scuro, o automatico.
     Ognuno sceglie il suo (Mac e telefono separati).
 

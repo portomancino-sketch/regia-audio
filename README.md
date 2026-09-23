@@ -8,9 +8,11 @@ Niente cloud, niente abbonamenti: tutto resta sul Mac.
 
 1. Copia sul Mac lo zip **Regia-vX.Y.zip** (AirDrop o chiavetta) e scompattalo
    dove vuoi (per esempio in Documenti).
-2. Nella cartella "Regia": la **prima volta** tasto destro su
-   **"Avvia Regia.command"** → Apri → Apri (macOS chiede conferma solo la prima volta;
-   se si lamenta: Impostazioni → Privacy e sicurezza → Apri comunque).
+2. Nella cartella "Regia": doppio click su **"Avvia Regia.command"**. La
+   **prima volta** macOS lo blocca: su macOS 15 o più recente premi "Fine",
+   poi Impostazioni di Sistema → Privacy e sicurezza → "Apri comunque" →
+   password; su macOS 14 o precedente basta tasto destro → Apri → Apri.
+   Succede solo la prima volta.
 3. Le volte dopo basta il **doppio click**. Non serve installare nulla:
    nella cartella c'è già tutto, internet non serve.
 
@@ -20,8 +22,9 @@ nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 
 ## Come si avvia
 
-- Doppio click su **Regia.command** sulla Scrivania. Si apre una finestra nera
-  (lasciala aperta: è il cuore della Regia) e poi la finestra della Regia.
+- Doppio click su **Avvia Regia.command** nella cartella Regia. Si apre una
+  finestra nera (lasciala aperta: è il cuore della Regia) e poi la finestra
+  della Regia. Finché la finestra nera è aperta il Mac non va in stop (caffeinate).
 - In alternativa, dal Terminale: `cd ~/regia && npm start`, poi apri
   <http://localhost:4000> con Chrome.
 - Al primo caricamento premi il pulsante **"Attiva audio"**: serve una volta sola.
@@ -54,10 +57,12 @@ in un unico file zip, da riportare su un altro Mac con l'import.
    alla prima partenza macOS chiede se consentire "node": rispondi **Consenti**.
    Se hai detto no per sbaglio: Firewall → Opzioni → trova "node" → "Consenti
    connessioni in entrata".
-3. **Piano B — hotspot del Mac**: se il WiFi della sala fa i capricci, accendi
-   la Condivisione Internet del Mac (Impostazioni di Sistema → Generali →
-   Condivisione → Condivisione Internet) e collega il telefono alla rete del Mac.
-   Poi riapri il pannello Telecomando per il nuovo indirizzo/QR.
+3. **Piano B — hotspot del telefono**: se il WiFi della sala isola i
+   dispositivi (rete ospiti), accendi l'hotspot personale sul telefono
+   dell'assistente e collega il Mac a quella rete WiFi. Non serve internet:
+   la Regia lavora tutta in locale. Poi riapri il pannello Telecomando:
+   indirizzo e QR sono nuovi. Il telefono che fa da hotspot può comandare
+   anche lui.
 4. Sul telefono lo schermo non deve spegnersi durante la serata: metti il blocco
    automatico su **"Mai"** (la pagina prova a tenerlo sveglio da sola, ma non
    tutti i telefoni lo permettono).
