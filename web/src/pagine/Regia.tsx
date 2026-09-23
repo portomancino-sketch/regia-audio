@@ -10,6 +10,7 @@ import { Modifica } from "./Modifica";
 import { Live } from "./Live";
 import { PannelloTelecomando } from "./PannelloTelecomando";
 import { BarraLive } from "../componenti/BarraLive";
+import { RigaSempre } from "../componenti/RigaSempre";
 import { InputInline } from "../componenti/comuni";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Pulsante } from "../componenti/ui/Pulsante";
@@ -353,6 +354,16 @@ export function PaginaRegia() {
         faiStopTutto();
       } else if (e.key === "f" || e.key === "F") {
         faiFade();
+      } else if (/^[qwert]$/i.test(e.key)) {
+        // Q W E R T: le prime cinque caselle audio della riga Sempre.
+        const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
+        const sempre = format?.fasi.find((f) => f.sempre);
+        const audio = sempre
+          ? [...sempre.cue].sort((a, b) => a.ordine - b.ordine).filter((c) => c.tipo !== "promemoria")
+          : [];
+        const indice = "qwert".indexOf(e.key.toLowerCase());
+        const cue = audio[indice];
+        if (cue) premiCue(cue);
       } else if (/^[1-9]$/.test(e.key)) {
         const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
         const fasi = format ? [...format.fasi].sort((a, b) => a.ordine - b.ordine) : [];
@@ -406,6 +417,9 @@ export function PaginaRegia() {
 
   const idFormatAperto = percorso.startsWith("/format/") ? percorso.slice("/format/".length) : null;
   const formatAperto = idFormatAperto ? config.formats.find((f) => f.id === idFormatAperto) : null;
+  const cueSempre = formatAperto
+    ? [...(formatAperto.fasi.find((f) => f.sempre)?.cue ?? [])].sort((a, b) => a.ordine - b.ordine)
+    : [];
 
   const motoreOnline = sonoIlMotore || (statoRemoto?.motoreOnline ?? false);
   const serveSblocco = sonoIlMotore && !audioAttivo && motoreRef.current !== null;
@@ -540,6 +554,7 @@ export function PaginaRegia() {
         />
       ) : (
         <Live
+          spazioSotto={cueSempre.length > 0}
           format={formatAperto}
           faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
           attivi={attivi}
@@ -555,6 +570,20 @@ export function PaginaRegia() {
 
       {(vista === "live" || attivi.length > 0) && formatAperto && (
         <BarraLive
+          sopra={
+            vista === "live" && cueSempre.length > 0 ? (
+              <RigaSempre
+                cue={cueSempre}
+                attivi={attivi}
+                fatti={fatti}
+                onPremi={premiCue}
+                onFerma={fermaCue}
+                onSfuma={sfumaCueUi}
+                onSpunta={spuntaUi}
+                disabilitato={!motoreOnline}
+              />
+            ) : undefined
+          }
           attivi={attivi}
           master={masterUi}
           onMaster={cambiaMaster}

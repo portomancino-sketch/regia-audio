@@ -88,9 +88,9 @@ export function PulsanteCue(props: {
           }
         }}
         style={stile}
-        className={`vetro tocco entra relative flex min-h-[152px] cursor-pointer select-none flex-col p-4 text-left ${
-          scatta ? "scatto" : ""
-        } ${props.disabilitato ? "cursor-default opacity-40" : ""} ${fatto ? "opacity-75" : ""}`}
+        className={`vetro tocco entra relative flex cursor-pointer select-none flex-col text-left ${
+          props.compatto ? "min-h-[88px] p-3" : "min-h-[152px] p-4"
+        } ${scatta ? "scatto" : ""} ${props.disabilitato ? "cursor-default opacity-40" : ""} ${fatto ? "opacity-75" : ""}`}
       >
         <div className="flex w-full items-start justify-between gap-2">
           <Cerchietto colore={colore}>
@@ -155,9 +155,9 @@ export function PulsanteCue(props: {
               }
           : {}),
       }}
-      className={`vetro tocco entra relative flex min-h-[152px] cursor-pointer select-none flex-col overflow-hidden p-4 text-left ${
-        scatta ? "scatto" : ""
-      } ${spento ? "cursor-default opacity-40" : ""}`}
+      className={`vetro tocco entra relative flex cursor-pointer select-none flex-col overflow-hidden text-left ${
+        props.compatto ? "min-h-[88px] p-3" : "min-h-[152px] p-4"
+      } ${scatta ? "scatto" : ""} ${spento ? "cursor-default opacity-40" : ""}`}
     >
       {/* Il glow che respira, solo mentre suona */}
       {attiva && !inPausa && (
@@ -180,7 +180,7 @@ export function PulsanteCue(props: {
       </div>
 
       <div className="mt-3 min-w-0 flex-1">
-        <div className="line-clamp-2 text-[20px] font-semibold leading-tight text-testo">{cue.titolo}</div>
+        <div className={`line-clamp-2 font-semibold leading-tight text-testo ${props.compatto ? "text-[17px]" : "text-[20px]"}`}>{cue.titolo}</div>
         {cue.nota && <div className="mt-1 line-clamp-2 text-[14px] text-testo-2">{cue.nota}</div>}
         {!cue.file && <div className="mt-1 text-[12px] text-testo-3">manca il file</div>}
       </div>

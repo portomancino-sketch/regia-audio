@@ -17,8 +17,10 @@ export function Live(props: {
   onSfuma: (cue: Cue) => void;
   onSpunta: (cue: Cue) => void;
   disabilitato?: boolean;
+  /** C'è la riga Sempre sopra il dock: lascia più spazio in fondo. */
+  spazioSotto?: boolean;
 }) {
-  const fasi = [...props.format.fasi].sort((a, b) => a.ordine - b.ordine);
+  const fasi = [...props.format.fasi].filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine);
   const fase = fasi.find((f) => f.id === props.faseId) ?? fasi[0];
   const cue = fase ? [...fase.cue].sort((a, b) => a.ordine - b.ordine) : [];
   // Nota della fase: aperta di default, richiudibile con un tocco.
@@ -33,7 +35,7 @@ export function Live(props: {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-36 pt-5">
+    <div className={`mx-auto max-w-5xl px-4 pt-5 ${props.spazioSotto ? "pb-64" : "pb-36"}`}>
       {fasi.length > 0 && (
         <div className="mb-4 flex items-center gap-2">
           <ControlloSegmentato
@@ -55,7 +57,7 @@ export function Live(props: {
             </button>
           )}
           <span
-            title="Scorciatoie: ESC stop tutto · F fade out · 1–9 suoni della fase · ← → cambia fase"
+            title="Scorciatoie: ESC stop tutto · F fade out · P parla · 1–9 suoni della fase · Q W E R T riga Sempre · ← → cambia fase"
             className="hidden shrink-0 cursor-help rounded-[10px] p-2 text-testo-3 hover:text-testo-2 sm:block"
           >
             <Keyboard size={18} strokeWidth={1.75} aria-label="Scorciatoie da tastiera" />

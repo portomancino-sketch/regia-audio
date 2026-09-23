@@ -5,6 +5,7 @@ import type { Config, Cue, StatoLive } from "../../../shared/tipi";
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { BarraLive } from "../componenti/BarraLive";
+import { RigaSempre } from "../componenti/RigaSempre";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
@@ -268,10 +269,13 @@ export function PaginaTelecomando() {
       }
     }
   }
-  const fasi = format ? [...format.fasi].sort((a, b) => a.ordine - b.ordine) : [];
+  const fasi = format ? [...format.fasi].filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine) : [];
   const fase = fasi.find((f) => f.id === stato?.faseId) ?? fasi[0] ?? null;
   const indiceFase = fase ? fasi.findIndex((f) => f.id === fase.id) : -1;
   const cue = fase ? [...fase.cue].sort((a, b) => a.ordine - b.ordine) : [];
+  const cueSempre = format
+    ? [...(format.fasi.find((f) => f.sempre)?.cue ?? [])].sort((a, b) => a.ordine - b.ordine)
+    : [];
 
   function vaiAFase(scarto: number) {
     const nuova = fasi[indiceFase + scarto];
@@ -349,7 +353,7 @@ export function PaginaTelecomando() {
 
   return (
     <div
-      className="pagina-telefono mx-auto max-w-md px-3 pb-44"
+      className={`pagina-telefono mx-auto max-w-md px-3 ${cueSempre.length > 0 ? "pb-72" : "pb-44"}`}
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       {pillolaOffline}
@@ -449,6 +453,21 @@ export function PaginaTelecomando() {
       )}
       <BarraLive
         telefono
+        sopra={
+          cueSempre.length > 0 ? (
+            <RigaSempre
+              telefono
+              cue={cueSempre}
+              attivi={stato?.attivi ?? []}
+              fatti={stato?.fatti ?? []}
+              onPremi={(c) => premi(c)}
+              onFerma={(c) => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
+              onSfuma={(c) => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
+              onSpunta={(c) => invia({ tipo: "comando", comando: "spunta", cueId: c.id })}
+              disabilitato={bloccato}
+            />
+          ) : undefined
+        }
         extra={<InterruttoreTema chiave="tema-telecomando" sopra />}
         attivi={stato?.attivi ?? []}
         master={stato?.master ?? 0.8}

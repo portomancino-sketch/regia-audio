@@ -135,7 +135,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       id: randomUUID(),
       nome: nome?.trim() || "Nuovo format",
       ordine: store.config.formats.length,
-      fasi: [],
+      fasi: [{ id: randomUUID(), nome: "Sempre", ordine: -1, sempre: true, cue: [] }],
     };
     store.config.formats.push(format);
     cambiata();
@@ -166,10 +166,12 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       id: randomUUID(),
       nome: `${format.nome} (copia)`,
       ordine: store.config.formats.length,
-      fasi: format.fasi.map((fase, i) => ({
+      fasi: format.fasi.map((fase) => ({
         id: randomUUID(),
         nome: fase.nome,
-        ordine: i,
+        ordine: fase.ordine,
+        sempre: fase.sempre,
+        nota: fase.nota,
         cue: fase.cue.map((c, j) => duplicaCue(c, j)),
       })),
     };
@@ -210,7 +212,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const trovata = trovaFase(store.config, (req.params as { id: string }).id);
     if (!trovata) return reply.status(404).send({ errore: "Fase non trovata" });
     const { nome, nota } = (req.body ?? {}) as { nome?: string; nota?: string };
-    if (typeof nome === "string" && nome.trim()) trovata.fase.nome = nome.trim();
+    if (typeof nome === "string" && nome.trim() && !trovata.fase.sempre) trovata.fase.nome = nome.trim();
     if (typeof nota === "string") trovata.fase.nota = nota;
     cambiata();
     return trovata.fase;
@@ -220,7 +222,10 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const format = trovaFormat(store.config, (req.params as { id: string }).id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
     const { ordine } = (req.body ?? {}) as { ordine?: string[] };
-    if (Array.isArray(ordine)) riordina(format.fasi, ordine);
+    if (Array.isArray(ordine)) {
+      const normali = format.fasi.filter((f) => !f.sempre);
+      riordina(normali, ordine.filter((id2) => normali.some((f) => f.id === id2)));
+    }
     cambiata();
     return format.fasi.map((f) => f.id);
   });
@@ -234,6 +239,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       ordine: trovata.format.fasi.length,
       cue: trovata.fase.cue.map((c, j) => duplicaCue(c, j)),
     };
+    // La copia della riga Sempre è una fase normale (di Sempre ce n'è una sola).
     trovata.format.fasi.push(copia);
     cambiata();
     return copia;
@@ -243,6 +249,7 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const id = (req.params as { id: string }).id;
     const trovata = trovaFase(store.config, id);
     if (!trovata) return reply.status(404).send({ errore: "Fase non trovata" });
+    if (trovata.fase.sempre) return reply.status(400).send({ errore: "La riga Sempre non si può eliminare" });
     for (const cue of trovata.fase.cue) cancellaFileCue(cue);
     trovata.format.fasi = trovata.format.fasi.filter((f) => f.id !== id);
     trovata.format.fasi.forEach((f, i) => (f.ordine = i));

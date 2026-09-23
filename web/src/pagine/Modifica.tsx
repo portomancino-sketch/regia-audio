@@ -254,7 +254,8 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
 
 function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId: string) => void }) {
   const { fase, salva } = props;
-  const sortFase = useSortable({ id: `fase-${fase.id}` });
+  const sempre = fase.sempre === true;
+  const sortFase = useSortable({ id: `fase-${fase.id}`, disabled: sempre });
   const [inDrop, setInDrop] = useState(false);
   const cueOrdinati = [...fase.cue].sort((a, b) => a.ordine - b.ordine);
 
@@ -308,6 +309,17 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
           className="w-full max-w-md rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 text-[17px] font-semibold tracking-[-0.01em] transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
         />
         <span className="shrink-0 text-[13px] text-testo-3">{fase.cue.length} suoni</span>
+        {sempre ? (
+          props.onAzzeraSpunte && fase.cue.some((c) => c.tipo === "promemoria") ? (
+            <Menu
+              voci={[{
+                testo: "Azzera spunte",
+                icona: <CheckSquare size={15} strokeWidth={1.75} />,
+                onScelta: () => props.onAzzeraSpunte!(fase.id),
+              }]}
+            />
+          ) : null
+        ) : (
         <Menu
           voci={[
             ...(props.onAzzeraSpunte && fase.cue.some((c) => c.tipo === "promemoria")
@@ -331,6 +343,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
             },
           ]}
         />
+        )}
       </div>
 
       <AreaInline
@@ -398,11 +411,12 @@ export function Modifica(props: {
   };
 
   const fasiOrdinate = [...format.fasi].sort((a, b) => a.ordine - b.ordine);
+  const fasiTrascinabili = fasiOrdinate.filter((f) => !f.sempre);
 
   function fineTrascinamentoFasi(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const ids = fasiOrdinate.map((f) => `fase-${f.id}`);
+    const ids = fasiTrascinabili.map((f) => `fase-${f.id}`);
     const nuovo = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
     salva(() => api.riordinaFasi(format.id, nuovo.map((s) => s.replace(/^fase-/, ""))));
   }
@@ -425,7 +439,7 @@ export function Modifica(props: {
         </Vetro>
       )}
       <DndContext collisionDetection={closestCenter} onDragEnd={fineTrascinamentoFasi}>
-        <SortableContext items={fasiOrdinate.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={fasiTrascinabili.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
               <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSpunte={props.onAzzeraSpunte} />

@@ -28,6 +28,8 @@ export interface Fase {
   cue: Cue[];
   /** "Cosa succede" in questa fase: 2–3 righe di guida per l'assistente. */
   nota?: string;
+  /** La riga "Sempre": visibile in ogni fase, non eliminabile, una per format. */
+  sempre?: boolean;
 }
 
 export interface Format {

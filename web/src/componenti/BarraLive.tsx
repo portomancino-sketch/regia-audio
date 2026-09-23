@@ -18,10 +18,12 @@ export function BarraLive(props: {
   telefono?: boolean;
   /** Contenuto extra nel dock (es. l'interruttore del tema sul telefono). */
   extra?: React.ReactNode;
+  /** Riga sopra il dock (le caselle "Sempre"). */
+  sopra?: React.ReactNode;
 }) {
   const { attivi } = props;
   return (
-    <Dock fisso={props.telefono}>
+    <Dock fisso={props.telefono} sopra={props.sopra}>
       <div className="min-w-0 flex-1 basis-40">
         <div className="flex items-center gap-2">
           <span className="etichetta">Sta suonando</span>

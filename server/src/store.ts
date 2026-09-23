@@ -1,6 +1,7 @@
 // Lettura e salvataggio di regia.json, con autosave e copie di sicurezza.
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { Config } from "../../shared/tipi";
 import { percorsoConfig, cartellaAudio, cartellaBackup, cartellaDati } from "./percorsi";
 import { creaConfigIniziale } from "./demo";
@@ -23,9 +24,12 @@ export class Store {
     const percorso = percorsoConfig();
     if (fs.existsSync(percorso)) {
       const testo = fs.readFileSync(percorso, "utf8");
-      return JSON.parse(testo) as Config;
+      const config = JSON.parse(testo) as Config;
+      assicuraRigaSempre(config);
+      return config;
     }
     const config = creaConfigIniziale(cartellaAudio(), process.env.REGIA_DEMO !== "0");
+    assicuraRigaSempre(config);
     fs.writeFileSync(percorso, JSON.stringify(config, null, 2));
     return config;
   }
@@ -63,7 +67,17 @@ export class Store {
 
   /** Sostituisce l'intera configurazione (usato da PUT /api/config e import). */
   sostituisci(nuova: Config): void {
+    assicuraRigaSempre(nuova);
     this.config = nuova;
     this.salva();
+  }
+}
+
+/** Ogni format ha la sua riga "Sempre" (in cima, ordine -1): se manca, nasce. */
+export function assicuraRigaSempre(config: Config): void {
+  for (const format of config.formats) {
+    if (!format.fasi.some((f) => f.sempre)) {
+      format.fasi.unshift({ id: randomUUID(), nome: "Sempre", ordine: -1, sempre: true, cue: [] });
+    }
   }
 }
