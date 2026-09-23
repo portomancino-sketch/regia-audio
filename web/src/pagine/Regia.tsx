@@ -79,6 +79,7 @@ export function PaginaRegia() {
   }, [parlaUi]);
 
   // ---- Stato live in giro per tutti ----
+  const inviaStatoRef = useRef<() => void>(() => undefined);
   const inviaStato = useCallback(() => {
     const m = motoreRef.current;
     if (!m || !sonoIlMotoreRef.current) return;
@@ -101,6 +102,7 @@ export function PaginaRegia() {
     setMasterUi(s.master);
     setParlaUi(s.parla === true);
   }, []);
+  inviaStatoRef.current = inviaStato;
 
   const impostaLive = useCallback(
     (formatId: string | null, faseId: string | null) => {
@@ -218,7 +220,7 @@ export function PaginaRegia() {
           break;
         case "format": {
           const format = configRef.current?.formats.find((f) => f.id === c.formatId);
-          if (format) {
+          if (format && !format.archiviato) {
             const primaFase = [...format.fasi].sort((a, b) => a.ordine - b.ordine)[0];
             if (format.notaInizio?.trim() && liveRef.current.formatId !== format.id) setFoglioAperto(true);
             impostaLive(format.id, primaFase?.id ?? null);
@@ -239,6 +241,18 @@ export function PaginaRegia() {
     const c = await api.config();
     configRef.current = c;
     setConfig(c);
+    // Un format archiviato non si può usare in Live: se era quello aperto, si passa al primo non archiviato.
+    const aperto = c.formats.find((f) => f.id === liveRef.current.formatId);
+    if (aperto?.archiviato && sonoIlMotoreRef.current) {
+      const primo = [...c.formats].filter((f) => !f.archiviato).sort((a, b) => a.ordine - b.ordine)[0];
+      const primaFase = primo ? [...primo.fasi].sort((a, b) => a.ordine - b.ordine)[0] : undefined;
+      motoreRef.current?.stopTutto();
+      liveRef.current = { formatId: primo?.id ?? null, faseId: primaFase?.id ?? null };
+      setLiveIds(liveRef.current);
+      if (primo) void motoreRef.current?.caricaFormat(primo);
+      if (vistaRef.current === "live") setVista("modifica");
+      setTimeout(() => inviaStatoRef.current(), 0);
+    }
     motoreRef.current?.aggiornaImpostazioni({
       livelloAbbassa: c.impostazioni.livelloAbbassa,
       fadeOutMs: c.impostazioni.fadeOutMs,
@@ -717,7 +731,7 @@ export function PaginaRegia() {
                 { id: "live", testo: "Live" },
               ]}
               valore={vista}
-              onCambia={(v) => (v === "live" ? passaAlive(formatAperto) : setVista("modifica"))}
+              onCambia={(v) => (v === "live" ? (formatAperto.archiviato ? undefined : passaAlive(formatAperto)) : setVista("modifica"))}
             />
           )}
           <button

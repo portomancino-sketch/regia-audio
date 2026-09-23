@@ -23,11 +23,12 @@ async function chiama<T>(metodo: string, url: string, corpo?: unknown): Promise<
 export const api = {
   config: () => chiama<Config>("GET", "/api/config"),
   rete: () => chiama<InfoRete>("GET", "/api/rete"),
+  maiUsati: () => chiama<{ serate: string[]; formats: { nome: string; caselle: string[] }[] }>("GET", "/api/statistiche/mai-usati"),
   impostazioni: (dati: Partial<Impostazioni>) => chiama<Impostazioni>("PATCH", "/api/impostazioni", dati),
 
   creaFormat: (nome: string) => chiama<Format>("POST", "/api/formats", { nome }),
   rinominaFormat: (id: string, nome: string) => chiama<Format>("PATCH", `/api/formats/${id}`, { nome }),
-  modificaFormat: (id: string, dati: { nome?: string; notaInizio?: string; crossfade?: number }) =>
+  modificaFormat: (id: string, dati: { nome?: string; notaInizio?: string; crossfade?: number; archiviato?: boolean }) =>
     chiama<Format>("PATCH", `/api/formats/${id}`, dati),
   riordinaFormats: (ordine: string[]) => chiama<string[]>("POST", "/api/formats/riordina", { ordine }),
   duplicaFormat: (id: string) => chiama<Format>("POST", `/api/formats/${id}/duplica`),
@@ -35,7 +36,7 @@ export const api = {
 
   creaFase: (formatId: string, nome: string) => chiama<Fase>("POST", `/api/formats/${formatId}/fasi`, { nome }),
   rinominaFase: (id: string, nome: string) => chiama<Fase>("PATCH", `/api/fasi/${id}`, { nome }),
-  modificaFase: (id: string, dati: { nome?: string; nota?: string }) =>
+  modificaFase: (id: string, dati: { nome?: string; nota?: string; durataPrevista?: number | null }) =>
     chiama<Fase>("PATCH", `/api/fasi/${id}`, dati),
   riordinaFasi: (formatId: string, ordine: string[]) =>
     chiama<string[]>("POST", `/api/formats/${formatId}/fasi/riordina`, { ordine }),

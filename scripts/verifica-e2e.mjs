@@ -894,6 +894,79 @@ const chiudiSuggerimento = async (p) => {
   await osservatore.finoA((x) => x.attivi.length === 0, 4000);
 }
 
+// ================= S12 =================
+// --- C1: durata prevista + orologio di scaletta (Mac e telefono) ---
+{
+  await fetch(`${BASE}/api/fasi/${fase1.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ durataPrevista: 15 }) });
+  await fetch(`${BASE}/api/fasi/${fase2.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ durataPrevista: 30 }) });
+  await attendi(1200);
+  await regia3.click(fase2.nome);
+  const orologio = await regia3.finoA(`(() => { const o = document.querySelector('[data-orologio]'); return !!o && /Fase \\d+:\\d\\d \\/ 30:00/.test(o.innerText.replace(/\\n/g, ' ')) && /(in ritardo|in anticipo|in orario)/.test(o.innerText); })()`, 6000);
+  orologio ? ok("Mac: orologio di scaletta 'Fase m:ss / 30:00' + scarto cumulato", await regia3.js(`document.querySelector('[data-orologio]')?.innerText.replace(/\\n/g, ' ')`)) : ko("Orologio di scaletta", await regia3.js(`document.querySelector('[data-orologio]')?.innerText`));
+  const scartoTel = await tel.finoA(`!!document.querySelector('[data-scarto]')`, 6000);
+  scartoTel ? ok("Telefono: riga dello scarto sotto il nome della fase", await tel.js(`document.querySelector('[data-scarto]')?.textContent`)) : ko("Telefono: scarto");
+  await regia3.click(fase1.nome);
+  await attendi(300);
+}
+
+// --- C2: riepilogo della serata (server) ---
+{
+  const giorni = await (await fetch(`${BASE}/api/diario`)).json();
+  const { riepilogo } = await (await fetch(`${BASE}/api/diario/${giorni[0].data}`)).json();
+  riepilogo && riepilogo.inizio && riepilogo.stopTutto >= 1 && riepilogo.comandi.telefono > 0 && riepilogo.fasi.length >= 2
+    ? ok("Diario: riepilogo (inizio, STOP TUTTO, comandi telefono/Mac, tabella per fase)", `stop=${riepilogo.stopTutto} errori=${riepilogo.possibiliErrori} fasi=${riepilogo.fasi.length}`)
+    : ko("Riepilogo serata", JSON.stringify(riepilogo));
+  const csv = await (await fetch(`${BASE}/api/diario/${giorni[0].data}/csv`)).text();
+  csv.startsWith("chiave,valore") && csv.includes("\nora,tipo,cue,fase,format,origine") ? ok("CSV: riepilogo in cima, poi la cronologia") : ko("CSV con riepilogo");
+}
+
+// --- C3: suoni mai usati ---
+{
+  const mu = await (await fetch(`${BASE}/api/statistiche/mai-usati`)).json();
+  const demoMu = mu.formats.find((f) => f.nome === demo.nome);
+  demoMu && demoMu.caselle.includes("Chiusura") && !demoMu.caselle.includes("Treno in corsa")
+    ? ok("Statistiche: 'Chiusura' mai usata, 'Treno in corsa' sì", demoMu.caselle.join(", "))
+    : ko("Mai usati", JSON.stringify(mu));
+  await regia3.click("Modifica");
+  const badge = await regia3.finoA(`[...document.querySelectorAll('[data-mai-usato]')].length >= 1`, 4000);
+  badge ? ok("Modifica: badge 'mai usato nelle ultime 10 serate'") : ko("Badge mai usato");
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+}
+
+// --- C4: duplica dal menu della Home; archivia → sparisce dal telefono ---
+{
+  await regia3.cmd("Page.navigate", { url: `${BASE}/?prova` });
+  await attendi(1500);
+  await regia3.js(`[...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Altre azioni')?.click()`);
+  await attendi(200);
+  await regia3.click("Duplica");
+  const aperta = await regia3.finoA(`location.pathname.startsWith('/format/') && [...document.querySelectorAll('input')].some(i => i.value.includes('(copia)'))`, 6000);
+  aperta ? ok("Home: 'Duplica' crea la copia e la apre in Modifica") : ko("Duplica dal menu");
+  const cfgD = await (await fetch(`${BASE}/api/config`)).json();
+  const copia = cfgD.formats.find((f) => f.nome.endsWith("(copia)"));
+  const stessiFile = copia && copia.fasi.flatMap((f) => f.cue).filter((c) => c.file).every((c) => cfgD.formats.find((f) => f.id === demo.id).fasi.flatMap((x) => x.cue).some((o) => o.file === c.file));
+  copia && stessiFile ? ok("La copia usa gli stessi file audio (riferimenti)") : ko("File della copia");
+  await fetch(`${BASE}/api/formats/${copia.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ archiviato: true }) });
+  await attendi(1200);
+  await tel.js(`[...document.querySelectorAll('button')].find(b => b.textContent.includes('${demo.nome}') && b.querySelector('svg'))?.click()`);
+  const lista = await tel.finoA(`document.body.innerText.includes('Scegli la serata')`, 3000);
+  const nascosto = lista && (await tel.js(`!document.body.innerText.includes('(copia)')`));
+  nascosto ? ok("Telefono: il format archiviato non è nella lista") : ko("Archiviato visibile sul telefono");
+  await tel.click("Annulla");
+  await attendi(300);
+  await fetch(`${BASE}/api/formats/${copia.id}`, { method: "DELETE" });
+  await attendi(800);
+  // La Regia torna sul format demo per i test che seguono.
+  await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
+  await attendi(1500);
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await attendi(300);
+}
+
 // --- Ultimi 10 secondi: numero e barra in ambra (Tensione dura 8 s) ---
 await regia3.click("Atto 1 – Omicidio");
 await attendi(400);
@@ -935,7 +1008,8 @@ await osservatore.finoA((x) => x.parla !== true, 4000);
     const daTelefono = eventi.some((e) => e.origine.startsWith("telefono"));
     daTelefono ? ok("Diario: origine 'telefono' riconosciuta") : ko("Origine telefono assente");
     const csv = await (await fetch(`${BASE}/api/diario/${oggi.data}/csv`)).text();
-    csv.startsWith("ora,tipo,cue,fase,format,origine") && csv.split("\n").length > 3
+    // S12: il CSV inizia col riepilogo (chiave,valore), poi la cronologia con la sua intestazione.
+    csv.startsWith("chiave,valore") && csv.includes("\nora,tipo,cue,fase,format,origine") && csv.split("\n").length > 10
       ? ok("CSV della serata scaricato")
       : ko("CSV rotto");
   }

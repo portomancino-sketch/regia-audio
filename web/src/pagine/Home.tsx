@@ -3,7 +3,7 @@ import { useState } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Config, Format } from "../../../shared/tipi";
 import { api } from "../api";
 import { InputInline } from "../componenti/comuni";
@@ -15,6 +15,7 @@ function CardFormat(props: {
   onApri: () => void;
   onRinomina: (nome: string) => void;
   onDuplica: () => void;
+  onArchivia: () => void;
   onElimina: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -51,6 +52,7 @@ function CardFormat(props: {
             voci={[
               { testo: "Rinomina", icona: <Pencil size={15} strokeWidth={1.75} />, onScelta: () => setRinomina(true) },
               { testo: "Duplica", icona: <Copy size={15} strokeWidth={1.75} />, onScelta: props.onDuplica },
+              { testo: "Archivia", icona: <Archive size={15} strokeWidth={1.75} />, onScelta: props.onArchivia },
               {
                 testo: "Elimina",
                 icona: <Trash2 size={15} strokeWidth={1.75} />,
@@ -90,7 +92,8 @@ export function Home(props: {
   onApriFormat: (id: string) => void;
 }) {
   const [occupato, setOccupato] = useState(false);
-  const formats = [...props.config.formats].sort((a, b) => a.ordine - b.ordine);
+  const formats = [...props.config.formats].filter((f) => !f.archiviato).sort((a, b) => a.ordine - b.ordine);
+  const archiviati = [...props.config.formats].filter((f) => f.archiviato).sort((a, b) => a.ordine - b.ordine);
 
   async function ricarica() {
     props.onConfigCambiata(await api.config());
@@ -150,7 +153,14 @@ export function Home(props: {
                     void api.rinominaFormat(f.id, nome).then(ricarica);
                   }}
                   onDuplica={() => {
-                    void api.duplicaFormat(f.id).then(ricarica);
+                    // La copia si apre subito in Modifica.
+                    void api.duplicaFormat(f.id).then(async (copia) => {
+                      await ricarica();
+                      props.onApriFormat(copia.id);
+                    });
+                  }}
+                  onArchivia={() => {
+                    void api.modificaFormat(f.id, { archiviato: true }).then(ricarica);
                   }}
                   onElimina={() => {
                     void api.eliminaFormat(f.id).then(ricarica);
@@ -169,6 +179,32 @@ export function Home(props: {
             </div>
           </SortableContext>
         </DndContext>
+      )}
+      {archiviati.length > 0 && (
+        <section className="mt-10" aria-label="Archiviati">
+          <h2 className="mb-3 text-[15px] font-semibold text-testo-2">Archiviati</h2>
+          <div className="space-y-2">
+            {archiviati.map((f) => (
+              <div key={f.id} className="vetro flex items-center gap-3 px-4 py-3" data-archiviato>
+                <Archive size={16} strokeWidth={1.75} className="shrink-0 text-testo-3" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => props.onApriFormat(f.id)}
+                  className="min-w-0 flex-1 truncate text-left text-[15px] font-medium text-testo-2 hover:text-testo"
+                >
+                  {f.nome}
+                </button>
+                <Pulsante
+                  variante="secondario"
+                  misura="sm"
+                  onClick={() => void api.modificaFormat(f.id, { archiviato: false }).then(ricarica)}
+                >
+                  <ArchiveRestore size={14} strokeWidth={1.75} aria-hidden /> Ripristina
+                </Pulsante>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

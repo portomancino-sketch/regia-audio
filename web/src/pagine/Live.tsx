@@ -5,6 +5,7 @@ import type { Cue, CueAttivo, Format } from "../../../shared/tipi";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Vetro } from "../componenti/ui/Vetro";
+import { OrologioScaletta } from "../componenti/OrologioScaletta";
 
 export function Live(props: {
   format: Format;
@@ -49,6 +50,7 @@ export function Live(props: {
             valore={fase?.id ?? ""}
             onCambia={props.onCambiaFase}
           />
+          <OrologioScaletta format={props.format} faseId={fase?.id ?? null} className="shrink-0" />
           {fase?.nota && notaChiusa && (
             <button
               type="button"

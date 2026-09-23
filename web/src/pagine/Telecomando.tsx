@@ -11,6 +11,7 @@ import { PulsanteCue } from "../componenti/PulsanteCue";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
+import { OrologioScaletta } from "../componenti/OrologioScaletta";
 
 const CHIAVE_PIN = "regia-pin";
 
@@ -252,7 +253,7 @@ export function PaginaTelecomando() {
   // durante "Ricollego…" i tocchi restano possibili (vanno in coda).
   const soundcheck = stato?.soundcheck ?? null;
   const bloccato = (connessione && !motoreOnline) || soundcheck !== null;
-  const formats = [...config.formats].sort((a, b) => a.ordine - b.ordine);
+  const formats = [...config.formats].filter((f) => !f.archiviato).sort((a, b) => a.ordine - b.ordine);
   const format = formats.find((f) => f.id === stato?.formatId) ?? null;
   // Il foglio "Prima di iniziare" compare una volta per serata e per format
   // (memoria sul telefono con la data), non a ogni ricaricamento.
@@ -402,8 +403,9 @@ export function PaginaTelecomando() {
         >
           <ChevronLeft size={24} strokeWidth={1.75} />
         </button>
-        <div className="vetro flex min-h-16 flex-1 items-center justify-center px-2 text-center text-[17px] font-semibold tracking-[-0.01em]">
+        <div className="vetro flex min-h-16 flex-1 flex-col items-center justify-center px-2 text-center text-[17px] font-semibold tracking-[-0.01em]">
           {fase?.nome ?? "—"}
+          <OrologioScaletta format={format} faseId={fase?.id ?? null} soloScarto />
         </div>
         <button
           type="button"

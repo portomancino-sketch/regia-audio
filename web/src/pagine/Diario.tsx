@@ -20,6 +20,88 @@ interface Evento {
   format?: string;
   origine: string;
 }
+interface Riepilogo {
+  inizio: string | null;
+  fine: string | null;
+  durataMin: number;
+  fasi: { nome: string; previstiMin: number | null; realiMin: number; scartoMin: number | null }[];
+  stopTutto: number;
+  possibiliErrori: number;
+  comandi: { telefono: number; mac: number };
+}
+interface MaiUsati {
+  serate: string[];
+  formats: { nome: string; caselle: string[] }[];
+}
+
+const minuti = (n: number) => (n < 60 ? `${n} min` : `${Math.floor(n / 60)} h ${n % 60} min`);
+
+function RiquadroRiepilogo(props: { r: Riepilogo }) {
+  const { r } = props;
+  return (
+    <Vetro className="p-5" data-riepilogo>
+      <div className="etichetta mb-3">Riepilogo della serata</div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[14px] sm:grid-cols-3">
+        <div>
+          <span className="text-testo-3">Inizio </span>
+          <span className="tabular-nums text-testo">{r.inizio ? ora(r.inizio).slice(0, 5) : "—"}</span>
+        </div>
+        <div>
+          <span className="text-testo-3">Fine </span>
+          <span className="tabular-nums text-testo">{r.fine ? ora(r.fine).slice(0, 5) : "—"}</span>
+        </div>
+        <div>
+          <span className="text-testo-3">Durata </span>
+          <span className="tabular-nums text-testo">{minuti(r.durataMin)}</span>
+        </div>
+        <div>
+          <span className="text-testo-3">STOP TUTTO </span>
+          <span className="tabular-nums text-testo">{r.stopTutto}</span>
+        </div>
+        <div>
+          <span className="text-testo-3">Possibili errori </span>
+          <span className="tabular-nums text-testo" title="Suoni fermati entro 2 secondi dalla partenza">{r.possibiliErrori}</span>
+        </div>
+        <div>
+          <span className="text-testo-3">Comandi </span>
+          <span className="tabular-nums text-testo">
+            {r.comandi.telefono} dal telefono · {r.comandi.mac} dal Mac
+          </span>
+        </div>
+      </div>
+      {r.fasi.length > 0 && (
+        <table className="mt-4 w-full text-[13px]">
+          <thead>
+            <tr className="text-left text-testo-3">
+              <th className="py-1 font-medium">Fase</th>
+              <th className="py-1 text-right font-medium">Prevista</th>
+              <th className="py-1 text-right font-medium">Reale</th>
+              <th className="py-1 text-right font-medium">Scarto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.fasi.map((f) => (
+              <tr key={f.nome} className="border-t border-vetro-bordo">
+                <td className="py-1 text-testo">{f.nome}</td>
+                <td className="py-1 text-right tabular-nums text-testo-2">{f.previstiMin === null ? "—" : `${f.previstiMin} min`}</td>
+                <td className="py-1 text-right tabular-nums text-testo">{f.realiMin} min</td>
+                <td
+                  className="py-1 text-right tabular-nums"
+                  style={{
+                    color:
+                      f.scartoMin === null ? "var(--testo-3)" : Math.abs(f.scartoMin) <= 2 ? "var(--brand-chiaro)" : Math.abs(f.scartoMin) <= 5 ? "var(--tipo-effetto)" : "var(--rosso)",
+                  }}
+                >
+                  {f.scartoMin === null ? "—" : f.scartoMin > 0 ? `+${f.scartoMin} min` : `${f.scartoMin} min`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Vetro>
+  );
+}
 
 const ora = (iso: string) =>
   new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -77,16 +159,21 @@ export function Diario() {
   const [giorni, setGiorni] = useState<Riassunto[] | null>(null);
   const [aperto, setAperto] = useState<string | null>(null);
   const [eventi, setEventi] = useState<Evento[]>([]);
+  const [riepilogo, setRiepilogo] = useState<Riepilogo | null>(null);
+  const [maiUsati, setMaiUsati] = useState<MaiUsati | null>(null);
 
   useEffect(() => {
     void fetch("/api/diario").then(async (r) => setGiorni((await r.json()) as Riassunto[]));
+    void fetch("/api/statistiche/mai-usati").then(async (r) => setMaiUsati((await r.json()) as MaiUsati));
   }, []);
 
   useEffect(() => {
     if (!aperto) return;
-    void fetch(`/api/diario/${aperto}`).then(async (r) =>
-      setEventi(((await r.json()) as { eventi: Evento[] }).eventi),
-    );
+    void fetch(`/api/diario/${aperto}`).then(async (r) => {
+      const d = (await r.json()) as { eventi: Evento[]; riepilogo: Riepilogo };
+      setEventi(d.eventi);
+      setRiepilogo(d.riepilogo);
+    });
   }, [aperto]);
 
   if (giorni === null) return <div className="p-8 text-testo-2">Carico…</div>;
@@ -111,6 +198,7 @@ export function Diario() {
           </a>
         </div>
 
+        {riepilogo && <RiquadroRiepilogo r={riepilogo} />}
         <TempoPerFase eventi={eventi} />
 
         <Vetro className="p-5">
@@ -143,6 +231,22 @@ export function Diario() {
         </Vetro>
       ) : (
         <div className="space-y-3">
+          {maiUsati && maiUsati.formats.length > 0 && (
+            <Vetro className="p-5" data-mai-usati>
+              <div className="etichetta mb-1">Ultime {maiUsati.serate.length} serate: suoni mai usati</div>
+              <p className="mb-3 text-[13px] text-testo-3">Per ogni format usato, le caselle che non sono mai partite (il soundcheck non conta).</p>
+              <div className="space-y-2">
+                {maiUsati.formats.map((f) => (
+                  <div key={f.nome} className="text-[14px]">
+                    <span className="font-semibold text-testo">{f.nome}</span>
+                    <span className="text-testo-2">
+                      {f.caselle.length === 0 ? " — tutte usate" : `: ${f.caselle.join(", ")}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Vetro>
+          )}
           {giorni.map((g) => (
             <button
               key={g.data}

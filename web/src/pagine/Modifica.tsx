@@ -40,6 +40,8 @@ function CasellaCue(props: {
   onDuplicata: () => void;
   /** Solo riga Sempre: tutte le caselle della riga, per la stella "In evidenza". */
   rigaSempre?: Cue[];
+  /** Mai partita nelle ultime 10 serate in cui il format è stato usato. */
+  maiUsato?: boolean;
 }) {
   const { cue, salva } = props;
   const [avviso, setAvviso] = useState<string | null>(null);
@@ -185,6 +187,11 @@ function CasellaCue(props: {
             )}
             {cue.nota && <span className="truncate">· {cue.nota}</span>}
           </div>
+          {props.maiUsato && (
+            <span className="mt-1 inline-block rounded-full border border-vetro-bordo bg-velo px-2 py-0.5 text-[11px] text-testo-3" data-mai-usato>
+              mai usato nelle ultime 10 serate
+            </span>
+          )}
         </div>
         <ChevronDown
           size={16}
@@ -377,7 +384,7 @@ function CasellaCue(props: {
   );
 }
 
-function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void }) {
+function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void; maiUsati?: Set<string> }) {
   const { fase, salva } = props;
   const sempre = fase.sempre === true;
   const sortFase = useSortable({ id: `fase-${fase.id}`, disabled: sempre });
@@ -440,6 +447,29 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
           className="w-full max-w-md rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 text-[17px] font-semibold tracking-[-0.01em] transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
         />
         <span className="shrink-0 text-[13px] text-testo-3">{fase.cue.length} suoni</span>
+        {!sempre && (
+          <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-testo-3" title="Durata prevista della fase, per l'orologio di scaletta">
+            <span className="hidden sm:inline">Durata prevista</span>
+            <input
+              type="number"
+              min={1}
+              max={600}
+              step={1}
+              inputMode="numeric"
+              placeholder="—"
+              aria-label="Durata prevista in minuti"
+              defaultValue={fase.durataPrevista ?? ""}
+              key={`dp-${fase.durataPrevista ?? ""}`}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                const n = v === "" ? null : Math.max(1, Math.min(600, Math.round(Number(v))));
+                if ((n ?? undefined) !== fase.durataPrevista) salva(() => api.modificaFase(fase.id, { durataPrevista: n }));
+              }}
+              className="w-16 rounded-[10px] border border-vetro-bordo bg-velo px-2 py-1 text-[13px] tabular-nums text-testo placeholder:text-testo-3 focus:border-brand-chiaro focus:outline-none"
+            />
+            <span>min</span>
+          </label>
+        )}
         {sempre ? (
           props.onAzzeraSerata && fase.cue.length > 0 ? (
             <Menu
@@ -494,6 +524,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
                 cue={c}
                 salva={salva}
                 rigaSempre={sempre ? cueOrdinati : undefined}
+                maiUsato={props.maiUsati?.has(c.titolo) === true}
                 onEliminata={() => salva(() => api.eliminaCue(c.id))}
                 onDuplicata={() => salva(() => api.duplicaCue(c.id))}
               />
@@ -536,6 +567,22 @@ export function Modifica(props: {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
   const [confermaSblocco, setConfermaSblocco] = useState(false);
+  // Le caselle mai partite nelle ultime 10 serate (badge grigio).
+  const [maiUsati, setMaiUsati] = useState<Set<string> | undefined>(undefined);
+  useEffect(() => {
+    let vivo = true;
+    void api
+      .maiUsati()
+      .then((r) => {
+        if (!vivo) return;
+        const mio = r.formats.find((f) => f.nome === format.nome);
+        setMaiUsati(mio ? new Set(mio.caselle) : undefined);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [format.nome]);
   // "Analizza tutti i suoni": barra di avanzamento, si può interrompere.
   const [analisi, setAnalisi] = useState<{ fatti: number; totale: number } | null>(null);
   const analisiAnnulla = useRef(false);
@@ -700,7 +747,7 @@ export function Modifica(props: {
         <SortableContext items={fasiTrascinabili.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} />
+              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} maiUsati={maiUsati} />
             ))}
           </div>
         </SortableContext>
