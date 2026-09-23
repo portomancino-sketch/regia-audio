@@ -284,3 +284,34 @@ Solo pacchetto e documenti (zero modifiche a prodotto/UI/server/web).
   verificato nuovo, build web nuova inclusa.
 - NOTA: pacchetto verificato solo su Mac Intel (x64); il binario arm64 non è
   mai stato eseguito, da confermare sul Mac di Valerio se è Apple Silicon.
+
+## S8-bis — 23 settembre 2026 — v1.1.3: riga Sempre dentro il vetro, Sfuma/Stop grandi
+
+- **Riga Sempre dentro il vetro del dock** (Dock.tsx): `props.sopra` è la
+  prima riga a tutta larghezza del Vetro (min-w-0 + basis-full), con 12px e
+  una riga sottile (bordo del tema) sotto. Prima stava fuori dal vetro, nella
+  zona trasparente del contenitore fisso, e le card che scorrevano sotto ci
+  passavano attraverso (foto iPhone Safari, v1.1.2).
+- **RigaSempre.tsx, un solo layout** Mac/telefono: striscia scorrevole senza
+  barra, `-mx-5 px-5` (padding pari a quello del vetro con margine negativo)
+  così pillole e card compatte scorrono fino al bordo del vetro senza tagli a
+  metà. Tolto `mb-3`. Il ResizeObserver misura il contenitore fisso: lo spazio
+  sotto resta corretto senza altre modifiche (verificato: ultima card sopra il
+  dock con 5 pillole).
+- **Telefono, card che suona**: "finisce tra" da solo a destra sulla sua
+  riga; sotto, due tasti grandi metà e metà, 52px, 10px tra loro: "Sfuma"
+  (vetro, 17px semibold) e "■ Stop" (rosso tenue: bordo e sfondo dal rosso di
+  STOP TUTTO, non pieno). Prop `telefono` di PulsanteCue; pillole Sempre e
+  card compatte del Mac invariate.
+- Verifica: 51 test + typecheck verdi; **72/72 controlli end-to-end** (nuovo:
+  pagina non scrollata con 3 pillole, la striscia Sempre è dentro il vetro e
+  nessuna card la "buca" al tocco — elementFromPoint lungo la striscia
+  risponde sempre con elementi del dock). `scripts/screenshot-s8bis.mjs` →
+  docs/screenshots/s8bis/ (telefono chiaro/scuro con 1 e 5 pillole, in cima e
+  in fondo; Mac Live con riga Sempre; card che suona chiaro/scuro).
+- NOTA: Chrome headless non disegna la sfocatura del vetro (backdrop-filter):
+  negli screenshot il testo dietro al dock si legge più di quanto si legga su
+  Safari, dove il vetro sfoca. Da confermare a occhio sull'iPhone.
+- **v1.1.3** → dist-pacchetti/Regia-v1.1.3.zip (80 MB); dentro lo zip
+  verificati build web nuova e LEGGIMI di S8. Pacchetto provato solo su Mac
+  Intel (x64); arm64 da confermare sul Mac di Valerio.
