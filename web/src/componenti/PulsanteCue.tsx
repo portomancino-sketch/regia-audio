@@ -42,6 +42,8 @@ export function PulsanteCue(props: {
   disabilitato?: boolean;
   scorciatoia?: string;
   compatto?: boolean;
+  /** Sul telefono: mentre suona, Sfuma e Stop diventano due tasti grandi metà e metà. */
+  telefono?: boolean;
   /** Ritardo dell'entrata a cascata, in ms. */
   ritardoEntrataMs?: number;
 }) {
@@ -129,6 +131,9 @@ export function PulsanteCue(props: {
       : 0;
   const inPausa = attiva?.inPausa === true;
   const rimanente = attiva ? tempoRimanente(attiva) : null;
+  // Sul telefono, mentre suona: Sfuma e Stop sono due tasti grandi metà e metà
+  // sotto "finisce tra", non i bottoncini piccoli accanto al tempo.
+  const tastiGrandi = props.telefono === true && !!attiva;
 
   return (
     <div
@@ -188,7 +193,7 @@ export function PulsanteCue(props: {
 
       <div className="mt-2 flex w-full items-center gap-2">
         {istanze.length > 1 && <span className="text-[12px] text-brand-chiaro">×{istanze.length}</span>}
-        {attiva && props.onSfuma && (
+        {attiva && !tastiGrandi && props.onSfuma && (
           <button
             type="button"
             title="Sfuma questo suono"
@@ -201,7 +206,7 @@ export function PulsanteCue(props: {
             Sfuma
           </button>
         )}
-        {attiva && props.onFerma && (
+        {attiva && !tastiGrandi && props.onFerma && (
           <button
             type="button"
             title="Ferma subito questo suono"
@@ -227,6 +232,42 @@ export function PulsanteCue(props: {
           </span>
         )}
       </div>
+
+      {tastiGrandi && (props.onSfuma || props.onFerma) && (
+        <div className="mt-2 grid w-full grid-cols-2 gap-[10px]">
+          {props.onSfuma && (
+            <button
+              type="button"
+              title="Sfuma questo suono"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onSfuma!();
+              }}
+              className="vetro vetro-campo tocco flex h-[52px] items-center justify-center text-[17px] font-semibold text-testo"
+            >
+              Sfuma
+            </button>
+          )}
+          {props.onFerma && (
+            <button
+              type="button"
+              title="Ferma subito questo suono"
+              aria-label="Ferma subito"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onFerma!();
+              }}
+              className="tocco flex h-[52px] items-center justify-center gap-2 rounded-[var(--raggio-campo)] border text-[17px] font-semibold text-rosso"
+              style={{
+                borderColor: "color-mix(in srgb, var(--rosso) 55%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--rosso) 8%, transparent)",
+              }}
+            >
+              <Square size={14} strokeWidth={2} fill="currentColor" aria-hidden /> Stop
+            </button>
+          )}
+        </div>
+      )}
 
       {attiva && !inPausa && (
         <div className={`absolute inset-x-0 bottom-0 ${rimanente?.ambra ? "pulsa-piano" : ""}`}>

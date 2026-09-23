@@ -435,6 +435,7 @@ export function PaginaTelecomando() {
             key={c.id}
             cue={c}
             compatto
+            telefono
             ritardoEntrataMs={Math.min(i, 9) * 25}
             attivi={attiviFluidi}
             disabilitato={bloccato}
