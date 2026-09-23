@@ -183,13 +183,13 @@ const leggimi = `REGIA — la regia audio delle serate di Porto Mancino
 
 LA PRIMA VOLTA (una volta sola)
 1. Doppio click su "Avvia Regia.command".
-2. macOS lo blocca: è normale, non è un errore.
-   - Se il messaggio parla di "verificare" o "malware" (macOS 15 o più recente):
+2. macOS lo blocca: è normale, non è un errore. Guarda i pulsanti:
+   - Un solo pulsante "OK": premilo. Poi tasto destro su "Avvia Regia.command"
+     → Apri → Apri.
+   - Due pulsanti "Fine" e "Sposta nel Cestino" (macOS 15 o più recente):
      premi "Fine". Poi Impostazioni di Sistema → Privacy e sicurezza → scendi
      fino a "Sicurezza" → "Apri comunque" → di nuovo "Apri comunque" → password
      del Mac. Se la Regia non parte da sola, rifai doppio click.
-   - Se invece dice "sviluppatore non identificato" (Mac meno recenti):
-     tasto destro su "Avvia Regia.command" → Apri → Apri.
 3. Se il Mac chiede altri permessi (cartella Documenti, rete, "node"): Consenti.
 
 LE VOLTE DOPO

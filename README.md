@@ -9,9 +9,13 @@ Niente cloud, niente abbonamenti: tutto resta sul Mac.
 1. Copia sul Mac lo zip **Regia-vX.Y.zip** (AirDrop o chiavetta) e scompattalo
    dove vuoi (per esempio in Documenti).
 2. Nella cartella "Regia": doppio click su **"Avvia Regia.command"**. La
-   **prima volta** macOS lo blocca: su macOS 15 o più recente premi "Fine",
-   poi Impostazioni di Sistema → Privacy e sicurezza → "Apri comunque" →
-   password; su macOS 14 o precedente basta tasto destro → Apri → Apri.
+   **prima volta** macOS lo blocca: è normale. Guarda i pulsanti del messaggio:
+   - un solo pulsante **"OK"**: premilo, poi tasto destro su "Avvia
+     Regia.command" → Apri → Apri;
+   - due pulsanti **"Fine"** e **"Sposta nel Cestino"** (macOS 15 o più
+     recente): premi "Fine", poi Impostazioni di Sistema → Privacy e sicurezza
+     → scendi fino a "Sicurezza" → "Apri comunque" → di nuovo "Apri comunque"
+     → password del Mac. Se la Regia non parte da sola, rifai doppio click.
    Succede solo la prima volta.
 3. Le volte dopo basta il **doppio click**. Non serve installare nulla:
    nella cartella c'è già tutto, internet non serve.
