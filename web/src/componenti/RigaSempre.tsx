@@ -115,14 +115,20 @@ export function RigaSempre(props: {
 }) {
   if (props.cue.length === 0) return null;
 
-  // ---- Telefono: striscia di pillole ----
-  if (props.telefono) {
-    return (
-      <div
-        className="striscia-senza-barra mx-auto mb-2 flex max-w-5xl gap-2 overflow-x-auto py-1"
-        aria-label="Sempre"
-      >
-        {props.cue.map((c) => (
+  // Le scorciatoie Q W E R T valgono per le prime cinque caselle audio (solo Mac).
+  let n = 0;
+  const scorciatoie = new Map<string, string>();
+  for (const c of props.cue) {
+    if (c.tipo !== "promemoria" && n < TASTI_SEMPRE.length) scorciatoie.set(c.id, TASTI_SEMPRE[n++]!);
+  }
+
+  // Un solo layout: striscia scorrevole senza barra, dentro il vetro del dock.
+  // Il padding interno pari a quello del vetro (px-5) con margine negativo fa
+  // scorrere le caselle fino al bordo del vetro senza tagliarle a metà.
+  return (
+    <div className="striscia-senza-barra -mx-5 flex min-w-0 gap-2 overflow-x-auto px-5 py-1" aria-label="Sempre">
+      {props.cue.map((c) =>
+        props.telefono ? (
           <PillolaSempre
             key={c.id}
             cue={c}
@@ -132,35 +138,23 @@ export function RigaSempre(props: {
             onPremi={() => props.onPremi(c)}
             onSpunta={() => props.onSpunta(c)}
           />
-        ))}
-      </div>
-    );
-  }
-
-  // ---- Mac: card compatte. Le scorciatoie Q W E R T valgono per le prime cinque caselle audio.
-  let n = 0;
-  const scorciatoie = new Map<string, string>();
-  for (const c of props.cue) {
-    if (c.tipo !== "promemoria" && n < TASTI_SEMPRE.length) scorciatoie.set(c.id, TASTI_SEMPRE[n++]!);
-  }
-  return (
-    <div className="mx-auto mb-3 flex max-w-5xl gap-2 overflow-x-auto pb-1">
-      {props.cue.map((c) => (
-        <div key={c.id} className="w-64 shrink-0">
-          <PulsanteCue
-            cue={c}
-            compatto
-            attivi={props.attivi}
-            fatto={props.fatti?.includes(c.id)}
-            disabilitato={props.disabilitato}
-            scorciatoia={scorciatoie.get(c.id)}
-            onPremi={() => props.onPremi(c)}
-            onFerma={() => props.onFerma(c)}
-            onSfuma={() => props.onSfuma(c)}
-            onSpunta={() => props.onSpunta(c)}
-          />
-        </div>
-      ))}
+        ) : (
+          <div key={c.id} className="w-64 shrink-0">
+            <PulsanteCue
+              cue={c}
+              compatto
+              attivi={props.attivi}
+              fatto={props.fatti?.includes(c.id)}
+              disabilitato={props.disabilitato}
+              scorciatoia={scorciatoie.get(c.id)}
+              onPremi={() => props.onPremi(c)}
+              onFerma={() => props.onFerma(c)}
+              onSfuma={() => props.onSfuma(c)}
+              onSpunta={() => props.onSpunta(c)}
+            />
+          </div>
+        ),
+      )}
     </div>
   );
 }
