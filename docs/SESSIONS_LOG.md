@@ -93,3 +93,28 @@ verifica end-to-end, che ora avvia un SUO server su porta 4999 con dati temporan
 - **Verifica**: 44 test unitari/API + 44 controlli end-to-end (tema, foglio,
   note, promemoria dal telefono, scalzamento, congelamento simulato con
   Page.setWebLifecycleState). Screenshot chiaro/scuro in docs/screenshots/s3/.
+
+## S4 — 23 settembre 2026 — sfondo vivo, card con corpo, chi c'è comanda
+
+- **Sfondo mesh**: tre macchie di colore sfumate + grana feTurbulence, in
+  entrambi i temi. La deriva è guidata da JS a ~7 aggiornamenti/s (passi
+  sub-pixel: fluida all'occhio, ma il compositing costa un ottavo di
+  un'animazione CSS a 60 fps). Misura CPU con la Live aperta e ferma
+  (delta di cputime dei renderer su 10 s, Chrome visibile): **2,9%**
+  (con animazioni CSS a 60 fps era 6–7%, sopra la soglia del 5%).
+  Ferma sul telecomando e con "riduci movimento". Contrasto ≥ 4.5:1
+  verificato sui punti estremi dello sfondo.
+- **Card con corpo**: vetro a gradiente con doppia ombra e riga di luce,
+  hover con sollevamento (solo puntatore fine), pressione a molla; cerchietto
+  36 px con tinta del tipo al 14% e icona (equalizzatore a 3 barre quando
+  suona), durata, scorciatoia in pillola, barra 3 px, anello + glow che
+  respira sulla card attiva. "Scatto" della card anche quando il comando
+  arriva da tastiera o telefono. Entrata a cascata al cambio fase (220 ms /
+  35 ms; telefono 160/25). STOP TUTTO a gradiente, dock più denso, cross-fade
+  del titolo nel dock. Sul telefono niente blur sulle card (batteria).
+- **Regola "chi c'è comanda"** (sostituisce "comanda l'ultima" di S3): una
+  pagina nuova prende il comando da sola SOLO se nessun motore è vivo
+  (o senza battiti da 12 s); altrimenti si apre in sola lettura col banner
+  "Un'altra finestra Regia sta comandando" e "Prendi il controllo" per
+  scalzare. Tornare visibile non prende più il comando. 45 test + 45
+  controlli end-to-end. Screenshot chiaro/scuro in docs/screenshots/s4/.

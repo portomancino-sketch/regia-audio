@@ -25,9 +25,9 @@
 
 ## Durante la serata
 
-- **Una sola finestra Regia aperta sul Mac.** Se per sbaglio ne apri un'altra,
-  comanda l'ultima aperta; sulla vecchia compare "Prendi il controllo" per
-  riprendersi il comando.
+- **Una finestra comanda, le altre guardano.** Se apri un'altra finestra Regia,
+  la nuova NON prende il comando: guarda soltanto, con il pulsante
+  "Prendi il controllo" se serve davvero passare di mano.
 - L'assistente preme i pulsanti dal telefono. I suoni escono dal Mac.
 - Premere un pulsante = parte il suono. Ripremerlo = si ferma.
   Sul pulsante che suona ci sono anche **Sfuma** (dolce) e **■** (subito).
