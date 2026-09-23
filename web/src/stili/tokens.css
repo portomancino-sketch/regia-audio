@@ -1,0 +1,187 @@
+/* I token del design system "liquid glass". Nessun colore scritto a mano
+   nei componenti: tutto passa da qui. */
+
+:root {
+  /* Sfondo e testo */
+  --sfondo: #0a0c10;
+  --testo: rgba(255, 255, 255, 0.92);
+  --testo-2: rgba(255, 255, 255, 0.62);
+  --testo-3: rgba(255, 255, 255, 0.4);
+
+  /* Accento brand: l'unico colore vivo */
+  --brand: #3e685b;
+  --brand-chiaro: #6fa893;
+  --brand-glow: rgba(111, 168, 147, 0.35);
+
+  /* Pericolo: SOLO per STOP TUTTO */
+  --rosso: #ff453a;
+
+  /* Tinte discrete dei tipi di cue (pillole e barre sottili, mai pulsanti interi) */
+  --tipo-sottofondo: #5aa0ff;
+  --tipo-brano: #b48cff;
+  --tipo-effetto: #ffb454;
+
+  /* Vetro */
+  --vetro-fondo: rgba(255, 255, 255, 0.06);
+  --vetro-bordo: rgba(255, 255, 255, 0.1);
+  --vetro-bordo-chiaro: rgba(255, 255, 255, 0.22);
+  --vetro-luce: rgba(255, 255, 255, 0.08);
+  --vetro-ombra: 0 10px 40px rgba(0, 0, 0, 0.35);
+
+  /* Raggi */
+  --raggio-card: 20px;
+  --raggio-campo: 14px;
+  --raggio-dock: 28px;
+
+  /* Movimento */
+  --durata: 180ms;
+  --curva: cubic-bezier(0.2, 0.8, 0.4, 1);
+}
+
+/* Esposizione a Tailwind (v4): text-brand, bg-vetro-fondo, ecc. */
+@theme inline {
+  --color-sfondo: var(--sfondo);
+  --color-testo: var(--testo);
+  --color-testo-2: var(--testo-2);
+  --color-testo-3: var(--testo-3);
+  --color-brand: var(--brand);
+  --color-brand-chiaro: var(--brand-chiaro);
+  --color-rosso: var(--rosso);
+  --color-tipo-sottofondo: var(--tipo-sottofondo);
+  --color-tipo-brano: var(--tipo-brano);
+  --color-tipo-effetto: var(--tipo-effetto);
+  --color-vetro-fondo: var(--vetro-fondo);
+  --color-vetro-bordo: var(--vetro-bordo);
+  --color-vetro-bordo-chiaro: var(--vetro-bordo-chiaro);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Tight", "Segoe UI", Roboto,
+    sans-serif;
+}
+
+/* --- Il vetro --- */
+.vetro {
+  background: var(--vetro-fondo);
+  border: 1px solid var(--vetro-bordo);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border-radius: var(--raggio-card);
+  box-shadow: var(--vetro-ombra), inset 0 1px 0 var(--vetro-luce);
+}
+.vetro-campo {
+  border-radius: var(--raggio-campo);
+}
+.vetro-dock {
+  border-radius: var(--raggio-dock);
+}
+
+/* --- Movimento --- */
+.tocco {
+  transition:
+    transform var(--durata) var(--curva),
+    border-color var(--durata) var(--curva),
+    background-color var(--durata) var(--curva),
+    box-shadow var(--durata) var(--curva),
+    opacity var(--durata) var(--curva);
+}
+.tocco:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--vetro-bordo-chiaro);
+}
+.tocco:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+@keyframes pulsa-piano {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.pulsa-piano {
+  animation: pulsa-piano 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tocco,
+  .tocco:hover,
+  .tocco:active {
+    transition: none;
+    transform: none;
+  }
+  .pulsa-piano {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* --- Focus visibile --- */
+:focus-visible {
+  outline: 2px solid var(--brand-chiaro);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- Etichette maiuscoletto --- */
+.etichetta {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--testo-3);
+}
+
+/* --- Slider (input range) --- */
+.slider-liquido {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 24px;
+  background: transparent;
+  cursor: pointer;
+}
+.slider-liquido::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--brand-chiaro) var(--riempimento, 50%),
+    rgba(255, 255, 255, 0.15) var(--riempimento, 50%)
+  );
+}
+.slider-liquido::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+.slider-liquido::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+}
+.slider-liquido::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--brand-chiaro);
+}
+.slider-liquido::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: none;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+.slider-liquido:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

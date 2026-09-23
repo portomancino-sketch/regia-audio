@@ -1,10 +1,11 @@
 // Piccole utilità condivise dall'interfaccia.
 import type { Cue, TipoCue } from "../../shared/tipi";
 
+/** Tinte discrete dei tipi (definite nei token CSS): pillole e barre, mai pulsanti interi. */
 export const COLORI_TIPO: Record<TipoCue, string> = {
-  sottofondo: "#2563eb", // blu
-  brano: "#7c3aed", // viola
-  effetto: "#d97706", // ambra
+  sottofondo: "var(--tipo-sottofondo)",
+  brano: "var(--tipo-brano)",
+  effetto: "var(--tipo-effetto)",
 };
 
 export const NOMI_TIPO: Record<TipoCue, string> = {
@@ -13,6 +14,7 @@ export const NOMI_TIPO: Record<TipoCue, string> = {
   effetto: "Effetto",
 };
 
+/** Le 6 scelte di colore personalizzato di un cue (valori salvati nei dati). */
 export const SCELTE_COLORE = ["#2563eb", "#7c3aed", "#d97706", "#dc2626", "#059669", "#db2777"];
 
 export function coloreCue(cue: Cue): string {

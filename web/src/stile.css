@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./stili/tokens.css";
 
 :root {
   color-scheme: dark;
@@ -11,6 +12,14 @@ body,
 }
 
 body {
-  @apply bg-neutral-950 text-neutral-100 antialiased;
+  font-family: var(--font-sans);
+  background-color: var(--sfondo);
+  background-image:
+    radial-gradient(1200px 800px at 15% -10%, rgba(62, 104, 91, 0.28), transparent 60%),
+    radial-gradient(900px 600px at 100% 100%, rgba(255, 255, 255, 0.04), transparent 60%);
+  background-attachment: fixed;
+  color: var(--testo);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }

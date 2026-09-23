@@ -1,28 +1,12 @@
 // Piccoli mattoni dell'interfaccia.
 import { useEffect, useRef, useState } from "react";
 
-/** Chip di scelta (tipo, sul sottofondo, ...). */
-export function Chip(props: { attivo: boolean; onClick: () => void; children: React.ReactNode; colore?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-        props.attivo ? "text-white" : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700"
-      }`}
-      style={props.attivo ? { backgroundColor: props.colore ?? "#404040" } : undefined}
-    >
-      {props.children}
-    </button>
-  );
-}
-
 /**
  * Bottone che chiede conferma: al primo tocco diventa "Sicuro?",
  * al secondo esegue. Niente finestre di sistema.
  */
 export function BottoneConferma(props: {
-  testo: string;
+  testo: React.ReactNode;
   testoConferma?: string;
   onConfermato: () => void;
   className?: string;
@@ -38,7 +22,11 @@ export function BottoneConferma(props: {
       type="button"
       className={
         props.className ??
-        `rounded-lg px-3 py-1.5 text-sm ${chiede ? "bg-red-600 text-white" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`
+        `tocco rounded-[10px] border px-3 py-1.5 text-[13px] ${
+          chiede
+            ? "border-transparent bg-rosso text-white"
+            : "border-vetro-bordo bg-white/5 text-testo-2 hover:text-testo"
+        }`
       }
       onClick={(e) => {
         e.stopPropagation();
@@ -61,6 +49,7 @@ export function InputInline(props: {
   onCambia: (v: string) => void;
   className?: string;
   placeholder?: string;
+  autoFocus?: boolean;
 }) {
   const [testo, setTesto] = useState(props.valore);
   const ultimoValore = useRef(props.valore);
@@ -75,6 +64,8 @@ export function InputInline(props: {
       type="text"
       value={testo}
       placeholder={props.placeholder}
+      autoFocus={props.autoFocus}
+      onClick={(e) => e.stopPropagation()}
       onChange={(e) => setTesto(e.target.value)}
       onBlur={() => {
         if (testo.trim() && testo !== props.valore) props.onCambia(testo.trim());
@@ -89,7 +80,7 @@ export function InputInline(props: {
       }}
       className={
         props.className ??
-        "w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 hover:border-neutral-700 focus:border-neutral-500 focus:bg-neutral-900 focus:outline-none"
+        "w-full rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:bg-white/5 focus:outline-none"
       }
     />
   );
