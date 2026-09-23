@@ -253,3 +253,34 @@ Solo pacchetto e documenti (zero modifiche a prodotto/UI/server/web).
 - NOTA: il passaggio Gatekeeper con doppio click in Finder NON è verificabile
   da qui (la simulazione via bash non attraversa Gatekeeper): lasciato a
   Jacopo a mano, seguendo LEGGIMI.txt passo 2.
+
+## S8 — 23 settembre 2026 — v1.1.2: riga Sempre sul telefono + LEGGIMI corretto
+
+- **Spazio sotto il dock misurato, non indovinato**: Dock.tsx osserva la
+  propria altezza reale (riga Sempre compresa) con un ResizeObserver e la
+  scrive in `--altezza-dock`; Telecomando e Live usano
+  `calc(var(--altezza-dock) + 16px)` come spazio in fondo. Con 0, 1 o 6 caselle
+  Sempre, e con i pulsanti del dock che vanno a capo, nessuna card finisce
+  sotto il dock. Tolti pb-72/pb-44/pb-64/pb-36 e la prop `spazioSotto`.
+- **Sul telefono le caselle Sempre sono pillole** (RigaSempre.tsx): 44px,
+  icona del tipo + titolo su una riga con ellissi, larghezza automatica
+  (max 60% dello schermo), tinta del tipo come bordo/sfondo tenue, "suona"
+  con riempimento + respiro + equalizzatore, promemoria con spunta. Tocco =
+  parte / si ferma / spunta. Striscia orizzontale senza barra di scorrimento,
+  8px tra le pillole. Niente nota né "finisce tra" (c'è il dock). Sul Mac
+  tutto com'era (card compatte, Q W E R T).
+- **Dock sul telefono**: i pulsanti PARLA / FADE OUT / STOP TUTTO vanno a capo
+  in ordine (STOP TUTTO prende la riga intera) invece di uscire dallo schermo.
+- **LEGGIMI e README**: il blocco di macOS si distingue dai PULSANTI del
+  messaggio, non dalle parole (su macOS 14 il messaggio "sviluppatore non
+  identificato" contiene anche "malware"): un solo "OK" → tasto destro → Apri;
+  "Fine"/"Sposta nel Cestino" → Impostazioni → Privacy e sicurezza → Apri comunque.
+- Verifica: 51 test + typecheck verdi; **71/71 controlli end-to-end** (nuovo:
+  su 390×844 con 3 pillole Sempre, scrollato in fondo, l'ultima card della
+  fase è tutta sopra il dock; pillole alte 44px). `scripts/screenshot-s8.mjs`
+  → docs/screenshots/s8/ (telefono chiaro/scuro con 1 e 5 pillole, scrollato
+  in fondo, Mac invariato).
+- **v1.1.2** → dist-pacchetti/Regia-v1.1.2.zip (81 MB); LEGGIMI dentro lo zip
+  verificato nuovo, build web nuova inclusa.
+- NOTA: pacchetto verificato solo su Mac Intel (x64); il binario arm64 non è
+  mai stato eseguito, da confermare sul Mac di Valerio se è Apple Silicon.
