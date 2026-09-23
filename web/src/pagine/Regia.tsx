@@ -240,6 +240,9 @@ export function PaginaRegia() {
       () => sessione.current,
     );
     wsRef.current = ws;
+    if (new URLSearchParams(location.search).has("prova")) {
+      (window as unknown as { __ws?: ClientWs }).__ws = ws;
+    }
 
     // La pagina si sgancia quando si chiude e si ripresenta quando torna visibile.
     const suPagehide = () => ws.invia({ tipo: "rilascio" });

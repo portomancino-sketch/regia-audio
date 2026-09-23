@@ -89,9 +89,31 @@ class Pagina {
       `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
     );
   }
+  async scatta(nome) {
+    fs.mkdirSync("docs/screenshots/s6", { recursive: true });
+    const r = await this.cmd("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(`docs/screenshots/s6/${nome}.png`, Buffer.from(r.result.data, "base64"));
+    console.log(`  📸 ${nome}.png`);
+  }
+  tasto(key, code, keyCode) {
+    return this.cmd("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: keyCode }).then(() =>
+      this.cmd("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode }),
+    );
+  }
   chiudi() {
     this.ws.close();
   }
+}
+
+/** Un WAV di prova della durata voluta (silenzio). */
+function wavLungo(secondi) {
+  const n = Math.round(44100 * secondi);
+  const b = Buffer.alloc(44 + n * 2);
+  b.write("RIFF", 0); b.writeUInt32LE(36 + n * 2, 4); b.write("WAVE", 8); b.write("fmt ", 12);
+  b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(44100, 24); b.writeUInt32LE(88200, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
+  b.write("data", 36); b.writeUInt32LE(n * 2, 40);
+  return b;
 }
 
 // Un input della pagina contiene questo valore? (i nomi stanno negli input)
@@ -211,10 +233,11 @@ modificaOk ? ok("Modifica: fasi e caselle della demo") : ko("Modifica: fasi e ca
 // --- 3. Crea una casella, cambia titolo/tipo, verifica la persistenza ---
 const cfgPrima = await (await fetch(`${BASE}/api/config`)).json();
 const demo = cfgPrima.formats.find((f) => f.nome.includes("Orient Express"));
-const fase1 = demo.fasi[0];
+const fasiNormali = demo.fasi.filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine);
+const fase1 = fasiNormali[0];
 const nCasellePrima = fase1.cue.length;
 await regia.js(
-  `[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='Casella')[0].click()`,
+  `[...document.querySelectorAll('button')].filter(b=>b.textContent.trim()==='Casella')[1].click() /* [0] è la riga Sempre */`,
 );
 const creata = await regia.finoA(INPUT_CON("Nuovo suono"));
 creata ? ok("+ Casella crea un cue") : ko("+ Casella");
@@ -293,7 +316,7 @@ s ? ok("L'effetto finisce da solo e sparisce") : ko("Fine naturale effetto");
 
 // Brano "pausa": il sottofondo va in pausa e poi riprende dalla posizione
 const posPrimaDelBrano = osservatore.ultimo.attivi.find((a) => a.cueId === idTreno)?.posizioneSec ?? -1;
-const fase2 = demo.fasi[1];
+const fase2 = fasiNormali[1];
 await regia.click(fase2.nome); // tab della fase 2
 await attendi(300);
 await regia.clickCue("Tensione");
@@ -480,19 +503,128 @@ foglioRiaperto2 ? ok("...ma l'icona libro lo riapre") : ko("Riapertura dal libro
 await tel.click("Ok, pronti");
 await attendi(300);
 
+// ================= S6 =================
+// --- Riga Sempre: assente da vuota, poi appare con una casella ---
+await regia3.cmd("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false });
+const senzaSempre = await regia3.js(`!document.body.innerText.includes('voce-sala')`);
+senzaSempre ? ok("Riga Sempre vuota: non si vede") : ko("Riga Sempre fantasma");
+await regia3.scatta("01-live-senza-sempre");
+{
+  const faseSempre = demo.fasi.find((f) => f.sempre) ??
+    (await (await fetch(`${BASE}/api/config`)).json()).formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre);
+  const fd = new FormData();
+  fd.append("file", new Blob([wavLungo(30)]), "voce-sala.wav");
+  const rr = await fetch(`${BASE}/api/fasi/${faseSempre.id}/audio-multipli`, { method: "POST", body: fd });
+  rr.ok ? ok("Casella aggiunta alla riga Sempre (upload)") : ko("Upload nella riga Sempre");
+}
+await attendi(1200); // configCambiata → le pagine ricaricano
+const conSempre = await regia3.finoA(`document.body.innerText.includes('voce-sala')`, 5000);
+conSempre ? ok("Riga Sempre visibile in Live (Mac)") : ko("Riga Sempre non appare");
+const sempreTel = await tel.finoA(`document.body.innerText.includes('voce-sala')`, 5000);
+sempreTel ? ok("Striscia Sempre anche sul telefono") : ko("Sempre sul telefono");
+
+// --- Tasto Q: parte la prima casella di Sempre ---
+await regia3.tasto("q", "KeyQ", 81);
+s = await osservatore.finoA((x) => x.attivi.some((a) => a.titolo === "voce-sala"), 5000);
+s ? ok("Tasto Q → parte la prima casella di Sempre") : ko("Tasto Q");
+await regia3.scatta("02-live-riga-sempre");
+await tel.cmd("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 3, mobile: true });
+await attendi(400);
+await tel.scatta("03-telecomando-riga-sempre");
+
+// --- Tempo rimanente: "finisce tra" che scorre ---
+const t1 = await regia3.js(`(document.body.innerText.match(/finisce tra (\\d+:\\d+)/) || [])[1] ?? null`);
+t1 ? ok("'finisce tra' visibile", t1) : ko("'finisce tra' assente");
+await attendi(1500);
+const t2 = await regia3.js(`(document.body.innerText.match(/finisce tra (\\d+:\\d+)/) || [])[1] ?? null`);
+t2 && t1 !== t2 ? ok("Il conteggio scorre", `${t1} → ${t2}`) : ko("Conteggio fermo", `${t1} → ${t2}`);
+osservatore.comando({ comando: "stop", cueId: null }); // no-op difensivo
+// ferma la voce-sala (effetto: serve lo stop esplicito)
+{
+  const cfg2 = await (await fetch(`${BASE}/api/config`)).json();
+  const vs = cfg2.formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre).cue.find((c) => c.titolo === "voce-sala");
+  osservatore.comando({ comando: "stop", cueId: vs.id });
+}
+await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// --- Ultimi 10 secondi: numero e barra in ambra (Tensione dura 8 s) ---
+await regia3.click("Atto 1 – Omicidio");
+await attendi(400);
+await regia3.clickCue("Tensione");
+const ambra = await regia3.finoA(
+  `[...document.querySelectorAll('span')].some(el => el.className.includes('tipo-effetto') && el.textContent.includes('finisce tra'))`,
+  4000,
+);
+ambra ? ok("Sotto i 10 secondi il conteggio diventa ambra") : ko("Niente ambra");
+await regia3.scatta("04-finisce-tra-ambra");
+await regia3.clickCue("Tensione"); // toggle: silenzio
+await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+
+// --- PARLA ---
+await regia3.click("PARLA");
+s = await osservatore.finoA((x) => x.parla === true, 4000);
+s ? ok("PARLA acceso dal Mac (condiviso nello stato)") : ko("PARLA on");
+await regia3.scatta("05-parla-acceso");
+await regia3.tasto("p", "KeyP", 80);
+s = await osservatore.finoA((x) => x.parla !== true, 4000);
+s ? ok("Tasto P lo spegne") : ko("PARLA off con P");
+await tel.click("PARLA");
+s = await osservatore.finoA((x) => x.parla === true, 4000);
+s ? ok("PARLA acceso dal telefono") : ko("PARLA dal telefono");
+await tel.click("PARLA");
+await osservatore.finoA((x) => x.parla !== true, 4000);
+
+// --- Diario di serata ---
+{
+  const giorni = await (await fetch(`${BASE}/api/diario`)).json();
+  const oggi = giorni[0];
+  oggi && oggi.suoni > 0 ? ok("Diario: la serata di oggi è registrata", `${oggi.suoni} suoni`) : ko("Diario vuoto");
+  if (oggi) {
+    const { eventi } = await (await fetch(`${BASE}/api/diario/${oggi.data}`)).json();
+    const tipi2 = new Set(eventi.map((e) => e.tipo));
+    ["suono partito", "suono fermato", "fase cambiata", "parla acceso", "promemoria fatto", "stop tutto"].every((t) => tipi2.has(t))
+      ? ok("Diario: tutti i tipi di evento attesi", [...tipi2].join(", "))
+      : ko("Diario: mancano eventi", [...tipi2].join(", "));
+    const daTelefono = eventi.some((e) => e.origine.startsWith("telefono"));
+    daTelefono ? ok("Diario: origine 'telefono' riconosciuta") : ko("Origine telefono assente");
+    const csv = await (await fetch(`${BASE}/api/diario/${oggi.data}/csv`)).text();
+    csv.startsWith("ora,tipo,cue,fase,format,origine") && csv.split("\n").length > 3
+      ? ok("CSV della serata scaricato")
+      : ko("CSV rotto");
+  }
+}
+// la pagina /diario sul Mac
+await regia3.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Diario di serata'); b?.click(); })()`);
+const diarioAperto = await regia3.finoA(`document.body.innerText.includes('Diario di serata')`, 4000);
+diarioAperto ? ok("Pagina Diario raggiungibile dalla barra") : ko("Pagina Diario");
+await regia3.js(`(() => { const c = [...document.querySelectorAll('button.vetro')].find(x => x.textContent.toLowerCase().includes('min')); c?.click(); })()`);
+const cronologia = await regia3.finoA(`document.body.innerText.toLowerCase().includes('cronologia')`, 4000);
+cronologia ? ok("Serata aperta: cronologia e tempo per fase") : ko("Dettaglio serata");
+await regia3.scatta("06-diario");
+// torna alla live per il freeze test
+await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
+await attendi(1500);
+await regia3.click("Ok, pronti");
+await attendi(300);
+
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---
 await tel.click("STOP TUTTO");
 await attendi(300);
-const regia4 = await nuovaScheda(`${BASE}/`);
+const regia4 = await nuovaScheda(`${BASE}/?prova`);
 await attendi(800); // regia4 nasce in sola lettura: scalza col pulsante
 await regia4.click("Prendi il controllo");
 const banner3 = await regia3.finoA(`document.body.innerText.includes('sta comandando')`);
 banner3 ? ok("Il pulsante scalza (banner sull'altra finestra)") : ko("Banner pre-congelamento");
-await regia4.cmd("Page.enable");
-await regia4.cmd("Page.setWebLifecycleState", { state: "frozen" });
-log("Finestra congelata: aspetto il timeout del battito (~12 s)...");
-const promossa = await regia3.finoA(`!document.body.innerText.includes('sta comandando')`, 20000);
+// Congelamento simulato: la pagina resta viva ma smette di parlare col server
+// (come una tab congelata dal browser: socket aperto, battiti fermi).
+await regia4.js(`window.__ws.invia = () => {}`);
+log("Finestra ammutolita: aspetto il timeout del battito (~12 s)...");
+const promossa = await regia3.finoA(`!document.body.innerText.includes('sta comandando')`, 25000);
 promossa ? ok("Finestra congelata → l'altra viene promossa da sola") : ko("Promozione dopo congelamento");
+if (!promossa) {
+  console.log("  [debug] regia3:", (await regia3.js(`document.body.innerText.slice(0, 260)`)).replace(/\n/g, " | "));
+  console.log("  [debug] osservatore ultimo:", JSON.stringify(osservatore.ultimo)?.slice(0, 200));
+}
 s = await osservatore.finoA((x) => x.motoreOnline === true, 5000);
 s ? ok("...e il telecomando resta operativo") : ko("Telecomando dopo promozione");
 await chiudiScheda(regia4);

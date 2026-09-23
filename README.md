@@ -31,6 +31,9 @@ nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
   in sola lettura, con "Prendi il controllo" per passare di mano quando serve.
 - Il telefono si collega all'indirizzo mostrato nel pannello **📱 Telecomando**
   (c'è anche il QR da inquadrare) e chiede il **PIN** scritto lì.
+- In serata: riga **"Sempre"** coi suoni sempre a portata, **"finisce tra"** sui
+  pulsanti che suonano, **PARLA** per abbassare il suono base mentre parli,
+  e il **Diario** che registra tutta la serata (esportabile in CSV).
 
 ## I dati
 

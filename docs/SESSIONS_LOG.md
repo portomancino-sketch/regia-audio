@@ -185,3 +185,30 @@ iniziare" compare una volta per serata e per format (memoria sul telefono
 con la data), non a ogni ricaricamento; l'icona libro lo riapre. Verificato
 nell'end-to-end simulando la caduta della connessione (hook di prova
 `?prova` + simulaCaduta): 51/51 controlli.
+
+## S6 — 23 settembre 2026 — riga Sempre, tempo rimanente, PARLA, diario
+
+- **Riga "Sempre"**: fase speciale per format (flag `sempre`, ordine -1, nome
+  fisso, non eliminabile né riordinabile, creata da sola anche nelle config
+  vecchie). In Modifica sta in cima ("Sempre — visibili in ogni fase"); in Live
+  è una riga di caselle compatte sopra il dock (striscia scorrevole sul
+  telefono), visibile solo se ha caselle. Scorciatoie Q W E R T.
+- **Tempo rimanente**: sulle card che suonano e nel dock, "finisce tra 0:42"
+  con conteggio fluido interpolato lato client; ultimi 10 s in ambra con barra
+  che pulsa; "in loop" per i sottofondi che ripartono, "in pausa", niente
+  numero per gli effetti sotto i 3 s.
+- **PARLA**: interruttore nel dock (Mac e telefono) + tasto P. In regole.ts il
+  fattore del sottofondo è il minimo tra le regole dei cue e PARLA
+  (livelloParla, impostazione 0–60%, default 25%); "pausa" vince sempre;
+  STOP TUTTO non lo spegne, il cambio format sì. 5 test nuovi.
+- **Diario di serata**: il server scrive ~/Regia-dati/diario/YYYY-MM-DD.jsonl
+  (365 giorni) con eventi nati dal diff dello stato reale del motore (partiti/
+  fermati/fase/format/parla/promemoria) e fade/stop tutto dai comandi; origine
+  mac/telefono con le ultime 4 cifre dell'id (correlazione comando→evento entro
+  2 s). Pagina /diario sul Mac: elenco serate, tempo per fase, cronologia,
+  export CSV. Invisibile sul telefono.
+- Verifica: 51 test unitari/API + **68/68 controlli end-to-end** (tasto Q con
+  eventi veri, conteggio che scorre, ambra, PARLA condiviso, diario completo
+  con CSV). Il test "finestra congelata" ora ammutolisce il WS via hook di
+  prova (Page.setWebLifecycleState non congela più la tab attiva).
+  Screenshot in docs/screenshots/s6/.
