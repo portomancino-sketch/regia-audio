@@ -74,6 +74,57 @@ export function PulsanteCue(props: {
   // ---- Promemoria: spunta da segnare, non suona ----
   if (cue.tipo === "promemoria") {
     const fatto = props.fatto === true;
+    if (props.telefono) {
+      // Telefono: card bassa (~96px), icona a sinistra, titolo + nota, spunta grande a destra.
+      return (
+        <div
+          role="button"
+          tabIndex={props.disabilitato ? -1 : 0}
+          aria-disabled={props.disabilitato}
+          aria-pressed={fatto}
+          onClick={() => {
+            if (!props.disabilitato) props.onSpunta?.();
+          }}
+          onKeyDown={(e) => {
+            if (!props.disabilitato && (e.key === "Enter" || e.key === " ")) {
+              e.preventDefault();
+              props.onSpunta?.();
+            }
+          }}
+          style={stile}
+          className={`vetro tocco entra relative flex min-h-[96px] cursor-pointer select-none items-center gap-3 p-3 text-left ${
+            scatta ? "scatto" : ""
+          } ${props.disabilitato ? "cursor-default opacity-40" : ""} ${fatto ? "opacity-75" : ""}`}
+        >
+          <Cerchietto colore={colore}>
+            <CircleCheck size={20} strokeWidth={1.75} className="text-testo-3" />
+          </Cerchietto>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <div
+                className={`min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight ${
+                  fatto ? "text-testo-3 line-through" : "text-testo"
+                }`}
+              >
+                {cue.titolo}
+              </div>
+              <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colore }} />
+            </div>
+            {cue.nota && (
+              <div className={`mt-0.5 truncate text-[14px] ${fatto ? "text-testo-3" : "text-testo-2"}`}>{cue.nota}</div>
+            )}
+          </div>
+          <span
+            aria-hidden
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 ${
+              fatto ? "border-brand-chiaro bg-brand text-white" : "border-vetro-bordo-chiaro text-testo-3"
+            }`}
+          >
+            <CircleCheck size={26} strokeWidth={1.75} />
+          </span>
+        </div>
+      );
+    }
     return (
       <div
         role="button"
@@ -162,7 +213,7 @@ export function PulsanteCue(props: {
           : {}),
       }}
       className={`vetro tocco entra relative flex cursor-pointer select-none flex-col overflow-hidden text-left ${
-        props.compatto ? "min-h-[88px] p-3" : "min-h-[152px] p-4"
+        props.telefono ? "min-h-[96px] p-3" : props.compatto ? "min-h-[88px] p-3" : "min-h-[152px] p-4"
       } ${scatta ? "scatto" : ""} ${spento ? "cursor-default opacity-40" : ""}`}
     >
       {/* Il glow che respira, solo mentre suona */}
@@ -174,24 +225,52 @@ export function PulsanteCue(props: {
         />
       )}
 
-      <div className="flex w-full items-start justify-between gap-2">
-        <Cerchietto colore={colore}>
-          {attiva && !inPausa ? (
-            <Equalizzatore colore={colore} altezza={16} />
-          ) : (
-            <Icona size={20} strokeWidth={1.75} style={{ color: colore }} />
-          )}
-        </Cerchietto>
-        <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
-      </div>
+      {props.telefono ? (
+        // Telefono: card bassa (~96px). Icona 36px a sinistra; titolo e nota su una
+        // riga; solo il puntino del tipo in alto a destra; durata in basso a destra.
+        <div className="flex w-full items-start gap-3">
+          <Cerchietto colore={colore}>
+            {attiva && !inPausa ? (
+              <Equalizzatore colore={colore} altezza={16} />
+            ) : (
+              <Icona size={20} strokeWidth={1.75} style={{ color: colore }} />
+            )}
+          </Cerchietto>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight text-testo">{cue.titolo}</div>
+              {inPausa ? (
+                <Pillola colore={colore}>in pausa</Pillola>
+              ) : (
+                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colore }} />
+              )}
+            </div>
+            {cue.nota && <div className="mt-0.5 truncate text-[14px] text-testo-2">{cue.nota}</div>}
+            {!cue.file && <div className="mt-0.5 text-[12px] text-testo-3">manca il file</div>}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex w-full items-start justify-between gap-2">
+            <Cerchietto colore={colore}>
+              {attiva && !inPausa ? (
+                <Equalizzatore colore={colore} altezza={16} />
+              ) : (
+                <Icona size={20} strokeWidth={1.75} style={{ color: colore }} />
+              )}
+            </Cerchietto>
+            <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
+          </div>
 
-      <div className="mt-3 min-w-0 flex-1">
-        <div className={`line-clamp-2 font-semibold leading-tight text-testo ${props.compatto ? "text-[17px]" : "text-[20px]"}`}>{cue.titolo}</div>
-        {cue.nota && <div className="mt-1 line-clamp-2 text-[14px] text-testo-2">{cue.nota}</div>}
-        {!cue.file && <div className="mt-1 text-[12px] text-testo-3">manca il file</div>}
-      </div>
+          <div className="mt-3 min-w-0 flex-1">
+            <div className={`line-clamp-2 font-semibold leading-tight text-testo ${props.compatto ? "text-[17px]" : "text-[20px]"}`}>{cue.titolo}</div>
+            {cue.nota && <div className="mt-1 line-clamp-2 text-[14px] text-testo-2">{cue.nota}</div>}
+            {!cue.file && <div className="mt-1 text-[12px] text-testo-3">manca il file</div>}
+          </div>
+        </>
+      )}
 
-      <div className="mt-2 flex w-full items-center gap-2">
+      <div className={`flex w-full items-center gap-2 ${props.telefono ? "mt-1" : "mt-2"}`}>
         {attiva && !tastiGrandi && props.onSfuma && (
           <button
             type="button"
