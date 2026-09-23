@@ -532,6 +532,33 @@ await tel.cmd("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, d
 await attendi(400);
 await tel.scatta("03-telecomando-riga-sempre");
 
+// --- S8: sul telefono (390×844) con 3 caselle Sempre, scrollato in fondo,
+//     l'ultima card della fase resta tutta sopra il dock (nessuna sovrapposizione).
+{
+  const faseSempre = (await (await fetch(`${BASE}/api/config`)).json()).formats.find((f) => f.id === demo.id).fasi.find((f) => f.sempre);
+  const fd = new FormData();
+  fd.append("file", new Blob([wavLungo(30)]), "sempre-2.wav");
+  fd.append("file", new Blob([wavLungo(30)]), "sempre-3.wav");
+  await fetch(`${BASE}/api/fasi/${faseSempre.id}/audio-multipli`, { method: "POST", body: fd });
+  await attendi(1200);
+  const trePillole = await tel.finoA(`document.querySelectorAll('[aria-label="Sempre"] button').length === 3`, 5000);
+  trePillole ? ok("Telefono: 3 pillole nella riga Sempre") : ko("Pillole Sempre sul telefono");
+  const c = await tel.js(`(async () => {
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise(r => setTimeout(r, 120));
+    const carte = [...document.querySelectorAll('.grid > [role=button]')];
+    const ultima = carte.at(-1)?.getBoundingClientRect();
+    const dock = document.querySelector('.fixed.bottom-0')?.getBoundingClientRect();
+    if (!ultima || !dock) return null;
+    return { ok: ultima.bottom <= dock.top, ultima: Math.round(ultima.bottom), dock: Math.round(dock.top) };
+  })()`);
+  c && c.ok
+    ? ok("Telefono: l'ultima card della fase è tutta sopra il dock", `card finisce a ${c.ultima}px, dock inizia a ${c.dock}px`)
+    : ko("Telefono: card sotto il dock", JSON.stringify(c));
+  const pillole = await tel.js(`[...document.querySelectorAll('[aria-label="Sempre"] button')].map(b => Math.round(b.getBoundingClientRect().height))`);
+  pillole.every((h) => h === 44) ? ok("Pillole Sempre alte 44px (tocco minimo)") : ko("Altezza pillole", pillole.join("/"));
+}
+
 // --- Tempo rimanente: "finisce tra" che scorre ---
 const t1 = await regia3.js(`(document.body.innerText.match(/finisce tra (\\d+:\\d+)/) || [])[1] ?? null`);
 t1 ? ok("'finisce tra' visibile", t1) : ko("'finisce tra' assente");
