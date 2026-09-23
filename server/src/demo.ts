@@ -204,10 +204,12 @@ export function creaFormatDemo(cartellaAudio: string): Format {
     cue: chiavi.map((chiave, i) => creaCue(chiave, i)),
   });
 
-  return {
+  const formato: Format = {
     id: randomUUID(),
     nome: "Demo — Orient Express",
     ordine: 0,
+    notaInizio:
+      "Controlla il volume del mixer.\nAvvia il treno appena entrano i primi ospiti.\nTieni il telefono carico e con lo schermo sempre acceso.",
     fasi: [
       fase("Accoglienza", 0, ["treno", "campanello"]),
       fase("Atto 1 – Omicidio", 1, ["tensione", "sparo"]),
@@ -215,6 +217,24 @@ export function creaFormatDemo(cartellaAudio: string): Format {
       fase("Finale", 3, ["chiusura"]),
     ],
   };
+  formato.fasi[0]!.nota = "Gli ospiti si siedono. Treno di sottofondo, campanello quando arriva il capotreno.";
+  formato.fasi[1]!.nota = "Al buio: parte Tensione, poi lo Sparo sul culmine.";
+  // Un promemoria d'esempio: non suona, si spunta quando è fatto.
+  formato.fasi[0]!.cue.push({
+    id: randomUUID(),
+    titolo: "Chiudere le porte",
+    nota: "Prima che parta il treno",
+    tipo: "promemoria",
+    file: null,
+    fileOriginale: null,
+    durataSec: null,
+    volume: 1,
+    loop: false,
+    sulSottofondo: "niente",
+    colore: null,
+    ordine: formato.fasi[0]!.cue.length,
+  });
+  return formato;
 }
 
 export function creaConfigIniziale(cartellaAudio: string, conDemo: boolean): Config {

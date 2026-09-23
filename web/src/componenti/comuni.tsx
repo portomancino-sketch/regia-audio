@@ -43,6 +43,39 @@ export function BottoneConferma(props: {
   );
 }
 
+/** Testo multiriga modificabile (note guida). Salva quando si esce dal campo. */
+export function AreaInline(props: {
+  valore: string;
+  onCambia: (v: string) => void;
+  placeholder?: string;
+  righe?: number;
+  className?: string;
+}) {
+  const [testo, setTesto] = useState(props.valore);
+  const ultimoValore = useRef(props.valore);
+  useEffect(() => {
+    if (props.valore !== ultimoValore.current) {
+      ultimoValore.current = props.valore;
+      setTesto(props.valore);
+    }
+  }, [props.valore]);
+  return (
+    <textarea
+      value={testo}
+      placeholder={props.placeholder}
+      rows={props.righe ?? 3}
+      onChange={(e) => setTesto(e.target.value)}
+      onBlur={() => {
+        if (testo !== props.valore) props.onCambia(testo);
+      }}
+      className={
+        props.className ??
+        "w-full resize-y rounded-[var(--raggio-campo)] border border-vetro-bordo bg-velo px-3 py-2 text-[14px] leading-relaxed text-testo placeholder:text-testo-3 focus:border-brand-chiaro focus:outline-none"
+      }
+    />
+  );
+}
+
 /** Testo modificabile con un click (nomi di format e fasi, titoli dei cue). */
 export function InputInline(props: {
   valore: string;

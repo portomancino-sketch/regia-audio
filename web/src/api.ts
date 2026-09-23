@@ -27,12 +27,16 @@ export const api = {
 
   creaFormat: (nome: string) => chiama<Format>("POST", "/api/formats", { nome }),
   rinominaFormat: (id: string, nome: string) => chiama<Format>("PATCH", `/api/formats/${id}`, { nome }),
+  modificaFormat: (id: string, dati: { nome?: string; notaInizio?: string }) =>
+    chiama<Format>("PATCH", `/api/formats/${id}`, dati),
   riordinaFormats: (ordine: string[]) => chiama<string[]>("POST", "/api/formats/riordina", { ordine }),
   duplicaFormat: (id: string) => chiama<Format>("POST", `/api/formats/${id}/duplica`),
   eliminaFormat: (id: string) => chiama<{ fatto: boolean }>("DELETE", `/api/formats/${id}`),
 
   creaFase: (formatId: string, nome: string) => chiama<Fase>("POST", `/api/formats/${formatId}/fasi`, { nome }),
   rinominaFase: (id: string, nome: string) => chiama<Fase>("PATCH", `/api/fasi/${id}`, { nome }),
+  modificaFase: (id: string, dati: { nome?: string; nota?: string }) =>
+    chiama<Fase>("PATCH", `/api/fasi/${id}`, dati),
   riordinaFasi: (formatId: string, ordine: string[]) =>
     chiama<string[]>("POST", `/api/formats/${formatId}/fasi/riordina`, { ordine }),
   duplicaFase: (id: string) => chiama<Fase>("POST", `/api/fasi/${id}/duplica`),

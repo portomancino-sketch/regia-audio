@@ -314,6 +314,26 @@ describe("master", () => {
   });
 });
 
+describe("promemoria", () => {
+  const PROMEMORIA = cue({ id: "pm1", tipo: "promemoria", file: null });
+
+  it("premere un promemoria non fa nulla: mai tra gli attivi", () => {
+    const r = premi(nuovo(), PROMEMORIA);
+    expect(r.stato.attivi).toHaveLength(0);
+    expect(r.azioni).toHaveLength(0);
+  });
+
+  it("non tocca il sottofondo e non conta come esclusivo", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = premi(r.stato, BRANO_ABBASSA);
+    const primaAttivi = r.stato.attivi.map((i) => i.cueId);
+    r = premi(r.stato, PROMEMORIA);
+    expect(r.azioni).toHaveLength(0); // niente fade, niente pause, niente stop
+    expect(r.stato.attivi.map((i) => i.cueId)).toEqual(primaAttivi);
+    expect(livelloSottofondo(r.stato.attivi)).toBe("abbassa"); // invariato
+  });
+});
+
 describe("casi particolari", () => {
   it("un sottofondo avviato mentre c'è un cue 'pausa' nasce in pausa", () => {
     let r = premi(nuovo(), BRANO_PAUSA);

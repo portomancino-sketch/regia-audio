@@ -4,7 +4,7 @@ import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../.
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
-import { ChevronLeft, Volume2 } from "lucide-react";
+import { BookOpenText, ChevronLeft, Volume2 } from "lucide-react";
 import { Home } from "./Home";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
@@ -33,6 +33,11 @@ export function PaginaRegia() {
     formatId: null,
     faseId: null,
   });
+  // Promemoria spuntati (condivisi con i telefoni via stato).
+  const [fatti, setFatti] = useState<string[]>([]);
+  const fattiRef = useRef<string[]>([]);
+  // Foglio "Prima di iniziare".
+  const [foglioAperto, setFoglioAperto] = useState(false);
   // Indicatore "Salvato" nella barra in alto.
   const [salvataggi, setSalvataggi] = useState(0);
   const [salvatoAlmeno, setSalvatoAlmeno] = useState(false);
@@ -57,6 +62,7 @@ export function PaginaRegia() {
       master: m.masterCorrente,
       attivi: m.attivi(),
       motoreOnline: true,
+      fatti: fattiRef.current,
     };
     wsRef.current?.invia(s);
     setAttivi(s.attivi);
@@ -65,8 +71,36 @@ export function PaginaRegia() {
 
   const impostaLive = useCallback(
     (formatId: string | null, faseId: string | null) => {
+      // Aprire un altro format azzera le spunte dei promemoria.
+      if (formatId !== liveRef.current.formatId) {
+        fattiRef.current = [];
+        setFatti([]);
+      }
       liveRef.current = { formatId, faseId };
       setLiveIds({ formatId, faseId });
+      inviaStato();
+    },
+    [inviaStato],
+  );
+
+  const spuntaCue = useCallback(
+    (cueId: string) => {
+      fattiRef.current = fattiRef.current.includes(cueId)
+        ? fattiRef.current.filter((id) => id !== cueId)
+        : [...fattiRef.current, cueId];
+      setFatti(fattiRef.current);
+      inviaStato();
+    },
+    [inviaStato],
+  );
+
+  const azzeraSpunteFase = useCallback(
+    (faseId: string) => {
+      const fase = configRef.current?.formats.flatMap((f) => f.fasi).find((x) => x.id === faseId);
+      if (!fase) return;
+      const daTogliere = new Set(fase.cue.map((c) => c.id));
+      fattiRef.current = fattiRef.current.filter((id) => !daTogliere.has(id));
+      setFatti(fattiRef.current);
       inviaStato();
     },
     [inviaStato],
@@ -98,6 +132,12 @@ export function PaginaRegia() {
         case "sfuma":
           m.sfuma(c.cueId);
           break;
+        case "spunta":
+          spuntaCue(c.cueId);
+          break;
+        case "azzeraSpunte":
+          azzeraSpunteFase(c.faseId);
+          break;
         case "fade":
           m.fadeOut();
           break;
@@ -114,6 +154,7 @@ export function PaginaRegia() {
           const format = configRef.current?.formats.find((f) => f.id === c.formatId);
           if (format) {
             const primaFase = [...format.fasi].sort((a, b) => a.ordine - b.ordine)[0];
+            if (format.notaInizio?.trim() && liveRef.current.formatId !== format.id) setFoglioAperto(true);
             impostaLive(format.id, primaFase?.id ?? null);
             void m.caricaFormat(format);
             // La pagina Regia segue: apre quel format in Live.
@@ -125,7 +166,7 @@ export function PaginaRegia() {
         }
       }
     },
-    [impostaLive, trovaCue],
+    [impostaLive, trovaCue, spuntaCue, azzeraSpunteFase],
   );
 
   const ricaricaConfig = useCallback(async () => {
@@ -156,6 +197,8 @@ export function PaginaRegia() {
           setStatoRemoto(s);
           setAttivi(s.attivi);
           setMasterUi(s.master);
+          fattiRef.current = s.fatti ?? [];
+          setFatti(s.fatti ?? []);
           liveRef.current = { formatId: s.formatId, faseId: s.faseId };
           setLiveIds({ formatId: s.formatId, faseId: s.faseId });
         }
@@ -234,6 +277,20 @@ export function PaginaRegia() {
     if (m && sonoIlMotoreRef.current) m.sfuma(cue.id);
     else wsRef.current?.invia({ tipo: "comando", comando: "sfuma", cueId: cue.id });
   }, []);
+  const spuntaUi = useCallback(
+    (cue: Cue) => {
+      if (sonoIlMotoreRef.current) spuntaCue(cue.id);
+      else wsRef.current?.invia({ tipo: "comando", comando: "spunta", cueId: cue.id });
+    },
+    [spuntaCue],
+  );
+  const azzeraSpunteUi = useCallback(
+    (faseId: string) => {
+      if (sonoIlMotoreRef.current) azzeraSpunteFase(faseId);
+      else wsRef.current?.invia({ tipo: "comando", comando: "azzeraSpunte", faseId });
+    },
+    [azzeraSpunteFase],
+  );
   const cambiaMaster = useCallback((v: number) => {
     setMasterUi(v);
     const m = motoreRef.current;
@@ -272,7 +329,10 @@ export function PaginaRegia() {
         const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
         const fasi = format ? [...format.fasi].sort((a, b) => a.ordine - b.ordine) : [];
         const fase = fasi.find((f) => f.id === liveRef.current.faseId) ?? fasi[0];
-        const cue = fase ? [...fase.cue].sort((a, b) => a.ordine - b.ordine)[Number(e.key) - 1] : undefined;
+        const soloAudio = fase
+          ? [...fase.cue].sort((a, b) => a.ordine - b.ordine).filter((c) => c.tipo !== "promemoria")
+          : [];
+        const cue = soloAudio[Number(e.key) - 1];
         if (cue) premiCue(cue);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         const format = configRef.current?.formats.find((f) => f.id === liveRef.current.formatId);
@@ -300,6 +360,7 @@ export function PaginaRegia() {
   }
   function passaAlive(format: Format) {
     setVista("live");
+    if (format.notaInizio?.trim() && liveRef.current.formatId !== format.id) setFoglioAperto(true);
     if (sonoIlMotoreRef.current) {
       const primaFase = [...format.fasi].sort((a, b) => a.ordine - b.ordine)[0];
       const faseAttuale =
@@ -339,6 +400,21 @@ export function PaginaRegia() {
         </div>
       )}
 
+      {/* Foglio "Prima di iniziare" */}
+      {foglioAperto && formatAperto?.notaInizio?.trim() && vista === "live" && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
+          <div className="vetro w-full max-w-md bg-[var(--menu-fondo)] p-6">
+            <div className="etichetta mb-2">Prima di iniziare</div>
+            <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">
+              {formatAperto.notaInizio}
+            </p>
+            <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>
+              Ok, pronti
+            </Pulsante>
+          </div>
+        </div>
+      )}
+
       {/* Barra superiore */}
       <header className="sticky top-0 z-30 border-b border-vetro-bordo bg-sfondo/80 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
@@ -373,6 +449,17 @@ export function PaginaRegia() {
           >
             {salvataggi > 0 ? "Salvataggio…" : "Salvato"}
           </span>
+          {formatAperto && vista === "live" && formatAperto.notaInizio?.trim() && (
+            <button
+              type="button"
+              title="Rileggi 'Prima di iniziare'"
+              aria-label="Rileggi 'Prima di iniziare'"
+              onClick={() => setFoglioAperto(true)}
+              className="tocco shrink-0 rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
+            >
+              <BookOpenText size={18} strokeWidth={1.75} />
+            </button>
+          )}
           {formatAperto && (
             <ControlloSegmentato
               className="w-48 shrink-0"
@@ -414,16 +501,19 @@ export function PaginaRegia() {
             if (pendenti === 0 && salvataggiPrima.current > 0) setSalvatoAlmeno(true);
             salvataggiPrima.current = pendenti;
           }}
+          onAzzeraSpunte={azzeraSpunteUi}
         />
       ) : (
         <Live
           format={formatAperto}
           faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
           attivi={attivi}
+          fatti={fatti}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
           onFerma={fermaCue}
           onSfuma={sfumaCueUi}
+          onSpunta={spuntaUi}
           disabilitato={!motoreOnline}
         />
       )}

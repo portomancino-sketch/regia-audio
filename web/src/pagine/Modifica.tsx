@@ -9,10 +9,10 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Trash2 } from "lucide-react";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { api } from "../api";
-import { InputInline } from "../componenti/comuni";
+import { AreaInline, InputInline } from "../componenti/comuni";
 import { COLORI_TIPO, NOMI_TIPO, SCELTE_COLORE, formattaTempo } from "../util";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Menu } from "../componenti/ui/Menu";
@@ -105,7 +105,11 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
             <Pillola colore={cue.colore ?? COLORI_TIPO[cue.tipo]}>{NOMI_TIPO[cue.tipo]}</Pillola>
           </div>
           <div className="mt-0.5 flex items-center gap-2 px-1 text-[13px] text-testo-2">
-            {cue.file ? (
+            {cue.tipo === "promemoria" ? (
+              <span className="inline-flex items-center gap-1 text-testo-3">
+                <CheckSquare size={12} strokeWidth={1.75} aria-hidden /> da spuntare in serata
+              </span>
+            ) : cue.file ? (
               <span className="inline-flex items-center gap-1 truncate">
                 <Music size={12} strokeWidth={1.75} aria-hidden />
                 <span className="truncate">{cue.fileOriginale ?? cue.file}</span>
@@ -144,7 +148,8 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
             className="w-full rounded-[10px] border border-vetro-bordo bg-velo px-2 py-1.5 text-[13px] text-testo-2 focus:border-brand-chiaro focus:outline-none"
           />
 
-          {/* Zona di rilascio / scelta file */}
+          {/* Zona di rilascio / scelta file (non per i promemoria) */}
+          {cue.tipo !== "promemoria" && (
           <button
             type="button"
             onClick={() => inputFile.current?.click()}
@@ -155,6 +160,7 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
             <FileAudio size={15} strokeWidth={1.75} aria-hidden />
             {cue.file ? "Cambia il file audio" : "Trascina qui un file audio, o clicca per sceglierlo"}
           </button>
+          )}
           <input
             ref={inputFile}
             type="file"
@@ -168,13 +174,15 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
           />
           {errore && <div className="text-[13px] text-rosso">{errore}</div>}
 
-          <div className="flex items-center gap-2">
-            <span className="etichetta w-14">Volume</span>
-            <Slider valore={volume} onCambia={cambiaVolume} className="flex-1" aria-label="Volume del suono" />
-            <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{Math.round(volume * 100)}</span>
-          </div>
+          {cue.tipo !== "promemoria" && (
+            <div className="flex items-center gap-2">
+              <span className="etichetta w-14">Volume</span>
+              <Slider valore={volume} onCambia={cambiaVolume} className="flex-1" aria-label="Volume del suono" />
+              <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{Math.round(volume * 100)}</span>
+            </div>
+          )}
 
-          {cue.tipo !== "sottofondo" && (
+          {cue.tipo !== "sottofondo" && cue.tipo !== "promemoria" && (
             <div>
               <div className="etichetta mb-1.5">Quando parte, il suono base…</div>
               <ControlloSegmentato
@@ -244,7 +252,7 @@ function CasellaCue(props: { cue: Cue; salva: Salva; onEliminata: () => void; on
   );
 }
 
-function SezioneFase(props: { fase: Fase; salva: Salva }) {
+function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId: string) => void }) {
   const { fase, salva } = props;
   const sortFase = useSortable({ id: `fase-${fase.id}` });
   const [inDrop, setInDrop] = useState(false);
@@ -302,6 +310,13 @@ function SezioneFase(props: { fase: Fase; salva: Salva }) {
         <span className="shrink-0 text-[13px] text-testo-3">{fase.cue.length} suoni</span>
         <Menu
           voci={[
+            ...(props.onAzzeraSpunte && fase.cue.some((c) => c.tipo === "promemoria")
+              ? [{
+                  testo: "Azzera spunte",
+                  icona: <CheckSquare size={15} strokeWidth={1.75} />,
+                  onScelta: () => props.onAzzeraSpunte!(fase.id),
+                }]
+              : []),
             {
               testo: "Duplica fase",
               icona: <Copy size={15} strokeWidth={1.75} />,
@@ -317,6 +332,14 @@ function SezioneFase(props: { fase: Fase; salva: Salva }) {
           ]}
         />
       </div>
+
+      <AreaInline
+        valore={fase.nota ?? ""}
+        righe={2}
+        placeholder="Cosa succede in questa fase (guida per chi è in sala)"
+        onCambia={(v) => salva(() => api.modificaFase(fase.id, { nota: v }))}
+        className="mb-4 w-full resize-y rounded-[var(--raggio-campo)] border border-vetro-bordo bg-velo px-3 py-2 text-[14px] leading-relaxed text-testo-2 placeholder:text-testo-3 focus:border-brand-chiaro focus:outline-none"
+      />
 
       <DndContext collisionDetection={closestCenter} onDragEnd={fineTrascinamentoCue}>
         <SortableContext items={cueOrdinati.map((c) => c.id)} strategy={rectSortingStrategy}>
@@ -352,6 +375,7 @@ export function Modifica(props: {
   format: Format;
   onRicarica: () => Promise<void>;
   onSalvataggio?: (pendenti: number) => void;
+  onAzzeraSpunte?: (faseId: string) => void;
 }) {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
@@ -385,6 +409,15 @@ export function Modifica(props: {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-4 pb-32 pt-5 md:space-y-5">
+      <div className="vetro p-5">
+        <div className="etichetta mb-2">Prima di iniziare</div>
+        <AreaInline
+          valore={format.notaInizio ?? ""}
+          righe={3}
+          placeholder="Le cose da ricordare prima della serata. Compare all'apertura del format in Live."
+          onCambia={(v) => salva(() => api.modificaFormat(format.id, { notaInizio: v }))}
+        />
+      </div>
       {fasiOrdinate.length === 0 && (
         <Vetro className="mx-auto flex max-w-md flex-col items-center gap-4 p-10 text-center">
           <Music size={30} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
@@ -395,7 +428,7 @@ export function Modifica(props: {
         <SortableContext items={fasiOrdinate.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} />
+              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSpunte={props.onAzzeraSpunte} />
             ))}
           </div>
         </SortableContext>

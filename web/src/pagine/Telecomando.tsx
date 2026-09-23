@@ -1,14 +1,14 @@
 // La pagina per il telefono: solo Live, nessun suono esce da qui.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, Delete, Smartphone } from "lucide-react";
+import { BookOpenText, ChevronDown, ChevronLeft, ChevronRight, Delete, Info, Smartphone } from "lucide-react";
 import type { Config, Cue, StatoLive } from "../../../shared/tipi";
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { BarraLive } from "../componenti/BarraLive";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { Vetro } from "../componenti/ui/Vetro";
-import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { Pulsante } from "../componenti/ui/Pulsante";
+import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 
 const CHIAVE_PIN = "regia-pin";
 
@@ -161,6 +161,9 @@ export function PaginaTelecomando() {
   const [stato, setStato] = useState<StatoLive | null>(null);
   const [scegliFormat, setScegliFormat] = useState(false);
   const [formatDaConfermare, setFormatDaConfermare] = useState<string | null>(null);
+  const [foglioAperto, setFoglioAperto] = useState(false);
+  const foglioVistoPer = useRef<string | null>(null);
+  const [noteChiuse, setNoteChiuse] = useState<Record<string, boolean>>({});
   const wsRef = useRef<ClientWs | null>(null);
   const pinRef = useRef(pin);
 
@@ -220,6 +223,11 @@ export function PaginaTelecomando() {
   const motoreOnline = stato?.motoreOnline ?? false;
   const formats = [...config.formats].sort((a, b) => a.ordine - b.ordine);
   const format = formats.find((f) => f.id === stato?.formatId) ?? null;
+  // Il foglio "Prima di iniziare" compare una volta per apertura del format.
+  if (format && foglioVistoPer.current !== format.id) {
+    foglioVistoPer.current = format.id;
+    if (format.notaInizio?.trim()) setFoglioAperto(true);
+  }
   const fasi = format ? [...format.fasi].sort((a, b) => a.ordine - b.ordine) : [];
   const fase = fasi.find((f) => f.id === stato?.faseId) ?? fasi[0] ?? null;
   const indiceFase = fase ? fasi.findIndex((f) => f.id === fase.id) : -1;
@@ -299,14 +307,27 @@ export function PaginaTelecomando() {
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       {pillolaOffline}
-      <button
-        type="button"
-        onClick={() => setScegliFormat(true)}
-        className="tocco mb-3 inline-flex max-w-full items-center gap-1.5 rounded-[10px] border border-transparent px-2 py-1 text-[13px] text-testo-2 hover:bg-velo hover:text-testo"
-      >
-        <span className="truncate">{format.nome}</span>
-        <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
-      </button>
+      <div className="mb-3 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setScegliFormat(true)}
+          className="tocco inline-flex min-w-0 items-center gap-1.5 rounded-[10px] border border-transparent px-2 py-1 text-[13px] text-testo-2 hover:bg-velo hover:text-testo"
+        >
+          <span className="truncate">{format.nome}</span>
+          <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
+        </button>
+        {format.notaInizio?.trim() && (
+          <button
+            type="button"
+            title="Rileggi 'Prima di iniziare'"
+            aria-label="Rileggi 'Prima di iniziare'"
+            onClick={() => setFoglioAperto(true)}
+            className="tocco shrink-0 rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
+          >
+            <BookOpenText size={16} strokeWidth={1.75} />
+          </button>
+        )}
+      </div>
       <div className="mb-4 flex items-center gap-2">
         <button
           type="button"
@@ -330,6 +351,27 @@ export function PaginaTelecomando() {
           <ChevronRight size={24} strokeWidth={1.75} />
         </button>
       </div>
+      {fase?.nota && !(noteChiuse[fase.id] ?? false) && (
+        <button
+          type="button"
+          title="Tocca per nascondere"
+          onClick={() => setNoteChiuse((n) => ({ ...n, [fase.id]: true }))}
+          className="tocco mb-3 flex w-full items-start gap-2 rounded-[var(--raggio-campo)] border border-vetro-bordo bg-velo px-3 py-2.5 text-left text-[14px] leading-relaxed text-testo-2"
+        >
+          <Info size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-brand-chiaro" aria-hidden />
+          <span className="whitespace-pre-wrap">{fase.nota}</span>
+        </button>
+      )}
+      {fase?.nota && (noteChiuse[fase.id] ?? false) && (
+        <button
+          type="button"
+          aria-label="Mostra la nota della fase"
+          onClick={() => setNoteChiuse((n) => ({ ...n, [fase.id]: false }))}
+          className="tocco mb-3 inline-flex items-center gap-1.5 rounded-full border border-vetro-bordo bg-velo px-3 py-1 text-[12px] text-testo-3"
+        >
+          <Info size={14} strokeWidth={1.75} aria-hidden /> nota della fase
+        </button>
+      )}
       <div className="grid grid-cols-1 gap-3 min-[500px]:grid-cols-2">
         {cue.map((c) => (
           <PulsanteCue
@@ -341,10 +383,23 @@ export function PaginaTelecomando() {
             onPremi={() => premi(c)}
             onFerma={() => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
             onSfuma={() => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
+            fatto={stato?.fatti?.includes(c.id)}
+            onSpunta={() => invia({ tipo: "comando", comando: "spunta", cueId: c.id })}
           />
         ))}
         {cue.length === 0 && <p className="text-testo-2">Nessun suono in questa fase.</p>}
       </div>
+      {foglioAperto && format.notaInizio?.trim() && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="vetro w-full max-w-sm bg-[var(--menu-fondo)] p-6">
+            <div className="etichetta mb-2">Prima di iniziare</div>
+            <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">{format.notaInizio}</p>
+            <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>
+              Ok, pronti
+            </Pulsante>
+          </div>
+        </div>
+      )}
       <BarraLive
         telefono
         extra={<InterruttoreTema chiave="tema-telecomando" />}

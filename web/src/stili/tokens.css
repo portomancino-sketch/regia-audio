@@ -26,6 +26,7 @@
   --tipo-sottofondo: #5aa0ff;
   --tipo-brano: #b48cff;
   --tipo-effetto: #ffb454;
+  --tipo-promemoria: #9aa4b2;
 
   /* Vetro */
   --vetro-fondo: rgba(255, 255, 255, 0.06);
@@ -76,6 +77,7 @@
   --tipo-sottofondo: #2f6fdb;
   --tipo-brano: #7a4fd8;
   --tipo-effetto: #d97a00;
+  --tipo-promemoria: #5b6572;
 
   --vetro-fondo: rgba(255, 255, 255, 0.58);
   --vetro-dock-fondo: rgba(255, 255, 255, 0.72);

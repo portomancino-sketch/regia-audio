@@ -6,12 +6,14 @@ export const COLORI_TIPO: Record<TipoCue, string> = {
   sottofondo: "var(--tipo-sottofondo)",
   brano: "var(--tipo-brano)",
   effetto: "var(--tipo-effetto)",
+  promemoria: "var(--tipo-promemoria)",
 };
 
 export const NOMI_TIPO: Record<TipoCue, string> = {
   sottofondo: "Sottofondo",
   brano: "Brano",
   effetto: "Effetto",
+  promemoria: "Promemoria",
 };
 
 /** Le 6 scelte di colore personalizzato di un cue (valori salvati nei dati). */

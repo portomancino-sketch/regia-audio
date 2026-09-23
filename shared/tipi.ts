@@ -1,6 +1,6 @@
 // Tipi condivisi tra server e web.
 
-export type TipoCue = "sottofondo" | "brano" | "effetto";
+export type TipoCue = "sottofondo" | "brano" | "effetto" | "promemoria";
 export type SulSottofondo = "niente" | "abbassa" | "pausa";
 
 export interface Cue {
@@ -26,6 +26,8 @@ export interface Fase {
   nome: string;
   ordine: number;
   cue: Cue[];
+  /** "Cosa succede" in questa fase: 2–3 righe di guida per l'assistente. */
+  nota?: string;
 }
 
 export interface Format {
@@ -33,6 +35,8 @@ export interface Format {
   nome: string;
   ordine: number;
   fasi: Fase[];
+  /** "Prima di iniziare": promemoria mostrato all'apertura del format in Live. */
+  notaInizio?: string;
 }
 
 export interface Impostazioni {
@@ -71,12 +75,16 @@ export interface StatoLive {
   master: number;
   attivi: CueAttivo[];
   motoreOnline: boolean;
+  /** Id dei promemoria già spuntati (condivisi tra Mac e telefoni). */
+  fatti?: string[];
 }
 
 export type Comando =
   | { tipo: "comando"; comando: "play"; cueId: string }
   | { tipo: "comando"; comando: "stop"; cueId: string }
   | { tipo: "comando"; comando: "sfuma"; cueId: string }
+  | { tipo: "comando"; comando: "spunta"; cueId: string }
+  | { tipo: "comando"; comando: "azzeraSpunte"; faseId: string }
   | { tipo: "comando"; comando: "fade" }
   | { tipo: "comando"; comando: "stopTutto" }
   | { tipo: "comando"; comando: "master"; valore: number }

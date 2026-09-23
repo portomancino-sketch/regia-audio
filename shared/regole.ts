@@ -139,6 +139,10 @@ function rimuovi(stato: StatoRegole, istanzaId: string, rampMs: number): Risulta
 
 /** Pressione di un pulsante cue. */
 export function premi(stato: StatoRegole, cue: Cue): Risultato {
+  // I promemoria non suonano mai: non entrano tra gli attivi,
+  // non toccano il sottofondo, non contano come esclusivi.
+  if (cue.tipo === "promemoria") return { stato, azioni: [] };
+
   // Ripremere un sottofondo o un brano in riproduzione = fermarlo.
   if (cue.tipo !== "effetto") {
     const giaAttivo = stato.attivi.find((i) => i.cueId === cue.id);

@@ -1,5 +1,5 @@
 // Il pulsante grande di un cue nella vista Live (Mac e telefono).
-import { AudioLines, Square } from "lucide-react";
+import { AudioLines, CircleCheck, Square } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
 import { coloreCue, NOMI_TIPO } from "../util";
 import { BarraAvanzamento } from "./ui/BarraAvanzamento";
@@ -13,11 +13,68 @@ export function PulsanteCue(props: {
   onFerma?: () => void;
   /** Sfuma dolcemente questo suono (mostrato solo mentre suona). */
   onSfuma?: () => void;
+  /** Solo promemoria: è già stato spuntato? */
+  fatto?: boolean;
+  /** Solo promemoria: tocco = segna fatto / da fare. */
+  onSpunta?: () => void;
   disabilitato?: boolean;
   scorciatoia?: string;
   compatto?: boolean;
 }) {
   const { cue } = props;
+
+  // I promemoria non suonano: sono spunte da segnare durante la serata.
+  if (cue.tipo === "promemoria") {
+    const fatto = props.fatto === true;
+    return (
+      <div
+        role="button"
+        tabIndex={props.disabilitato ? -1 : 0}
+        aria-disabled={props.disabilitato}
+        aria-pressed={fatto}
+        onClick={() => {
+          if (!props.disabilitato) props.onSpunta?.();
+        }}
+        onKeyDown={(e) => {
+          if (!props.disabilitato && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            props.onSpunta?.();
+          }
+        }}
+        className={`vetro tocco relative flex cursor-pointer select-none flex-col justify-between p-4 text-left ${
+          props.compatto ? "min-h-[88px]" : "min-h-[112px]"
+        } ${props.disabilitato ? "cursor-default opacity-40" : ""}`}
+      >
+        <div className="flex w-full items-start justify-between gap-2">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <CircleCheck
+              size={24}
+              strokeWidth={1.75}
+              aria-hidden
+              className={fatto ? "mt-0.5 shrink-0 text-brand-chiaro" : "mt-0.5 shrink-0 text-testo-3"}
+              fill={fatto ? "var(--brand-glow)" : "none"}
+            />
+            <div className="min-w-0">
+              <div
+                className={`line-clamp-2 text-[20px] font-semibold leading-tight ${
+                  fatto ? "text-testo-3 line-through" : "text-testo"
+                }`}
+              >
+                {cue.titolo}
+              </div>
+              {cue.nota && (
+                <div className={`mt-1 truncate ${fatto ? "text-testo-3" : "text-testo-2"} ${props.compatto ? "text-[14px]" : "text-[13px]"}`}>
+                  {cue.nota}
+                </div>
+              )}
+            </div>
+          </div>
+          <Pillola colore={coloreCue(cue)}>{fatto ? "fatto" : NOMI_TIPO[cue.tipo]}</Pillola>
+        </div>
+      </div>
+    );
+  }
+
   const istanze = props.attivi.filter((a) => a.cueId === cue.id);
   const attiva = istanze[0];
   const colore = coloreCue(cue);

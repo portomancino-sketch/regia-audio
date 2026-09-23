@@ -98,7 +98,8 @@ export class MotoreAudio {
   }
 
   premi(cue: Cue): void {
-    if (!cue.file) return;
+    // I promemoria non suonano mai, anche se un play arrivasse per sbaglio.
+    if (cue.tipo === "promemoria" || !cue.file) return;
     this.ultimoCuePremuto = cue;
     this.applica(premi(this.stato, cue));
   }

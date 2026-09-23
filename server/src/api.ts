@@ -86,7 +86,7 @@ function cueNuovo(ordine: number, parziale?: Partial<Cue>): Cue {
     durataSec: null,
     volume: 1,
     loop: tipo === "sottofondo",
-    sulSottofondo: tipo === "brano" ? "pausa" : "abbassa",
+    sulSottofondo: tipo === "brano" ? "pausa" : tipo === "effetto" ? "abbassa" : "niente",
     colore: null,
     ordine,
     ...parziale,
@@ -145,8 +145,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/formats/:id", async (req, reply) => {
     const format = trovaFormat(store.config, (req.params as { id: string }).id);
     if (!format) return reply.status(404).send({ errore: "Format non trovato" });
-    const { nome } = (req.body ?? {}) as { nome?: string };
+    const { nome, notaInizio } = (req.body ?? {}) as { nome?: string; notaInizio?: string };
     if (typeof nome === "string" && nome.trim()) format.nome = nome.trim();
+    if (typeof notaInizio === "string") format.notaInizio = notaInizio;
     cambiata();
     return format;
   });
@@ -208,8 +209,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/fasi/:id", async (req, reply) => {
     const trovata = trovaFase(store.config, (req.params as { id: string }).id);
     if (!trovata) return reply.status(404).send({ errore: "Fase non trovata" });
-    const { nome } = (req.body ?? {}) as { nome?: string };
+    const { nome, nota } = (req.body ?? {}) as { nome?: string; nota?: string };
     if (typeof nome === "string" && nome.trim()) trovata.fase.nome = nome.trim();
+    if (typeof nota === "string") trovata.fase.nota = nota;
     cambiata();
     return trovata.fase;
   });
@@ -267,14 +269,20 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     const corpo = (req.body ?? {}) as Partial<Cue>;
     if (typeof corpo.titolo === "string") c.titolo = corpo.titolo;
     if (typeof corpo.nota === "string") c.nota = corpo.nota;
-    if (corpo.tipo === "sottofondo" || corpo.tipo === "brano" || corpo.tipo === "effetto") {
+    if (
+      corpo.tipo === "sottofondo" ||
+      corpo.tipo === "brano" ||
+      corpo.tipo === "effetto" ||
+      corpo.tipo === "promemoria"
+    ) {
       if (corpo.tipo !== c.tipo) {
         c.tipo = corpo.tipo;
-        // Valori sensati quando si cambia tipo.
+        // Valori sensati quando si cambia tipo. Il file resta: se si torna
+        // a un tipo audio, non si perde nulla.
         c.loop = c.tipo === "sottofondo";
         if (c.tipo === "brano") c.sulSottofondo = "pausa";
-        if (c.tipo === "effetto") c.sulSottofondo = "abbassa";
-        if (c.tipo === "sottofondo") c.sulSottofondo = "niente";
+        else if (c.tipo === "effetto") c.sulSottofondo = "abbassa";
+        else c.sulSottofondo = "niente";
       }
     }
     if (typeof corpo.volume === "number") c.volume = Math.min(1, Math.max(0, corpo.volume));
