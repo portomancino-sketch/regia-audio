@@ -22,7 +22,7 @@ Le ✗ sono la lista di lavoro di S8. In sala non si aggiusta niente.
 - [ ] Sottofondo: parte e gira in loop ("in loop" sul pulsante)
 - [ ] Brano con "Si abbassa": il sottofondo scende; a fine brano risale
 - [ ] Brano con "Si ferma": il sottofondo si ferma; a fine brano riparte dallo stesso punto
-- [ ] Effetto: si somma a tutto; ripremere = si ferma
+- [ ] Effetto: si somma agli altri suoni; ripremerlo lo ferma (non si raddoppia)
 - [ ] "finisce tra" scorre; negli ultimi 10 secondi diventa ambra
 - [ ] PARLA (tasto P): il base scende; ripremi → risale
 - [ ] FADE OUT (F): tutto sfuma. STOP TUTTO (ESC): silenzio subito

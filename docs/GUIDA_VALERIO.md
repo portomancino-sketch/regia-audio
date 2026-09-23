@@ -17,7 +17,8 @@
 8. Scegli il tipo di ogni casella:
    - **Sottofondo** (blu): il suono d'ambiente. Va da solo, in cerchio.
    - **Brano** (viola): musica o dialogo importante. Uno alla volta.
-   - **Effetto** (ambra): sparo, campanello. Si somma a tutto.
+   - **Effetto** (ambra): sparo, campanello. Si somma agli altri suoni;
+     ripremerlo lo ferma.
    - **Promemoria** (grigio): non suona. È una cosa da fare: in serata si tocca
      e si segna con la spunta. Le spunte si vedono da tutti i telefoni.
 9. Scegli cosa fa al suono base: **Resta / Si abbassa / Si ferma**.

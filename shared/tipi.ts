@@ -61,7 +61,7 @@ export interface Config {
 // ---- WebSocket ----
 
 export interface CueAttivo {
-  /** Identificativo dell'istanza in riproduzione (un effetto può averne più d'una). */
+  /** Identificativo dell'istanza in riproduzione. */
   istanzaId: string;
   cueId: string;
   titolo: string;

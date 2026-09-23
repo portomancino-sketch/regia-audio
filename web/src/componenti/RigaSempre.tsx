@@ -97,7 +97,6 @@ function PillolaSempre(props: {
         )}
       </span>
       <span className={`relative min-w-0 truncate ${fatto ? "text-testo-3 line-through" : ""}`}>{cue.titolo}</span>
-      {istanze.length > 1 && <span className="relative text-[12px] text-brand-chiaro">×{istanze.length}</span>}
     </button>
   );
 }

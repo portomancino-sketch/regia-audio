@@ -12,7 +12,7 @@ export const FADE_RIPRISTINO_MS = 800;
 export const FADE_STOP_TUTTO_MS = 100;
 export const FADE_MASTER_MS = 50;
 
-/** Un suono in riproduzione (un cue può avere più istanze se è un effetto). */
+/** Un suono in riproduzione (ogni cue ha al massimo un'istanza attiva). */
 export interface Istanza {
   istanzaId: string;
   cueId: string;
@@ -157,11 +157,10 @@ export function premi(stato: StatoRegole, cue: Cue): Risultato {
   // non toccano il sottofondo, non contano come esclusivi.
   if (cue.tipo === "promemoria") return { stato, azioni: [] };
 
-  // Ripremere un sottofondo o un brano in riproduzione = fermarlo.
-  if (cue.tipo !== "effetto") {
-    const giaAttivo = stato.attivi.find((i) => i.cueId === cue.id);
-    if (giaAttivo) return rimuovi(stato, giaAttivo.istanzaId, FADE_STOP_ESCLUSIVO_MS);
-  }
+  // Ripremere un cue in riproduzione = fermarlo. Vale per tutti i tipi:
+  // l'effetto si somma agli ALTRI suoni, mai a sé stesso (regola S9).
+  const giaAttivo = stato.attivi.find((i) => i.cueId === cue.id);
+  if (giaAttivo) return rimuovi(stato, giaAttivo.istanzaId, FADE_STOP_ESCLUSIVO_MS);
 
   // Il livello del sottofondo si ricalcola UNA volta sola, alla fine,
   // così la sostituzione di un esclusivo non fa "rimbalzare" il sottofondo.

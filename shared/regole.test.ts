@@ -39,6 +39,7 @@ function cue(parziale: Partial<Cue> & { id: string; tipo: Cue["tipo"] }): Cue {
 const SOTTOFONDO = cue({ id: "sf", tipo: "sottofondo", volume: 0.9 });
 const EFFETTO_ABBASSA = cue({ id: "fx1", tipo: "effetto", sulSottofondo: "abbassa" });
 const EFFETTO_NIENTE = cue({ id: "fx2", tipo: "effetto", sulSottofondo: "niente" });
+const EFFETTO_ABBASSA_2 = cue({ id: "fx3", tipo: "effetto", sulSottofondo: "abbassa" });
 const BRANO_PAUSA = cue({ id: "br1", tipo: "brano", sulSottofondo: "pausa" });
 const BRANO_ABBASSA = cue({ id: "br2", tipo: "brano", sulSottofondo: "abbassa" });
 
@@ -93,11 +94,11 @@ describe("effetto con 'abbassa'", () => {
     expect(cambi[0]?.rampMs).toBe(FADE_RIPRISTINO_MS);
   });
 
-  it("con due effetti 'abbassa', il sottofondo risale solo alla fine del secondo", () => {
+  it("con due effetti 'abbassa' diversi, il sottofondo risale solo alla fine del secondo", () => {
     let r = premi(nuovo(), SOTTOFONDO);
     r = premi(r.stato, EFFETTO_ABBASSA);
-    r = premi(r.stato, EFFETTO_ABBASSA); // seconda istanza sovrapposta
-    const istanze = r.stato.attivi.filter((i) => i.cueId === "fx1");
+    r = premi(r.stato, EFFETTO_ABBASSA_2); // un altro effetto, sovrapposto
+    const istanze = r.stato.attivi.filter((i) => i.tipo === "effetto");
     expect(istanze).toHaveLength(2);
 
     r = finita(r.stato, istanze[0]!.istanzaId);
@@ -216,13 +217,40 @@ describe("esclusività", () => {
 });
 
 describe("effetti sovrapposti", () => {
-  it("ripremere un effetto crea una nuova istanza, la precedente continua", () => {
+  it("ripremere un effetto che suona lo FERMA: nessuna istanza attiva (mai a sé stesso)", () => {
+    let r = premi(nuovo(), EFFETTO_NIENTE);
+    expect(r.stato.attivi).toHaveLength(1);
+    r = premi(r.stato, EFFETTO_NIENTE);
+    expect(r.stato.attivi).toHaveLength(0);
+    const ferma = azione(r.azioni, "ferma");
+    expect(ferma).toHaveLength(1);
+    expect(ferma[0]?.rampMs).toBe(FADE_STOP_ESCLUSIVO_MS);
+    expect(azione(r.azioni, "avvia")).toHaveLength(0);
+  });
+
+  it("premi-premi-premi su un effetto: parte, si ferma, riparte (una sola istanza)", () => {
     let r = premi(nuovo(), EFFETTO_NIENTE);
     r = premi(r.stato, EFFETTO_NIENTE);
+    r = premi(r.stato, EFFETTO_NIENTE);
+    expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["fx2"]);
+    expect(azione(r.azioni, "avvia")).toHaveLength(1);
+  });
+
+  it("ripremere un effetto 'abbassa' lo ferma e il sottofondo risale", () => {
+    let r = premi(nuovo(), SOTTOFONDO);
+    r = premi(r.stato, EFFETTO_ABBASSA);
+    r = premi(r.stato, EFFETTO_ABBASSA);
+    expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["sf"]);
+    const cambi = azione(r.azioni, "cambiaGuadagno");
+    expect(cambi.at(-1)?.guadagno).toBeCloseTo(0.9);
+    expect(cambi.at(-1)?.rampMs).toBe(FADE_RIPRISTINO_MS);
+  });
+
+  it("due effetti DIVERSI si sommano", () => {
+    let r = premi(nuovo(), EFFETTO_NIENTE);
+    r = premi(r.stato, EFFETTO_ABBASSA);
     expect(r.stato.attivi).toHaveLength(2);
     expect(azione(r.azioni, "ferma")).toHaveLength(0);
-    const ids = r.stato.attivi.map((i) => i.istanzaId);
-    expect(new Set(ids).size).toBe(2);
   });
 
   it("un effetto si sovrappone a sottofondo e brano", () => {
@@ -234,12 +262,11 @@ describe("effetti sovrapposti", () => {
 });
 
 describe("stop, stop tutto, fade out", () => {
-  it("stop di un cue ferma tutte le sue istanze e ripristina il sottofondo", () => {
+  it("stop di un cue lo ferma e ripristina il sottofondo", () => {
     let r = premi(nuovo(), SOTTOFONDO);
     r = premi(r.stato, EFFETTO_ABBASSA);
-    r = premi(r.stato, EFFETTO_ABBASSA);
     r = stop(r.stato, "fx1");
-    expect(azione(r.azioni, "ferma")).toHaveLength(2);
+    expect(azione(r.azioni, "ferma")).toHaveLength(1);
     const cambi = azione(r.azioni, "cambiaGuadagno");
     expect(cambi.at(-1)?.guadagno).toBeCloseTo(0.9); // sottofondo di nuovo pieno
     expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["sf"]);
@@ -268,11 +295,12 @@ describe("stop, stop tutto, fade out", () => {
     expect(r.stato.attivi.map((i) => i.cueId)).toEqual(["sf"]);
   });
 
-  it("sfumaCue su un effetto sfuma tutte le sue istanze", () => {
+  it("sfumaCue su un effetto lo sfuma in fadeOutMs", () => {
     let r = premi(nuovo(), EFFETTO_NIENTE);
-    r = premi(r.stato, EFFETTO_NIENTE);
     r = sfumaCue(r.stato, "fx2");
-    expect(azione(r.azioni, "ferma")).toHaveLength(2);
+    const ferma = azione(r.azioni, "ferma");
+    expect(ferma).toHaveLength(1);
+    expect(ferma[0]?.rampMs).toBe(1500);
     expect(r.stato.attivi).toHaveLength(0);
   });
 

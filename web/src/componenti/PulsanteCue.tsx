@@ -192,7 +192,6 @@ export function PulsanteCue(props: {
       </div>
 
       <div className="mt-2 flex w-full items-center gap-2">
-        {istanze.length > 1 && <span className="text-[12px] text-brand-chiaro">×{istanze.length}</span>}
         {attiva && !tastiGrandi && props.onSfuma && (
           <button
             type="button"
