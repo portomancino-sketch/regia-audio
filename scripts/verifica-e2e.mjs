@@ -409,7 +409,7 @@ await attendi(400);
 await chiudiScheda(regia);
 s = await osservatore.finoA((x) => x.motoreOnline === false, 5000);
 s ? ok("Regia chiusa → telecomando avvisato (motoreOnline=false)") : ko("Avviso regia chiusa");
-const regia3 = await nuovaScheda(`${BASE}/`);
+const regia3 = await nuovaScheda(`${BASE}/?prova`);
 s = await osservatore.finoA((x) => x.motoreOnline === true, 8000);
 s ? ok("Regia riaperta → tutto torna online da solo") : ko("Ritorno online");
 
@@ -798,6 +798,100 @@ const chiudiSuggerimento = async (p) => {
   s = await osservatore.finoA((x) => !x.usi || !x.usi[camp.id], 3000);
   s ? ok("'Azzera serata' azzera i contatori") : ko("Azzera serata");
   await chiudiSuggerimento(regia3);
+}
+
+// ================= S11 =================
+// --- B1: importazione (drop) di un file basso → analisi → guadagno automatico positivo ---
+{
+  await regia3.click("Modifica");
+  await attendi(600);
+  // Un wav a -30 dBFS circa (sinusoide con ampiezza 0,045) creato nella pagina e "trascinato" sulla fase.
+  const caricato = await regia3.js(`(async () => {
+    const sr = 44100, sec = 2, n = sr * sec;
+    const b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+    for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.round(0.045 * 32767 * Math.sin(2 * Math.PI * 440 * i / sr)), true);
+    const file = new File([b], "piano-piano.wav", { type: "audio/wav" });
+    const dt = new DataTransfer(); dt.items.add(file);
+    const sezione = [...document.querySelectorAll('.vetro')].find(el => el.querySelector('input') && el.querySelector('input').value === '${fase1.nome}');
+    if (!sezione) return "sezione non trovata";
+    sezione.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+    return "ok";
+  })()`);
+  const analizzato = await regia3.finoA(`[...document.querySelectorAll('input')].some(i => i.value === 'piano-piano')`, 8000);
+  analizzato ? ok("Drop di un file in Modifica: casella creata") : ko("Drop del file", caricato);
+  let cueBasso = null;
+  for (let i = 0; i < 30 && !cueBasso?.guadagnoAuto; i++) {
+    await attendi(300);
+    const cfg = await (await fetch(`${BASE}/api/config`)).json();
+    cueBasso = cfg.formats.find((f) => f.id === demo.id).fasi.flatMap((f) => f.cue).find((c) => c.titolo === "piano-piano");
+  }
+  cueBasso && cueBasso.analisi && cueBasso.guadagnoAuto > 0
+    ? ok("Analisi all'importazione: livello medio e guadagno automatico positivo", `rms=${cueBasso.analisi.rms} picco=${cueBasso.analisi.picco} auto=${cueBasso.guadagnoAuto} dB`)
+    : ko("Analisi all'importazione", JSON.stringify(cueBasso));
+  // aperta la casella: cursore Volume in dB, "auto +N dB", Ascolta
+  await regia3.js(`(() => { const i = [...document.querySelectorAll('input')].find(i => i.value === 'piano-piano'); i?.closest('.vetro')?.querySelector('.cursor-pointer')?.click(); })()`);
+  const cursore = await regia3.finoA(`!!document.querySelector('input[aria-label="Volume in dB (ritocco)"]') && /auto \\+\\d+ dB/.test(document.body.innerText) && document.body.innerText.includes('Ascolta')`, 3000);
+  cursore ? ok("Modifica: cursore Volume −12…+12 dB, 'auto +N dB' e 'Ascolta'") : ko("Cursore ritocco");
+  // ritocco +3 → in Live la card mostra "+3 dB"
+  await fetch(`${BASE}/api/cue/${cueBasso.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ ritocco: 3 }) });
+  await attendi(1200);
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await regia3.click(fase1.nome);
+  const badge = await regia3.finoA(`[...document.querySelectorAll('.grid > [role=button]')].some(c => c.textContent.includes('piano-piano') && c.textContent.includes('+3 dB'))`, 3000);
+  badge ? ok("Live: la card mostra '+3 dB' solo se il ritocco è diverso da 0") : ko("Badge dB in Live");
+}
+
+// --- B3: passaggio morbido tra sottofondi ---
+{
+  await fetch(`${BASE}/api/formats/${demo.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ crossfade: 2 }) });
+  const fd = new FormData();
+  fd.append("file", new Blob([wavLungo(30)]), "Mare.wav");
+  const creati = (await (await fetch(`${BASE}/api/fasi/${fase1.id}/audio-multipli`, { method: "POST", body: fd })).json()).creati;
+  const mare = creati[0];
+  await fetch(`${BASE}/api/cue/${mare.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ tipo: "sottofondo" }) });
+  await attendi(1500);
+  // ricarica il format nel motore (crossfade nuovo) tornando in Live
+  await regia3.click("Modifica");
+  await attendi(300);
+  await regia3.click("Live");
+  await attendi(500);
+  await regia3.click("Ok, pronti");
+  await regia3.click(fase1.nome);
+  await attendi(300);
+  await regia3.clickCue("Treno in corsa");
+  await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 4000);
+  await attendi(600);
+  await regia3.clickCue("Mare");
+  await attendi(800);
+  const durante = await regia3.js(`window.__motore.guadagniAttuali()`);
+  const vivi = durante.filter((g) => g.gain > 0.001);
+  const uscente = durante.find((g) => g.cueId === idTreno);
+  const entrante = durante.find((g) => g.cueId === "${mare.id}".replace(/.*/, "") || g.cueId === mare.id) ?? durante.find((g) => !g.inUscita && g.cueId !== idTreno);
+  vivi.length === 2 && uscente?.inUscita && uscente.gain > 0.001 && entrante && !entrante.inUscita && entrante.gain > 0.001
+    ? ok("Crossfade: per ~2 s entrambi i nodi hanno gain > 0 (vecchio in uscita, nuovo in entrata)", `treno=${uscente.gain.toFixed(2)} mare=${entrante.gain.toFixed(2)}`)
+    : ko("Crossfade durante", JSON.stringify(durante));
+  (osservatore.ultimo?.attivi ?? []).length === 1 && osservatore.ultimo.attivi[0].cueId === mare.id
+    ? ok("Nello stato c'è un solo sottofondo attivo (il vecchio è 'in uscita')")
+    : ko("Stato durante il crossfade", JSON.stringify(osservatore.ultimo?.attivi.map((a) => a.titolo)));
+  await attendi(2200);
+  const dopo = await regia3.js(`window.__motore.guadagniAttuali()`);
+  dopo.length === 1 && dopo[0].cueId === mare.id && dopo[0].gain > 0.5
+    ? ok("...poi resta solo il nuovo, a livello pieno", `gain=${dopo[0].gain.toFixed(2)}`)
+    : ko("Crossfade dopo", JSON.stringify(dopo));
+  // STOP TUTTO interrompe anche un passaggio in corso
+  await regia3.clickCue("Treno in corsa");
+  await attendi(500);
+  await regia3.click("STOP TUTTO");
+  await attendi(1300); // (scheda in secondo piano: i timer sono rallentati a 1 s)
+  const fermi = await regia3.js(`window.__motore.guadagniAttuali()`);
+  fermi.length === 0 ? ok("STOP TUTTO chiude anche il passaggio in corso") : ko("STOP TUTTO durante crossfade", JSON.stringify(fermi));
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
 }
 
 // --- Ultimi 10 secondi: numero e barra in ambra (Tensione dura 8 s) ---
