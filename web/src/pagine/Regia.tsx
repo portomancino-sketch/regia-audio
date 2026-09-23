@@ -444,7 +444,7 @@ export function PaginaRegia() {
       )}
 
       {/* Barra superiore */}
-      <header className="sticky top-0 z-30 border-b border-[var(--hairline-barra)] bg-sfondo/70 px-4 py-3 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-[var(--hairline-barra)] bg-sfondo/25 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <div className="flex shrink-0 items-baseline gap-2">
             <span className="text-[17px] font-semibold tracking-[-0.01em] text-testo">Regia</span>

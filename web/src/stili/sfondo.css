@@ -18,9 +18,8 @@
 .macchia {
   position: absolute;
   border-radius: 50%;
-  /* Niente filter: blur — il gradiente è già morbido e il blur ricomposto
-     a ogni frame costava troppo (CPU > 5% in Live ferma). */
-  opacity: var(--macchie-opacita);
+  filter: blur(60px);
+  opacity: var(--sfondo-intensita);
   will-change: transform;
 }
 

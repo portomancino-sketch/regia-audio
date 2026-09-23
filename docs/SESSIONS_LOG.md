@@ -118,3 +118,15 @@ verifica end-to-end, che ora avvia un SUO server su porta 4999 con dati temporan
   "Un'altra finestra Regia sta comandando" e "Prendi il controllo" per
   scalzare. Tornare visibile non prende più il comando. 45 test + 45
   controlli end-to-end. Screenshot chiaro/scuro in docs/screenshots/s4/.
+
+## S4-bis — 23 settembre 2026 — sfondo visibile
+
+Le macchie ora si vedono davvero: base chiara calda #f7f5f1, macchie 80–95vw
+sovrapposte coi centri vicini agli angoli e un "plateau" pieno nel gradiente,
+blur(60px) reale sui div, barra superiore meno velata (bg 25%). Variabile
+`--sfondo-intensita` (0–1) per regolare tutto con un numero. Nel tema scuro il
+blu notte è stato rinforzato (rgba(60,95,190,.7)) perché a schermo era
+indistinguibile dal verde. Verifica MISURATA (scripts/verifica-sfondo.mjs):
+campionati 5 punti dello screenshot, ≥3 zone distinte oltre 25/255 in entrambi
+i temi; contrasto testo sulle card 17,7:1 (chiaro) e 15,3:1 (scuro); CPU in
+Live ferma 2,7–3,6% (blur e deriva accesi). Screenshot in docs/screenshots/s4bis/.

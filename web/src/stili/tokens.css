@@ -7,12 +7,11 @@
 
   /* Sfondo e testo */
   --sfondo: #0a0c10;
-  /* Macchie dello sfondo mesh */
-  --macchia-1: rgba(62, 104, 91, 0.45);
-  --macchia-2: rgba(40, 60, 110, 0.45);
-  --macchia-3: rgba(120, 80, 30, 0.3);
-  --macchia-4: rgba(90, 110, 140, 0.3);
-  --macchie-opacita: 0.45;
+  /* Macchie dello sfondo mesh. --sfondo-intensita (0–1) le regola tutte. */
+  --sfondo-intensita: 1;
+  --macchia-1: rgba(62, 104, 91, 0.6);
+  --macchia-2: rgba(60, 95, 190, 0.7);
+  --macchia-3: rgba(160, 110, 40, 0.35);
   --grana-opacita: 0.06;
   --grana-blend: overlay;
   --testo: rgba(255, 255, 255, 0.92);
@@ -71,12 +70,10 @@
 :root[data-tema="chiaro"] {
   color-scheme: light;
 
-  --sfondo: #f5f6f8;
-  --macchia-1: rgba(62, 104, 91, 0.4);
-  --macchia-2: rgba(246, 215, 176, 0.7);
-  --macchia-3: rgba(207, 224, 245, 0.75);
-  --macchia-4: rgba(255, 250, 240, 0.9);
-  --macchie-opacita: 0.55;
+  --sfondo: #f7f5f1;
+  --macchia-1: rgba(120, 170, 150, 0.55);
+  --macchia-2: rgba(250, 200, 160, 0.6);
+  --macchia-3: rgba(165, 195, 235, 0.55);
   --grana-opacita: 0.04;
   --grana-blend: multiply;
   --testo: #111418;
