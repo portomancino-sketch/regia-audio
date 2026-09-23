@@ -2,10 +2,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../../shared/tipi";
 import { inEvidenza } from "../../../shared/sempre";
+import { SOUNDCHECK_DURATA_MS, SOUNDCHECK_PAUSA_MS, sequenzaSoundcheck, piccoInDb, type EsitoCasella } from "../../../shared/soundcheck";
+import { azzeraUsi, giornoDi, incrementaUsi, usiDelGiorno, type Usi } from "../../../shared/usi";
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
-import { BookOpenText, CalendarClock, ChevronLeft, Volume2 } from "lucide-react";
+import { BookOpenText, CalendarClock, ChevronLeft, ListChecks, Lock, LockOpen, Volume2 } from "lucide-react";
+import { EsitoSoundcheck } from "../componenti/EsitoSoundcheck";
 import { Home } from "./Home";
 import { Diario } from "./Diario";
 import { Modifica } from "./Modifica";
@@ -45,6 +48,15 @@ export function PaginaRegia() {
   // Promemoria spuntati (condivisi con i telefoni via stato).
   const [fatti, setFatti] = useState<string[]>([]);
   const fattiRef = useRef<string[]>([]);
+  // Contatori "già suonato" (condivisi via stato; memoria locale per il giorno).
+  const [usi, setUsi] = useState<Usi>(() => leggiUsiSalvati());
+  const usiRef = useRef<Usi>(usi);
+  // Soundcheck "Prova tutti".
+  const [soundcheck, setSoundcheck] = useState<{ indice: number; totale: number } | null>(null);
+  const soundcheckRef = useRef<{ indice: number; totale: number; annullato: boolean } | null>(null);
+  const [esitoSoundcheck, setEsitoSoundcheck] = useState<EsitoCasella[] | null>(null);
+  // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno).
+  const [suggerisciBlocco, setSuggerisciBlocco] = useState(false);
   // Foglio "Prima di iniziare".
   const [foglioAperto, setFoglioAperto] = useState(false);
   // Indicatore "Salvato" nella barra in alto.
@@ -79,6 +91,10 @@ export function PaginaRegia() {
       motoreOnline: true,
       fatti: fattiRef.current,
       parla: m.parlaAttivo,
+      usi: usiRef.current,
+      soundcheck: soundcheckRef.current
+        ? { indice: soundcheckRef.current.indice, totale: soundcheckRef.current.totale }
+        : null,
     };
     wsRef.current?.invia(s);
     setAttivi(s.attivi);
@@ -124,6 +140,30 @@ export function PaginaRegia() {
     [inviaStato],
   );
 
+  const aggiornaUsi = useCallback(
+    (nuovi: Usi) => {
+      usiRef.current = nuovi;
+      setUsi(nuovi);
+      salvaUsi(nuovi);
+      inviaStato();
+    },
+    [inviaStato],
+  );
+
+  /** "Azzera serata" di una fase: spunte E contatori delle sue caselle. */
+  const azzeraSerataFase = useCallback(
+    (faseId: string) => {
+      const fase = configRef.current?.formats.flatMap((f) => f.fasi).find((x) => x.id === faseId);
+      if (!fase) return;
+      const ids = fase.cue.map((c) => c.id);
+      const daTogliere = new Set(ids);
+      fattiRef.current = fattiRef.current.filter((id) => !daTogliere.has(id));
+      setFatti(fattiRef.current);
+      aggiornaUsi(azzeraUsi(usiRef.current, ids));
+    },
+    [aggiornaUsi],
+  );
+
   const trovaCue = useCallback((cueId: string): Cue | null => {
     for (const f of configRef.current?.formats ?? []) {
       for (const fase of f.fasi) {
@@ -138,6 +178,8 @@ export function PaginaRegia() {
     (c: Comando) => {
       const m = motoreRef.current;
       if (!m) return;
+      // Durante il soundcheck i comandi dei telefoni vengono ignorati.
+      if (soundcheckRef.current) return;
       switch (c.comando) {
         case "play": {
           const cue = trovaCue(c.cueId);
@@ -155,6 +197,9 @@ export function PaginaRegia() {
           break;
         case "azzeraSpunte":
           azzeraSpunteFase(c.faseId);
+          break;
+        case "azzeraSerata":
+          azzeraSerataFase(c.faseId);
           break;
         case "parla":
           m.setParla(c.acceso);
@@ -187,7 +232,7 @@ export function PaginaRegia() {
         }
       }
     },
-    [impostaLive, trovaCue, spuntaCue, azzeraSpunteFase],
+    [impostaLive, trovaCue, spuntaCue, azzeraSpunteFase, azzeraSerataFase],
   );
 
   const ricaricaConfig = useCallback(async () => {
@@ -230,6 +275,9 @@ export function PaginaRegia() {
           setMasterUi(s.master);
           fattiRef.current = s.fatti ?? [];
           setFatti(s.fatti ?? []);
+          usiRef.current = s.usi ?? {};
+          setUsi(s.usi ?? {});
+          setSoundcheck(s.soundcheck ?? null);
           setParlaUi(s.parla === true);
           liveRef.current = { formatId: s.formatId, faseId: s.faseId };
           setLiveIds({ formatId: s.formatId, faseId: s.faseId });
@@ -290,10 +338,77 @@ export function PaginaRegia() {
       livelloParla: config.impostazioni.livelloParla ?? 0.25,
     });
     m.onCambiamento = inviaStato;
+    // Una partenza vera: conta l'uso (al cambio di giorno si riparte da zero)
+    // e, la prima volta in serata con il blocco spento, suggerisce il blocco.
+    m.onAvvio = (cue) => {
+      const oggi = giornoDi(new Date());
+      const base = usiDelGiorno({ giorno: leggiGiornoUsi(), usi: usiRef.current }, oggi);
+      if (base.usi !== usiRef.current) salvaGiornoUsi(oggi);
+      aggiornaUsi(incrementaUsi(base.usi, cue));
+      proponiBlocco();
+    };
     motoreRef.current = m;
     setAudioAttivo(m.sbloccato);
     inviaStato();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sonoIlMotore, config, inviaStato]);
+
+  /** Suggerisce "Vuoi bloccare le modifiche?" una volta per giornata, se il blocco è spento. */
+  function proponiBlocco() {
+    if (configRef.current?.impostazioni.bloccoModifiche) return;
+    const oggi = giornoDi(new Date());
+    if (localStorage.getItem("blocco-suggerito") === oggi) return;
+    localStorage.setItem("blocco-suggerito", oggi);
+    setSuggerisciBlocco(true);
+  }
+
+  async function impostaBlocco(attivo: boolean) {
+    await api.impostazioni({ bloccoModifiche: attivo });
+    await ricaricaConfig();
+  }
+
+  // ---- Soundcheck "Prova tutti" ----
+  async function avviaSoundcheck(format: Format) {
+    const m = motoreRef.current;
+    if (!m || !sonoIlMotoreRef.current || soundcheckRef.current) return;
+    proponiBlocco();
+    const passi = sequenzaSoundcheck(format);
+    if (passi.length === 0) return;
+    m.stopTutto();
+    const corso = { indice: 0, totale: passi.length, annullato: false };
+    soundcheckRef.current = corso;
+    setSoundcheck({ indice: 0, totale: passi.length });
+    const esiti: EsitoCasella[] = [];
+    for (let i = 0; i < passi.length; i++) {
+      if (corso.annullato) break;
+      corso.indice = i + 1;
+      setSoundcheck({ indice: i + 1, totale: passi.length });
+      inviaStato();
+      const passo = passi[i]!;
+      const r = await m.provaCue(passo.cue, SOUNDCHECK_DURATA_MS);
+      esiti.push({
+        cueId: passo.cue.id,
+        titolo: passo.cue.titolo,
+        fase: passo.fase.nome,
+        esito: r.esito,
+        piccoDb: r.picco === null ? null : piccoInDb(r.picco),
+      });
+      if (corso.annullato) break;
+      await new Promise((ok) => setTimeout(ok, SOUNDCHECK_PAUSA_MS));
+    }
+    soundcheckRef.current = null;
+    setSoundcheck(null);
+    inviaStato();
+    setEsitoSoundcheck(esiti);
+  }
+  function interrompiSoundcheck() {
+    const corso = soundcheckRef.current;
+    if (!corso) return;
+    corso.annullato = true;
+    motoreRef.current?.interrompiProva();
+  }
+  const interrompiSoundcheckRef = useRef(interrompiSoundcheck);
+  interrompiSoundcheckRef.current = interrompiSoundcheck;
 
   // Battito: il motore si fa sentire ogni 5 s (una finestra congelata smette).
   useEffect(() => {
@@ -338,12 +453,12 @@ export function PaginaRegia() {
     },
     [spuntaCue],
   );
-  const azzeraSpunteUi = useCallback(
+  const azzeraSerataUi = useCallback(
     (faseId: string) => {
-      if (sonoIlMotoreRef.current) azzeraSpunteFase(faseId);
-      else wsRef.current?.invia({ tipo: "comando", comando: "azzeraSpunte", faseId });
+      if (sonoIlMotoreRef.current) azzeraSerataFase(faseId);
+      else wsRef.current?.invia({ tipo: "comando", comando: "azzeraSerata", faseId });
     },
-    [azzeraSpunteFase],
+    [azzeraSerataFase],
   );
   const cambiaMaster = useCallback((v: number) => {
     setMasterUi(v);
@@ -384,7 +499,8 @@ export function PaginaRegia() {
       const bersaglio = e.target as HTMLElement;
       if (bersaglio.tagName === "INPUT" || bersaglio.tagName === "TEXTAREA") return;
       if (e.key === "Escape") {
-        faiStopTutto();
+        if (soundcheckRef.current) interrompiSoundcheckRef.current();
+        else faiStopTutto();
       } else if (e.key === "f" || e.key === "F") {
         faiFade();
       } else if (e.key === "p" || e.key === "P") {
@@ -456,6 +572,7 @@ export function PaginaRegia() {
 
   const motoreOnline = sonoIlMotore || (statoRemoto?.motoreOnline ?? false);
   const serveSblocco = sonoIlMotore && !audioAttivo && motoreRef.current !== null;
+  const bloccato = config.impostazioni.bloccoModifiche === true;
 
   return (
     <div className="min-h-full">
@@ -485,6 +602,30 @@ export function PaginaRegia() {
             </p>
             <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>
               Ok, pronti
+            </Pulsante>
+          </div>
+        </div>
+      )}
+
+      {esitoSoundcheck && <EsitoSoundcheck esiti={esitoSoundcheck} onChiudi={() => setEsitoSoundcheck(null)} />}
+
+      {suggerisciBlocco && !bloccato && (
+        <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
+          <div className="vetro vetro-solido flex flex-wrap items-center gap-3 px-4 py-3" role="status">
+            <Lock size={16} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
+            <span className="text-[14px] text-testo">Vuoi bloccare le modifiche per la serata?</span>
+            <Pulsante
+              variante="primario"
+              misura="sm"
+              onClick={() => {
+                setSuggerisciBlocco(false);
+                void impostaBlocco(true);
+              }}
+            >
+              Sì
+            </Pulsante>
+            <Pulsante variante="secondario" misura="sm" onClick={() => setSuggerisciBlocco(false)}>
+              No
             </Pulsante>
           </div>
         </div>
@@ -533,6 +674,35 @@ export function PaginaRegia() {
               className="tocco shrink-0 rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
             >
               <BookOpenText size={18} strokeWidth={1.75} />
+            </button>
+          )}
+          {formatAperto && vista === "live" && sonoIlMotore && (
+            <Pulsante
+              variante={soundcheck ? "primario" : "secondario"}
+              misura="sm"
+              title={soundcheck ? "Interrompi il soundcheck (ESC)" : "Suona 3 secondi di ogni casella, una alla volta"}
+              onClick={() => (soundcheck ? interrompiSoundcheck() : void avviaSoundcheck(formatAperto))}
+              className="shrink-0"
+            >
+              <ListChecks size={15} strokeWidth={1.75} aria-hidden />
+              {soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}
+            </Pulsante>
+          )}
+          {formatAperto && vista === "live" && (
+            <button
+              type="button"
+              aria-label={bloccato ? "Modifiche bloccate (si sblocca dalla pagina Modifica)" : "Blocca modifiche"}
+              aria-pressed={bloccato}
+              title={bloccato ? "Modifiche bloccate: si sblocca dal banner in Modifica" : "Blocca modifiche per la serata"}
+              onClick={() => {
+                if (!bloccato) void impostaBlocco(true);
+                else setVista("modifica");
+              }}
+              className={`tocco shrink-0 rounded-[10px] border p-2 ${
+                bloccato ? "border-transparent bg-brand text-white" : "border-transparent text-testo-2 hover:bg-velo hover:text-testo"
+              }`}
+            >
+              {bloccato ? <Lock size={18} strokeWidth={1.75} /> : <LockOpen size={18} strokeWidth={1.75} />}
             </button>
           )}
           {formatAperto && (
@@ -618,7 +788,9 @@ export function PaginaRegia() {
             if (pendenti === 0 && salvataggiPrima.current > 0) setSalvatoAlmeno(true);
             salvataggiPrima.current = pendenti;
           }}
-          onAzzeraSpunte={azzeraSpunteUi}
+          onAzzeraSerata={azzeraSerataUi}
+          bloccato={bloccato}
+          onSblocca={() => void impostaBlocco(false)}
         />
       ) : (
         <Live
@@ -626,6 +798,7 @@ export function PaginaRegia() {
           faseId={liveIds.formatId === formatAperto.id ? liveIds.faseId : null}
           attivi={attiviFluidi}
           fatti={fatti}
+          usi={usi}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
           onFerma={fermaCue}
@@ -643,6 +816,7 @@ export function PaginaRegia() {
                 cue={cueSempre}
                 attivi={attiviFluidi}
                 fatti={fatti}
+                usi={usi}
                 onPremi={premiCue}
                 onFerma={fermaCue}
                 onSfuma={sfumaCueUi}
@@ -659,8 +833,39 @@ export function PaginaRegia() {
           parla={parlaUi}
           onParla={faiParla}
           disabilitata={!motoreOnline}
+          soundcheck={soundcheck}
         />
       )}
     </div>
   );
+}
+
+// ---- Memoria locale dei contatori "già suonato" (valgono per il giorno) ----
+const CHIAVE_USI = "usi-serata";
+function leggiUsiSalvati(): Usi {
+  try {
+    const m = JSON.parse(localStorage.getItem(CHIAVE_USI) ?? "null") as { giorno: string; usi: Usi } | null;
+    if (!m) return {};
+    return usiDelGiorno(m, giornoDi(new Date())).usi;
+  } catch {
+    return {};
+  }
+}
+function leggiGiornoUsi(): string {
+  try {
+    const m = JSON.parse(localStorage.getItem(CHIAVE_USI) ?? "null") as { giorno: string } | null;
+    return m?.giorno ?? giornoDi(new Date());
+  } catch {
+    return giornoDi(new Date());
+  }
+}
+function salvaGiornoUsi(giorno: string) {
+  localStorage.setItem(CHIAVE_USI, JSON.stringify({ giorno, usi: {} }));
+}
+function salvaUsi(usi: Usi) {
+  try {
+    localStorage.setItem(CHIAVE_USI, JSON.stringify({ giorno: leggiGiornoUsi(), usi }));
+  } catch {
+    /* memoria piena o assente: pazienza */
+  }
 }

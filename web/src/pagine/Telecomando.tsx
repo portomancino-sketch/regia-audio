@@ -250,7 +250,8 @@ export function PaginaTelecomando() {
   const motoreOnline = stato?.motoreOnline ?? false;
   // Pulsanti disattivati solo quando siamo collegati ma la Regia è spenta;
   // durante "Ricollego…" i tocchi restano possibili (vanno in coda).
-  const bloccato = connessione && !motoreOnline;
+  const soundcheck = stato?.soundcheck ?? null;
+  const bloccato = (connessione && !motoreOnline) || soundcheck !== null;
   const formats = [...config.formats].sort((a, b) => a.ordine - b.ordine);
   const format = formats.find((f) => f.id === stato?.formatId) ?? null;
   // Il foglio "Prima di iniziare" compare una volta per serata e per format
@@ -299,6 +300,12 @@ export function PaginaTelecomando() {
     <div className="mb-3 flex justify-center">
       <span className="inline-flex items-center gap-2 rounded-full bg-rosso px-4 py-1.5 text-[13px] font-semibold text-white">
         Regia non collegata
+      </span>
+    </div>
+  ) : soundcheck ? (
+    <div className="mb-3 flex justify-center">
+      <span className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-1.5 text-[13px] font-semibold text-white">
+        Soundcheck in corso · {soundcheck.indice} / {soundcheck.totale}
       </span>
     </div>
   ) : null;
@@ -443,6 +450,7 @@ export function PaginaTelecomando() {
             onFerma={() => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
             onSfuma={() => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
             fatto={stato?.fatti?.includes(c.id)}
+            usi={stato?.usi?.[c.id]}
             onSpunta={() => invia({ tipo: "comando", comando: "spunta", cueId: c.id })}
           />
         ))}

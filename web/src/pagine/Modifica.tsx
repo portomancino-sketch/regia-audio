@@ -9,7 +9,8 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Music, Plus, Star, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Lock, Music, Plus, Star, Trash2 } from "lucide-react";
+import { Pulsante } from "../componenti/ui/Pulsante";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { MAX_EVIDENZA, inEvidenza, puoMettereInEvidenza } from "../../../shared/sempre";
 import { api } from "../api";
@@ -227,6 +228,30 @@ function CasellaCue(props: {
             </div>
           )}
 
+          {cue.tipo !== "promemoria" && (
+            <label className="flex items-center gap-2 text-[13px] text-testo-2">
+              <span className="etichetta">Usi previsti in serata</span>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                step={1}
+                inputMode="numeric"
+                placeholder="illimitati"
+                aria-label="Usi previsti in serata"
+                defaultValue={cue.usiPrevisti ?? ""}
+                key={`usi-${cue.usiPrevisti ?? ""}`}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const n = v === "" ? null : Math.max(1, Math.min(99, Math.round(Number(v))));
+                  if ((n ?? undefined) !== cue.usiPrevisti) salva(() => api.modificaCue(cue.id, { usiPrevisti: n as number }));
+                }}
+                className="w-24 rounded-[10px] border border-vetro-bordo bg-velo px-2 py-1 text-[13px] tabular-nums text-testo placeholder:text-testo-3 focus:border-brand-chiaro focus:outline-none"
+              />
+              <span className="text-testo-3">vuoto = illimitati</span>
+            </label>
+          )}
+
           {cue.tipo !== "sottofondo" && cue.tipo !== "promemoria" && (
             <div>
               <div className="etichetta mb-1.5">Quando parte, il suono base…</div>
@@ -297,7 +322,7 @@ function CasellaCue(props: {
   );
 }
 
-function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId: string) => void }) {
+function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void }) {
   const { fase, salva } = props;
   const sempre = fase.sempre === true;
   const sortFase = useSortable({ id: `fase-${fase.id}`, disabled: sempre });
@@ -355,23 +380,23 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSpunte?: (faseId
         />
         <span className="shrink-0 text-[13px] text-testo-3">{fase.cue.length} suoni</span>
         {sempre ? (
-          props.onAzzeraSpunte && fase.cue.some((c) => c.tipo === "promemoria") ? (
+          props.onAzzeraSerata && fase.cue.length > 0 ? (
             <Menu
               voci={[{
-                testo: "Azzera spunte",
+                testo: "Azzera serata",
                 icona: <CheckSquare size={15} strokeWidth={1.75} />,
-                onScelta: () => props.onAzzeraSpunte!(fase.id),
+                onScelta: () => props.onAzzeraSerata!(fase.id),
               }]}
             />
           ) : null
         ) : (
         <Menu
           voci={[
-            ...(props.onAzzeraSpunte && fase.cue.some((c) => c.tipo === "promemoria")
+            ...(props.onAzzeraSerata && fase.cue.length > 0
               ? [{
-                  testo: "Azzera spunte",
+                  testo: "Azzera serata",
                   icona: <CheckSquare size={15} strokeWidth={1.75} />,
-                  onScelta: () => props.onAzzeraSpunte!(fase.id),
+                  onScelta: () => props.onAzzeraSerata!(fase.id),
                 }]
               : []),
             {
@@ -441,15 +466,21 @@ export function Modifica(props: {
   format: Format;
   onRicarica: () => Promise<void>;
   onSalvataggio?: (pendenti: number) => void;
-  onAzzeraSpunte?: (faseId: string) => void;
+  onAzzeraSerata?: (faseId: string) => void;
+  /** Modalità serata: tutto in sola lettura. */
+  bloccato?: boolean;
+  /** Solo sul Mac: "Sblocca" nel banner (con conferma). */
+  onSblocca?: () => void;
 }) {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
+  const [confermaSblocco, setConfermaSblocco] = useState(false);
   const notifica = props.onSalvataggio;
 
   useEffect(() => notifica?.(pendenti), [pendenti, notifica]);
 
   const salva: Salva = (fn) => {
+    if (props.bloccato) return; // sola lettura: niente salvataggi, neanche dal drop
     setPendenti((p) => p + 1);
     void (async () => {
       try {
@@ -475,7 +506,47 @@ export function Modifica(props: {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-4 pb-32 pt-5 md:space-y-5">
+    <div className="mx-auto max-w-6xl px-4 pb-32 pt-5">
+      {/* Il banner sta FUORI dal fieldset disabilitato: "Sblocca" deve restare premibile. */}
+      {props.bloccato && (
+        <div
+          role="status"
+          className="vetro vetro-solido flex flex-wrap items-center gap-3 px-4 py-3"
+          style={{ borderColor: "var(--brand)" }}
+        >
+          <Lock size={18} strokeWidth={1.75} className="shrink-0 text-brand-chiaro" aria-hidden />
+          <span className="flex-1 text-[15px] font-semibold text-testo">Serata in corso — modifiche bloccate</span>
+          {props.onSblocca &&
+            (confermaSblocco ? (
+              <span className="flex items-center gap-2 text-[14px] text-testo-2">
+                Sbloccare le modifiche?
+                <Pulsante
+                  variante="primario"
+                  misura="sm"
+                  disabled={false}
+                  onClick={() => {
+                    setConfermaSblocco(false);
+                    props.onSblocca!();
+                  }}
+                >
+                  Sì, sblocca
+                </Pulsante>
+                <Pulsante variante="secondario" misura="sm" disabled={false} onClick={() => setConfermaSblocco(false)}>
+                  No
+                </Pulsante>
+              </span>
+            ) : (
+              <Pulsante variante="secondario" misura="sm" disabled={false} onClick={() => setConfermaSblocco(true)}>
+                Sblocca
+              </Pulsante>
+            ))}
+        </div>
+      )}
+    <fieldset
+      disabled={props.bloccato}
+      aria-disabled={props.bloccato}
+      className={`m-0 min-w-0 space-y-4 border-0 p-0 md:space-y-5 ${props.bloccato ? "mt-4 opacity-80" : ""}`}
+    >
       <div className="vetro p-5">
         <div className="etichetta mb-2">Prima di iniziare</div>
         <AreaInline
@@ -495,7 +566,7 @@ export function Modifica(props: {
         <SortableContext items={fasiTrascinabili.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSpunte={props.onAzzeraSpunte} />
+              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} />
             ))}
           </div>
         </SortableContext>
@@ -507,6 +578,7 @@ export function Modifica(props: {
       >
         <Plus size={17} strokeWidth={1.75} /> Fase
       </button>
+    </fieldset>
     </div>
   );
 }

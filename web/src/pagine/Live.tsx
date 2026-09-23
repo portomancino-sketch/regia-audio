@@ -11,6 +11,8 @@ export function Live(props: {
   faseId: string | null;
   attivi: CueAttivo[];
   fatti?: string[];
+  /** Contatori "già suonato" della serata (cueId → partenze). */
+  usi?: Record<string, number>;
   onCambiaFase: (faseId: string) => void;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
@@ -100,6 +102,7 @@ export function Live(props: {
               cue={c}
               attivi={props.attivi}
               fatto={props.fatti?.includes(c.id)}
+              usi={props.usi?.[c.id]}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               ritardoEntrataMs={Math.min(i, 9) * 35}

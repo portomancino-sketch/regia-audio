@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AudioLines, CircleCheck, Music, Square, Zap } from "lucide-react";
 import type { Cue, CueAttivo, TipoCue } from "../../../shared/tipi";
+import { statoUsi } from "../../../shared/usi";
 import { coloreCue, formattaTempo, NOMI_TIPO, tempoRimanente } from "../util";
 import { BarraAvanzamento } from "./ui/BarraAvanzamento";
 import { Pillola } from "./ui/Pillola";
@@ -44,6 +45,8 @@ export function PulsanteCue(props: {
   compatto?: boolean;
   /** Sul telefono: mentre suona, Sfuma e Stop diventano due tasti grandi metà e metà. */
   telefono?: boolean;
+  /** Quante volte è partita in serata (per "usato 1/3" e "già suonato"). */
+  usi?: number;
   /** Ritardo dell'entrata a cascata, in ms. */
   ritardoEntrataMs?: number;
 }) {
@@ -176,6 +179,23 @@ export function PulsanteCue(props: {
 
   // ---- Cue audio ----
   const spento = props.disabilitato || !cue.file;
+  // "Già suonato": usato 1/3, esaurito (attenuata ma SEMPRE premibile), ✓ già suonato.
+  const su = statoUsi(cue, props.usi === undefined ? undefined : { [cue.id]: props.usi });
+  const badgeUsi =
+    su.previsti !== null ? (
+      <span
+        className={`shrink-0 rounded-full px-1.5 text-[11px] tabular-nums ${
+          su.esauriti ? "bg-velo font-semibold text-testo-2" : "text-testo-3"
+        }`}
+        title={`Usi previsti in serata: ${su.previsti}`}
+      >
+        {su.esauriti ? "fatto" : `usato ${su.usati}/${su.previsti}`}
+      </span>
+    ) : su.giaSuonato ? (
+      <span className="shrink-0 text-[11px] text-testo-3" title="È già partita in serata">
+        ✓ già suonato
+      </span>
+    ) : null;
   const avanzamento =
     attiva && attiva.durataSec && attiva.durataSec > 0
       ? Math.min(1, attiva.posizioneSec / attiva.durataSec)
@@ -214,7 +234,7 @@ export function PulsanteCue(props: {
       }}
       className={`vetro tocco entra relative flex cursor-pointer select-none flex-col overflow-hidden text-left ${
         props.telefono ? "min-h-[96px] p-3" : props.compatto ? "min-h-[88px] p-3" : "min-h-[152px] p-4"
-      } ${scatta ? "scatto" : ""} ${spento ? "cursor-default opacity-40" : ""}`}
+      } ${scatta ? "scatto" : ""} ${spento ? "cursor-default opacity-40" : su.esauriti && !attiva ? "opacity-55" : ""}`}
     >
       {/* Il glow che respira, solo mentre suona */}
       {attiva && !inPausa && (
@@ -239,6 +259,7 @@ export function PulsanteCue(props: {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight text-testo">{cue.titolo}</div>
+              {badgeUsi}
               {inPausa ? (
                 <Pillola colore={colore}>in pausa</Pillola>
               ) : (
@@ -259,7 +280,10 @@ export function PulsanteCue(props: {
                 <Icona size={20} strokeWidth={1.75} style={{ color: colore }} />
               )}
             </Cerchietto>
-            <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
+            <span className="flex min-w-0 items-center gap-1.5">
+              {badgeUsi}
+              <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
+            </span>
           </div>
 
           <div className="mt-3 min-w-0 flex-1">

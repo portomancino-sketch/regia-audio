@@ -1,4 +1,5 @@
 // Il dock in basso: cosa sta suonando, master, FADE, STOP.
+import { useEffect, useRef, useState } from "react";
 import { Mic, Volume2 } from "lucide-react";
 import { Equalizzatore } from "./ui/Equalizzatore";
 import type { CueAttivo } from "../../../shared/tipi";
@@ -23,13 +24,20 @@ export function BarraLive(props: {
   /** PARLA: il sottofondo è abbassato per la voce. */
   parla?: boolean;
   onParla?: (acceso: boolean) => void;
+  /** Soundcheck in corso: contatore "12 / 34" nel dock. */
+  soundcheck?: { indice: number; totale: number } | null;
 }) {
   const { attivi } = props;
   return (
     <Dock fisso={props.telefono} sopra={props.sopra}>
       <div className="min-w-0 flex-1 basis-40">
         <div className="flex items-center gap-2">
-          <span className="etichetta">Sta suonando</span>
+          <span className="etichetta">{props.soundcheck ? "Soundcheck" : "Sta suonando"}</span>
+          {props.soundcheck && (
+            <span className="rounded-full bg-brand px-2 py-0.5 text-[12px] font-semibold tabular-nums text-white" aria-live="polite">
+              {props.soundcheck.indice} / {props.soundcheck.totale}
+            </span>
+          )}
           {attivi.some((a) => !a.inPausa) && <Equalizzatore altezza={10} colore="var(--brand-chiaro)" />}
         </div>
         {attivi.length === 0 ? (
@@ -93,16 +101,101 @@ export function BarraLive(props: {
         >
           FADE OUT
         </Pulsante>
-        <Pulsante
-          variante="pericolo"
-          misura="lg"
-          disabled={props.disabilitata}
-          onClick={props.onStop}
-          className={props.telefono ? "min-h-16 flex-1 px-8" : "px-8"}
-        >
-          STOP TUTTO
-        </Pulsante>
+        {props.telefono ? (
+          <StopTuttoLungo disabilitato={props.disabilitata} onStop={props.onStop} />
+        ) : (
+          <Pulsante variante="pericolo" misura="lg" disabled={props.disabilitata} onClick={props.onStop} className="px-8">
+            STOP TUTTO
+          </Pulsante>
+        )}
       </div>
     </Dock>
+  );
+}
+
+const PRESSIONE_LUNGA_MS = 600;
+
+/** STOP TUTTO sul telefono: parte SOLO con pressione lunga (600 ms). Durante la
+ *  pressione un riempimento cresce sul pulsante; a 600 ms scatta, con vibrazione.
+ *  Un tocco breve non fa nulla e mostra "Tieni premuto" per 1,5 s. */
+function StopTuttoLungo(props: { disabilitato?: boolean; onStop: () => void }) {
+  const [premuto, setPremuto] = useState(false);
+  const [avviso, setAvviso] = useState(false);
+  const timer = useRef<number | null>(null);
+  const scattato = useRef(false);
+  const timerAvviso = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (timerAvviso.current) clearTimeout(timerAvviso.current);
+    },
+    [],
+  );
+
+  function inizia() {
+    if (props.disabilitato) return;
+    scattato.current = false;
+    setPremuto(true);
+    timer.current = window.setTimeout(() => {
+      scattato.current = true;
+      setPremuto(false);
+      try {
+        navigator.vibrate?.(80);
+      } catch {
+        /* niente vibrazione */
+      }
+      props.onStop();
+    }, PRESSIONE_LUNGA_MS);
+  }
+  function lascia() {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    if (!premuto) return;
+    setPremuto(false);
+    if (!scattato.current) {
+      setAvviso(true);
+      if (timerAvviso.current) clearTimeout(timerAvviso.current);
+      timerAvviso.current = window.setTimeout(() => setAvviso(false), 1500);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={props.disabilitato}
+      aria-label="STOP TUTTO (tieni premuto)"
+      data-stop-lungo
+      onPointerDown={(e) => {
+        e.preventDefault();
+        inizia();
+      }}
+      onPointerUp={lascia}
+      onPointerCancel={lascia}
+      onPointerLeave={lascia}
+      onContextMenu={(e) => e.preventDefault()}
+      className="tocco relative flex min-h-16 flex-1 select-none items-center justify-center overflow-hidden rounded-[var(--raggio-campo)] border border-transparent px-8 text-[17px] font-semibold text-white disabled:cursor-default disabled:opacity-40"
+      style={{
+        backgroundImage: "var(--rosso-grad)",
+        boxShadow: "var(--rosso-ombra), inset 0 1px 0 rgba(255,255,255,0.25)",
+        touchAction: "manipulation",
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+      }}
+    >
+      {/* Il riempimento che cresce durante la pressione (600 ms) */}
+      <span
+        aria-hidden
+        data-riempimento
+        className="pointer-events-none absolute inset-y-0 left-0 bg-white/30"
+        style={{
+          width: premuto ? "100%" : "0%",
+          transition: premuto ? `width ${PRESSIONE_LUNGA_MS}ms linear` : "width 120ms ease-out",
+        }}
+      />
+      <span className="relative">{avviso ? "Tieni premuto" : "STOP TUTTO"}</span>
+    </button>
   );
 }

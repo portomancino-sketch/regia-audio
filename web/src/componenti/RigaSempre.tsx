@@ -107,6 +107,7 @@ export function RigaSempre(props: {
   cue: Cue[];
   attivi: CueAttivo[];
   fatti?: string[];
+  usi?: Record<string, number>;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
   onSfuma: (cue: Cue) => void;
@@ -158,6 +159,7 @@ export function RigaSempre(props: {
               compatto
               attivi={props.attivi}
               fatto={props.fatti?.includes(c.id)}
+              usi={props.usi?.[c.id]}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               onPremi={() => props.onPremi(c)}

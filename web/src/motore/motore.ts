@@ -47,6 +47,17 @@ export class MotoreAudio {
   private cache = new Map<string, AudioBuffer>();
   /** Chiamato a ogni cambiamento che merita un nuovo "stato" in giro. */
   onCambiamento: (() => void) | null = null;
+  /** Chiamato quando una casella parte davvero (non nel soundcheck): conta gli usi. */
+  onAvvio: ((cue: Cue) => void) | null = null;
+  /** Il suono di prova del soundcheck, fuori dalle regole. */
+  private prova: {
+    cue: Cue;
+    gain: GainNode;
+    source?: AudioBufferSourceNode;
+    el?: HTMLAudioElement;
+    avviataA: number;
+    fine: () => void;
+  } | null = null;
 
   constructor(opzioni: { master: number; livelloAbbassa: number; fadeOutMs: number; livelloParla?: number }) {
     this.ctx = new AudioContext();
@@ -188,6 +199,7 @@ export class MotoreAudio {
       offset: 0,
     };
     this.istanze.set(a.istanzaId, istanza);
+    this.onAvvio?.(cue);
 
     const streaming = (cue.durataSec ?? 0) >= SOGLIA_STREAMING_SEC;
     if (streaming) {
@@ -334,9 +346,113 @@ export class MotoreAudio {
     gain.gain.linearRampToValueAtTime(valore, ora + Math.max(0.005, rampMs / 1000));
   }
 
+  // ---- Soundcheck "Prova tutti": suona N secondi di una casella, fuori dalle regole ----
+
+  /** Suona `durataMs` di una casella a volume pieno (master × volume) e misura il picco.
+   *  Risolve quando la prova finisce o viene interrotta. */
+  async provaCue(cue: Cue, durataMs: number): Promise<{ esito: "ok" | "mancante" | "nonDecodificabile"; picco: number | null }> {
+    if (!cue.file) return { esito: "mancante", picco: null };
+    const streaming = (cue.durataSec ?? 0) >= SOGLIA_STREAMING_SEC;
+    let buffer: AudioBuffer | undefined = this.cache.get(cue.file);
+    if (!buffer && !streaming) {
+      let dati: ArrayBuffer;
+      try {
+        const r = await fetch(`/audio/${cue.file}`);
+        if (!r.ok) return { esito: "mancante", picco: null };
+        dati = await r.arrayBuffer();
+      } catch {
+        return { esito: "mancante", picco: null };
+      }
+      try {
+        buffer = await this.ctx.decodeAudioData(dati);
+        this.cache.set(cue.file, buffer);
+      } catch {
+        return { esito: "nonDecodificabile", picco: null };
+      }
+    }
+    if (streaming) {
+      // File lungo: non si decodifica tutto in Live. Si verifica solo che esista.
+      try {
+        const r = await fetch(`/audio/${cue.file}`, { method: "HEAD" });
+        if (!r.ok) return { esito: "mancante", picco: null };
+      } catch {
+        return { esito: "mancante", picco: null };
+      }
+    }
+    const picco = buffer ? piccoBuffer(buffer) : null;
+
+    this.interrompiProva();
+    const gain = this.ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(this.masterGain);
+    const guadagno = this.stato.master * cue.volume;
+    await new Promise<void>((risolvi) => {
+      let chiusa = false;
+      const fine = () => {
+        if (chiusa) return;
+        chiusa = true;
+        clearTimeout(timer);
+        this.rampaGain(gain, 0, 30);
+        window.setTimeout(() => {
+          try {
+            prova.source?.stop();
+          } catch {
+            /* già ferma */
+          }
+          if (prova.el) {
+            prova.el.pause();
+            prova.el.src = "";
+          }
+          gain.disconnect();
+        }, 60);
+        if (this.prova === prova) this.prova = null;
+        this.onCambiamento?.();
+        risolvi();
+      };
+      const prova = { cue, gain, avviataA: this.ctx.currentTime, fine } as NonNullable<MotoreAudio["prova"]>;
+      this.prova = prova;
+      if (buffer) {
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(gain);
+        source.onended = fine;
+        source.start(0);
+        prova.source = source;
+      } else {
+        const el = new Audio(`/audio/${cue.file}`);
+        el.preload = "auto";
+        prova.el = el;
+        this.ctx.createMediaElementSource(el).connect(gain);
+        el.addEventListener("ended", fine);
+        void el.play().catch(fine);
+      }
+      this.rampaGain(gain, guadagno, RAMPA_AVVIO_MS);
+      const timer = window.setTimeout(fine, durataMs);
+      this.onCambiamento?.();
+    });
+    return { esito: "ok", picco };
+  }
+
+  /** Ferma subito il suono di prova in corso (ESC o pulsante). */
+  interrompiProva(): void {
+    this.prova?.fine();
+  }
+
   /** L'elenco di ciò che sta suonando, con le posizioni. */
   attivi(): CueAttivo[] {
     const lista: CueAttivo[] = [];
+    if (this.prova) {
+      const p = this.prova;
+      lista.push({
+        istanzaId: "soundcheck",
+        cueId: p.cue.id,
+        titolo: p.cue.titolo,
+        tipo: p.cue.tipo,
+        posizioneSec: Math.round((this.ctx.currentTime - p.avviataA) * 10) / 10,
+        durataSec: 3,
+        inPausa: false,
+      });
+    }
     for (const i of this.stato.attivi) {
       const m = this.istanze.get(i.istanzaId);
       let posizione = 0;
@@ -366,7 +482,21 @@ export class MotoreAudio {
   }
 
   spegni(): void {
+    this.interrompiProva();
     for (const id of [...this.istanze.keys()]) this.pulisci(id);
     void this.ctx.close();
   }
+}
+
+/** Il picco assoluto (0..1) di un buffer decodificato. */
+function piccoBuffer(buffer: AudioBuffer): number {
+  let picco = 0;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const dati = buffer.getChannelData(c);
+    for (let i = 0; i < dati.length; i++) {
+      const v = dati[i]! < 0 ? -dati[i]! : dati[i]!;
+      if (v > picco) picco = v;
+    }
+  }
+  return picco;
 }
