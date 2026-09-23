@@ -356,23 +356,29 @@ osservatore.comando({ comando: "fase", faseId: fase2.id });
 s = await osservatore.finoA((x) => x.faseId === fase2.id, 4000);
 s ? ok("La fase cambiata dal telefono cambia per tutti") : ko("Fase condivisa");
 
-// --- 8. Seconda finestra Regia: prende il comando, la prima riprende col bottone ---
+// --- 8. Seconda finestra Regia: si apre in sola lettura; "Prendi il controllo" scalza ---
 const regia2 = await nuovaScheda(`${BASE}/format/${demo.id}`);
 await attendi(800);
-const bannerPrima = await regia.finoA(
-  `document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
+const bannerSeconda = await regia2.finoA(
+  `document.body.innerText.includes("Un'altra finestra Regia sta comandando")`,
 );
-bannerPrima ? ok("La nuova finestra scalza la vecchia (banner sulla prima)") : ko("Banner presa del comando");
-// La prima riprende con "Prendi il controllo".
+bannerSeconda ? ok("La finestra nuova si apre in sola lettura (banner)") : ko("Sola lettura sulla nuova");
+const primaSenzaBanner = await regia.js(
+  `!document.body.innerText.includes("Un'altra finestra Regia sta comandando")`,
+);
+primaSenzaBanner ? ok("...e la prima continua a comandare") : ko("La prima ha perso il comando!");
+// La seconda scalza con "Prendi il controllo".
+await regia2.click("Prendi il controllo");
+const bannerPrima = await regia.finoA(
+  `document.body.innerText.includes("Un'altra finestra Regia sta comandando")`,
+);
+bannerPrima ? ok("'Prendi il controllo' scalza la vecchia (banner sulla prima)") : ko("Scalzamento");
+// La prima riprende.
 await regia.click("Prendi il controllo");
 const ripresa = await regia.finoA(
-  `!document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
+  `!document.body.innerText.includes("Un'altra finestra Regia sta comandando")`,
 );
-ripresa ? ok("'Prendi il controllo' restituisce il comando alla prima") : ko("Prendi il controllo");
-const bannerSeconda = await regia2.finoA(
-  `document.body.innerText.includes("Un'altra finestra Regia ha preso il comando")`,
-);
-bannerSeconda ? ok("...e la seconda viene avvisata") : ko("Avviso alla seconda finestra");
+ripresa ? ok("...e può riprendere il comando allo stesso modo") : ko("Ripresa del comando");
 await chiudiScheda(regia2);
 await attendi(400);
 
@@ -451,13 +457,14 @@ await osservatore.finoA((x) => x.attivi.length === 0, 4000);
 await tel.click("STOP TUTTO");
 await attendi(300);
 const regia4 = await nuovaScheda(`${BASE}/`);
-await attendi(800); // regia4 prende il comando, regia3 mostra il banner
-const banner3 = await regia3.finoA(`document.body.innerText.includes('ha preso il comando')`);
-banner3 ? ok("Nuova finestra prende il comando (banner sull'altra)") : ko("Banner pre-congelamento");
+await attendi(800); // regia4 nasce in sola lettura: scalza col pulsante
+await regia4.click("Prendi il controllo");
+const banner3 = await regia3.finoA(`document.body.innerText.includes('sta comandando')`);
+banner3 ? ok("Il pulsante scalza (banner sull'altra finestra)") : ko("Banner pre-congelamento");
 await regia4.cmd("Page.enable");
 await regia4.cmd("Page.setWebLifecycleState", { state: "frozen" });
 log("Finestra congelata: aspetto il timeout del battito (~12 s)...");
-const promossa = await regia3.finoA(`!document.body.innerText.includes('ha preso il comando')`, 20000);
+const promossa = await regia3.finoA(`!document.body.innerText.includes('sta comandando')`, 20000);
 promossa ? ok("Finestra congelata → l'altra viene promossa da sola") : ko("Promozione dopo congelamento");
 s = await osservatore.finoA((x) => x.motoreOnline === true, 5000);
 s ? ok("...e il telecomando resta operativo") : ko("Telecomando dopo promozione");

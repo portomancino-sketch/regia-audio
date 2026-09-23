@@ -224,10 +224,7 @@ export function PaginaRegia() {
     const suPagehide = () => ws.invia({ tipo: "rilascio" });
     window.addEventListener("pagehide", suPagehide);
     window.addEventListener("beforeunload", suPagehide);
-    const suVisibile = () => {
-      if (document.visibilityState === "visible") ws.invia({ tipo: "prendi_comando" });
-    };
-    document.addEventListener("visibilitychange", suVisibile);
+
 
     const suPopstate = () => setPercorso(location.pathname);
     window.addEventListener("popstate", suPopstate);
@@ -251,7 +248,6 @@ export function PaginaRegia() {
       ws.chiudi();
       window.removeEventListener("pagehide", suPagehide);
       window.removeEventListener("beforeunload", suPagehide);
-      document.removeEventListener("visibilitychange", suVisibile);
       window.removeEventListener("popstate", suPopstate);
       document.removeEventListener("visibilitychange", suVisibilita);
       void wakeLock?.release();
@@ -509,7 +505,7 @@ export function PaginaRegia() {
         {!sonoIlMotore && (
           <div className="mx-auto mt-2 flex max-w-6xl items-center gap-2">
             <span className="inline-block rounded-full border border-vetro-bordo bg-velo px-3 py-1 text-[12px] text-testo-2">
-              Un'altra finestra Regia ha preso il comando.
+              Un'altra finestra Regia sta comandando.
             </span>
             <Pulsante
               variante="primario"

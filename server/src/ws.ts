@@ -1,5 +1,7 @@
 // Il canale in diretta tra la pagina Regia (il "motore") e i telecomandi.
-// Regola: comanda SEMPRE l'ultima pagina Regia che si presenta.
+// Regola "chi c'è comanda": una pagina nuova prende il comando da sola solo
+// se nessun motore è vivo; altrimenti si apre in sola lettura, e serve il
+// pulsante "Prendi il controllo" per scalzare quella che sta comandando.
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server, IncomingMessage } from "node:http";
 import type { StatoLive, Presentazione } from "../../shared/tipi";
@@ -68,6 +70,11 @@ export class Hub {
     this.intervalloBattito.unref();
   }
 
+  /** Il motore attuale è vivo (collegato e coi battiti freschi)? */
+  private motoreVivo(): boolean {
+    return this.motore !== null && Date.now() - this.ultimoBattito <= BATTITO_TIMEOUT_MS;
+  }
+
   /** Rende `client` il motore; la pagina precedente viene avvisata. */
   private nominaMotore(client: Client): void {
     const precedente = this.motore;
@@ -120,8 +127,15 @@ export class Hub {
         client = { ws, ruolo: p.ruolo, ip, vivo: true, sessioneId: p.sessioneId ?? null };
         this.clienti.add(client);
 
-        // L'ULTIMA pagina Regia che si presenta prende il comando.
-        if (p.ruolo === "regia") this.nominaMotore(client);
+        // "Chi c'è comanda": la pagina nuova prende il comando da sola solo
+        // se nessun motore è vivo; altrimenti resta in sola lettura.
+        if (p.ruolo === "regia") {
+          if (this.motoreVivo()) {
+            this.invia(ws, { tipo: "ruoloAssegnato", motore: false });
+          } else {
+            this.nominaMotore(client);
+          }
+        }
 
         // Stato corrente a chi si collega.
         this.invia(ws, this.statoCorrente());

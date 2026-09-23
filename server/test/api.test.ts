@@ -300,33 +300,53 @@ describe("websocket", () => {
     tel.chiudi();
   });
 
-  it("l'ultima finestra Regia scalza la precedente; i comandi vanno solo a lei", async () => {
+  it("con un motore vivo, una pagina nuova si apre in sola lettura; 'Prendi il controllo' scalza", async () => {
     const prima = await connetti({ ruolo: "regia", sessioneId: "p1" }, true);
     const seconda = await connetti({ ruolo: "regia", sessioneId: "p2" }, true);
     await new Promise((r) => setTimeout(r, 100));
 
-    expect(ultimoRuolo(seconda)).toBe(true);
-    expect(tipi(prima)).toContain("motore_sostituito");
+    // La prima comanda ancora: la seconda è in sola lettura.
+    expect(ultimoRuolo(prima)).toBe(true);
+    expect(ultimoRuolo(seconda)).toBe(false);
+    expect(tipi(prima)).not.toContain("motore_sostituito");
 
-    // I comandi arrivano SOLO alla seconda (il motore corrente).
+    // I comandi arrivano SOLO alla prima (il motore corrente), mai alla sola lettura.
     const pin = store.config.impostazioni.pin;
     const tel = await connetti({ ruolo: "telecomando", pin });
     const nPrima = prima.messaggi.length;
     const nSeconda = seconda.messaggi.length;
     tel.ws.send(JSON.stringify({ tipo: "comando", comando: "stopTutto" }));
     await new Promise((r) => setTimeout(r, 200));
-    expect(prima.messaggi.slice(nPrima).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(0);
-    expect(seconda.messaggi.slice(nSeconda).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(1);
+    expect(prima.messaggi.slice(nPrima).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(1);
+    expect(seconda.messaggi.slice(nSeconda).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(0);
 
-    // "Prendi il controllo": la prima riprende il comando, la seconda è avvisata.
-    prima.ws.send(JSON.stringify({ tipo: "prendi_comando" }));
+    // "Prendi il controllo": la seconda scalza, la prima è avvisata.
+    seconda.ws.send(JSON.stringify({ tipo: "prendi_comando" }));
     await new Promise((r) => setTimeout(r, 200));
-    expect(ultimoRuolo(prima)).toBe(true);
-    expect(tipi(seconda)).toContain("motore_sostituito");
+    expect(ultimoRuolo(seconda)).toBe(true);
+    expect(tipi(prima)).toContain("motore_sostituito");
+
+    // E i comandi ora vanno solo alla seconda.
+    const n2Prima = prima.messaggi.length;
+    const n2Seconda = seconda.messaggi.length;
+    tel.ws.send(JSON.stringify({ tipo: "comando", comando: "fade" }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(prima.messaggi.slice(n2Prima).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(0);
+    expect(seconda.messaggi.slice(n2Seconda).filter((m) => (m as { tipo: string }).tipo === "comando")).toHaveLength(1);
 
     prima.chiudi();
     seconda.chiudi();
     tel.chiudi();
+    await new Promise((r) => setTimeout(r, 200));
+  });
+
+  it("motore senza battiti: una pagina nuova che si presenta viene promossa subito", async () => {
+    const congelata = await connetti({ ruolo: "regia", sessioneId: "q1" }); // niente battiti
+    await new Promise((r) => setTimeout(r, 1300)); // oltre il timeout (1 s nei test)
+    const nuova = await connetti({ ruolo: "regia", sessioneId: "q2" }, true);
+    expect(ultimoRuolo(nuova)).toBe(true);
+    congelata.chiudi();
+    nuova.chiudi();
     await new Promise((r) => setTimeout(r, 200));
   });
 
