@@ -90,6 +90,8 @@ export interface CueAttivo {
   inPausa: boolean;
   /** true per un sottofondo che ricomincia da capo (niente conto alla rovescia). */
   loop?: boolean;
+  /** Anteprima "Ascolta" da Modifica: fuori dalle regole, non conta negli usi né nel diario. */
+  anteprima?: boolean;
 }
 
 export interface StatoLive {

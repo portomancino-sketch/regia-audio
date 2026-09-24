@@ -26,6 +26,8 @@ export function BarraLive(props: {
   onParla?: (acceso: boolean) => void;
   /** Soundcheck in corso: contatore "12 / 34" nel dock. */
   soundcheck?: { indice: number; totale: number } | null;
+  /** Mini-barra in Modifica: senza PARLA e senza extra, solo quando qualcosa suona. */
+  compatta?: boolean;
 }) {
   const { attivi } = props;
   return (
@@ -48,6 +50,7 @@ export function BarraLive(props: {
               const r = tempoRimanente(a);
               return (
                 <span key={a.istanzaId} className="mr-3 whitespace-nowrap text-[15px]">
+                  {a.anteprima && <span className="text-testo-3">Anteprima: </span>}
                   <span className="font-medium text-testo">{a.titolo}</span>{" "}
                   {a.inPausa ? (
                     <Pillola className="align-middle">in pausa</Pillola>
@@ -80,8 +83,8 @@ export function BarraLive(props: {
       {/* Sul telefono i pulsanti possono andare a capo (STOP TUTTO prende la riga):
           il dock cresce e la pagina lo misura, niente finisce sotto. */}
       <div className={`flex items-center gap-2 ${props.telefono ? "basis-full flex-wrap" : ""}`}>
-        {props.extra}
-        {props.onParla && (
+        {!props.compatta && props.extra}
+        {!props.compatta && props.onParla && (
           <Pulsante
             variante={props.parla ? "primario" : "secondario"}
             misura={props.telefono ? "md" : "lg"}

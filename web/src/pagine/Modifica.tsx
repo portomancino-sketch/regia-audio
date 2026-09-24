@@ -9,10 +9,9 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Headphones, Lock, Music, Plus, Star, Trash2, Waves } from "lucide-react";
+import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Headphones, Lock, Music, Plus, Square, Star, Trash2, Waves } from "lucide-react";
 import { Pulsante } from "../componenti/ui/Pulsante";
-import { analizzaDalServer, analizzaFile, ascoltaAnteprima } from "../motore/analisi";
-import { guadagnoCasellaDb } from "../../../shared/livello";
+import { analizzaDalServer, analizzaFile } from "../motore/analisi";
 import { BarraAvanzamento } from "../componenti/ui/BarraAvanzamento";
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { MAX_EVIDENZA, inEvidenza, puoMettereInEvidenza } from "../../../shared/sempre";
@@ -26,6 +25,21 @@ import { Slider } from "../componenti/ui/Slider";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 
 type Salva = (fn: () => Promise<unknown>) => void;
+
+/** L'anteprima "Ascolta", fornita dalla pagina Regia (passa dal motore). */
+export interface Anteprima {
+  /** La casella in anteprima adesso. */
+  cueId: string | null;
+  /** La casella per cui è stato chiesto l'ascolto ma la finestra non comanda. */
+  richiestaCueId: string | null;
+  serveControllo: boolean;
+  avvia: (cue: Cue) => void;
+  ferma: () => void;
+  prendiControllo: () => void;
+}
+function inAnteprimaRichiesta(a: Anteprima, cueId: string): boolean {
+  return a.richiestaCueId === cueId;
+}
 
 /** Analizza un file appena importato e salva livello medio, picco e guadagno automatico. */
 async function analizzaESalva(cueId: string, file: File): Promise<void> {
@@ -42,6 +56,8 @@ function CasellaCue(props: {
   rigaSempre?: Cue[];
   /** Mai partita nelle ultime 10 serate in cui il format è stato usato. */
   maiUsato?: boolean;
+  /** Anteprima "Ascolta": passa dal motore della finestra che comanda. */
+  anteprima?: Anteprima;
 }) {
   const { cue, salva } = props;
   const [avviso, setAvviso] = useState<string | null>(null);
@@ -86,6 +102,19 @@ function CasellaCue(props: {
       }
     });
   }
+  const inAnteprima = props.anteprima?.cueId === cue.id;
+  // Chiudere la casella (o smontarla) ferma la sua anteprima.
+  useEffect(() => {
+    if (!aperta && inAnteprima) props.anteprima?.ferma();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aperta]);
+  useEffect(
+    () => () => {
+      if (props.anteprima?.cueId === cue.id) props.anteprima.ferma();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
   const [ritocco, setRitocco] = useState(cue.ritocco ?? 0);
   useEffect(() => setRitocco(cue.ritocco ?? 0), [cue.ritocco]);
   const timerRitocco = useRef<number | null>(null);
@@ -275,18 +304,43 @@ function CasellaCue(props: {
                   ? "auto —"
                   : `auto ${cue.guadagnoAuto > 0 ? "+" : ""}${Math.round(cue.guadagnoAuto)} dB`}
               </span>
-              <button
-                type="button"
-                disabled={!cue.file}
-                title="Suona 3 secondi col volume attuale"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (cue.file) void ascoltaAnteprima(cue.file, guadagnoCasellaDb({ ...cue, ritocco }), cue.volume);
-                }}
-                className="tocco inline-flex items-center gap-1.5 rounded-[10px] border border-vetro-bordo bg-velo px-2.5 py-1 text-[13px] font-medium text-testo-2 hover:text-testo disabled:opacity-40"
-              >
-                <Headphones size={14} strokeWidth={1.75} aria-hidden /> Ascolta
-              </button>
+              {props.anteprima && (
+                <button
+                  type="button"
+                  disabled={!cue.file}
+                  data-ascolta
+                  aria-pressed={inAnteprima}
+                  title={inAnteprima ? "Ferma l'anteprima" : "Suona il file col volume attuale"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (inAnteprima) props.anteprima!.ferma();
+                    else if (cue.file) props.anteprima!.avvia({ ...cue, ritocco });
+                  }}
+                  className={`tocco inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1 text-[13px] font-medium disabled:opacity-40 ${
+                    inAnteprima
+                      ? "border-transparent bg-brand text-white"
+                      : "border-vetro-bordo bg-velo text-testo-2 hover:text-testo"
+                  }`}
+                >
+                  {inAnteprima ? (
+                    <>
+                      <Square size={12} strokeWidth={2} fill="currentColor" aria-hidden /> Ferma
+                    </>
+                  ) : (
+                    <>
+                      <Headphones size={14} strokeWidth={1.75} aria-hidden /> Ascolta
+                    </>
+                  )}
+                </button>
+              )}
+              {props.anteprima?.serveControllo && inAnteprimaRichiesta(props.anteprima, cue.id) && (
+                <span className="flex items-center gap-2 text-[12px] text-testo-2">
+                  Per ascoltare, questa finestra deve comandare.
+                  <Pulsante misura="sm" variante="primario" onClick={() => props.anteprima!.prendiControllo()}>
+                    Prendi il controllo
+                  </Pulsante>
+                </span>
+              )}
             </div>
           )}
 
@@ -384,7 +438,7 @@ function CasellaCue(props: {
   );
 }
 
-function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void; maiUsati?: Set<string> }) {
+function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void; maiUsati?: Set<string>; anteprima?: Anteprima }) {
   const { fase, salva } = props;
   const sempre = fase.sempre === true;
   const sortFase = useSortable({ id: `fase-${fase.id}`, disabled: sempre });
@@ -525,6 +579,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
                 salva={salva}
                 rigaSempre={sempre ? cueOrdinati : undefined}
                 maiUsato={props.maiUsati?.has(c.titolo) === true}
+                anteprima={props.anteprima}
                 onEliminata={() => salva(() => api.eliminaCue(c.id))}
                 onDuplicata={() => salva(() => api.duplicaCue(c.id))}
               />
@@ -563,6 +618,8 @@ export function Modifica(props: {
   bloccato?: boolean;
   /** Solo sul Mac: "Sblocca" nel banner (con conferma). */
   onSblocca?: () => void;
+  /** Anteprima "Ascolta" via motore. */
+  anteprima?: Anteprima;
 }) {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
@@ -636,7 +693,7 @@ export function Modifica(props: {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-32 pt-5">
+    <div className="mx-auto max-w-6xl px-4 pt-5" style={{ paddingBottom: "max(128px, calc(var(--altezza-dock, 0px) + 16px))" }}>
       {/* Il banner sta FUORI dal fieldset disabilitato: "Sblocca" deve restare premibile. */}
       {props.bloccato && (
         <div
@@ -747,7 +804,7 @@ export function Modifica(props: {
         <SortableContext items={fasiTrascinabili.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} maiUsati={maiUsati} />
+              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} maiUsati={maiUsati} anteprima={props.anteprima} />
             ))}
           </div>
         </SortableContext>

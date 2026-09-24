@@ -312,7 +312,8 @@ export class Hub {
       this.annota({ tipo: "fase cambiata", fase, format, origine: this.origineDi(["fase"], motore) });
     }
 
-    const adesso = new Map((stato.attivi ?? []).map((a) => [a.istanzaId, a.titolo]));
+    // L'anteprima "Ascolta" non è un suono vero: niente diario.
+    const adesso = new Map((stato.attivi ?? []).filter((a) => !a.anteprima).map((a) => [a.istanzaId, a.titolo]));
 
     // Soundcheck: i suoni di prova non sono suoni veri. Un solo evento alla fine.
     if (stato.soundcheck) {

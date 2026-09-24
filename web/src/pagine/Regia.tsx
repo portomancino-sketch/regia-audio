@@ -29,6 +29,9 @@ export function PaginaRegia() {
   const [config, setConfig] = useState<Config | null>(null);
   const configRef = useRef<Config | null>(null);
   const [percorso, setPercorso] = useState(location.pathname);
+  const percorsoRef = useRef(location.pathname);
+  // Quante pagine ha aperto QUESTA app (per "Indietro": mai uscire dalla Regia).
+  const profonditaRef = useRef(0);
   const [vista, setVista] = useState<Vista>("modifica");
   const [sonoIlMotore, setSonoIlMotore] = useState(false);
   const sonoIlMotoreRef = useRef(false);
@@ -57,6 +60,8 @@ export function PaginaRegia() {
   const [esitoSoundcheck, setEsitoSoundcheck] = useState<EsitoCasella[] | null>(null);
   // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno).
   const [suggerisciBlocco, setSuggerisciBlocco] = useState(false);
+  // Anteprima "Ascolta" da Modifica: la casella chiesta quando la finestra non comanda.
+  const [anteprimaRichiesta, setAnteprimaRichiesta] = useState<Cue | null>(null);
   // Foglio "Prima di iniziare".
   const [foglioAperto, setFoglioAperto] = useState(false);
   // Indicatore "Salvato" nella barra in alto.
@@ -73,6 +78,9 @@ export function PaginaRegia() {
   useEffect(() => {
     vistaRef.current = vista;
   }, [vista]);
+  useEffect(() => {
+    percorsoRef.current = percorso;
+  }, [percorso]);
 
   useEffect(() => {
     parlaUiRef.current = parlaUi;
@@ -313,7 +321,10 @@ export function PaginaRegia() {
     window.addEventListener("beforeunload", suPagehide);
 
 
-    const suPopstate = () => setPercorso(location.pathname);
+    const suPopstate = () => {
+      profonditaRef.current = Math.max(0, profonditaRef.current - 1);
+      setPercorso(location.pathname);
+    };
     window.addEventListener("popstate", suPopstate);
 
     // Lo schermo del Mac resta acceso (localhost è un contesto sicuro).
@@ -369,6 +380,39 @@ export function PaginaRegia() {
     inviaStato();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sonoIlMotore, config, inviaStato]);
+
+  // ---- Anteprima "Ascolta" (Modifica): passa dal motore, fuori dalle regole ----
+  const anteprimaCueId = attivi.find((a) => a.anteprima)?.cueId ?? null;
+  function avviaAnteprima(cue: Cue) {
+    const m = motoreRef.current;
+    if (m && sonoIlMotoreRef.current) {
+      setAnteprimaRichiesta(null);
+      void m.anteprima(cue);
+    } else {
+      // La finestra guarda soltanto: prima deve prendere il controllo.
+      setAnteprimaRichiesta(cue);
+    }
+  }
+  function fermaAnteprima() {
+    motoreRef.current?.interrompiProva();
+    setAnteprimaRichiesta(null);
+  }
+  // Appena questa finestra comanda, l'anteprima chiesta parte da sola.
+  useEffect(() => {
+    if (sonoIlMotore && anteprimaRichiesta && motoreRef.current) {
+      const cue = anteprimaRichiesta;
+      setAnteprimaRichiesta(null);
+      void motoreRef.current.anteprima(cue);
+    }
+  }, [sonoIlMotore, anteprimaRichiesta]);
+  const anteprima = {
+    cueId: anteprimaCueId,
+    richiestaCueId: anteprimaRichiesta?.id ?? null,
+    serveControllo: !sonoIlMotore,
+    avvia: avviaAnteprima,
+    ferma: fermaAnteprima,
+    prendiControllo: () => wsRef.current?.invia({ tipo: "prendi_comando" }),
+  };
 
   /** Suggerisce "Vuoi bloccare le modifiche?" una volta per giornata, se il blocco è spento. */
   function proponiBlocco() {
@@ -513,6 +557,11 @@ export function PaginaRegia() {
   // ---- Tastiera (solo in Live) ----
   useEffect(() => {
     const suTasto = (e: KeyboardEvent) => {
+      // Nel Diario, ESC chiude il diario (in Live resta STOP TUTTO).
+      if (percorsoRef.current === "/diario") {
+        if (e.key === "Escape") indietroRef.current();
+        return;
+      }
       if (vistaRef.current !== "live") return;
       const bersaglio = e.target as HTMLElement;
       if (bersaglio.tagName === "INPUT" || bersaglio.tagName === "TEXTAREA") return;
@@ -555,14 +604,29 @@ export function PaginaRegia() {
   }, [premiCue, faiFade, faiStopTutto, cambiaFase, faiParla]);
 
   // ---- Navigazione ----
+  function vaiA(percorsoNuovo: string) {
+    if (location.pathname === percorsoNuovo) return;
+    history.pushState(null, "", percorsoNuovo);
+    profonditaRef.current += 1;
+    setPercorso(percorsoNuovo);
+  }
   function apriFormat(id: string) {
-    history.pushState(null, "", `/format/${id}`);
-    setPercorso(`/format/${id}`);
+    vaiA(`/format/${id}`);
     setVista("modifica");
   }
   function tornaAllaHome() {
-    history.pushState(null, "", "/");
-    setPercorso("/");
+    vaiA("/");
+  }
+  /** "‹ Indietro": la pagina precedente di questa app; senza storia, la Home. */
+  function indietro() {
+    if (profonditaRef.current > 0) history.back();
+    else tornaAllaHome();
+  }
+  const indietroRef = useRef(indietro);
+  indietroRef.current = indietro;
+  function apriOChiudiDiario() {
+    if (percorsoRef.current === "/diario") indietro();
+    else vaiA("/diario");
   }
   function passaAlive(format: Format) {
     setVista("live");
@@ -652,20 +716,43 @@ export function PaginaRegia() {
       {/* Barra superiore */}
       <header className="vetro-barra sticky top-0 z-30 border-b border-[var(--hairline-barra)] px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="flex shrink-0 items-baseline gap-2">
+          {/* Il logo è un link alla Home (stesso stile, cursore a manina). */}
+          <a
+            href="/"
+            aria-label="Vai alla Home"
+            data-logo
+            onClick={(e) => {
+              e.preventDefault();
+              tornaAllaHome();
+            }}
+            className="flex shrink-0 cursor-pointer items-baseline gap-2 no-underline"
+          >
             <span className="text-[17px] font-semibold tracking-[-0.01em] text-testo">Regia</span>
             <span className="hidden text-[12px] text-testo-3 sm:block">Porto Mancino</span>
-          </div>
+          </a>
+          {(percorso === "/diario" || (formatAperto && vista === "modifica")) && (
+            <button
+              type="button"
+              onClick={indietro}
+              aria-label="Indietro"
+              data-indietro
+              className="vetro vetro-campo tocco inline-flex h-11 shrink-0 items-center gap-1 pl-2 pr-3 text-[14px] font-medium text-testo"
+            >
+              <ChevronLeft size={18} strokeWidth={1.75} aria-hidden /> Indietro
+            </button>
+          )}
           {formatAperto && (
             <>
-              <button
-                type="button"
-                onClick={tornaAllaHome}
-                aria-label="Torna ai format"
-                className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-velo hover:text-testo"
-              >
-                <ChevronLeft size={18} strokeWidth={1.75} />
-              </button>
+              {vista === "live" && (
+                <button
+                  type="button"
+                  onClick={tornaAllaHome}
+                  aria-label="Torna ai format"
+                  className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-velo hover:text-testo"
+                >
+                  <ChevronLeft size={18} strokeWidth={1.75} />
+                </button>
+              )}
               <div className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">
                 <InputInline
                   valore={formatAperto.nome}
@@ -736,13 +823,13 @@ export function PaginaRegia() {
           )}
           <button
             type="button"
-            title="Diario di serata"
+            title={percorso === "/diario" ? "Chiudi il diario" : "Diario"}
             aria-label="Diario di serata"
-            onClick={() => {
-              history.pushState(null, "", "/diario");
-              setPercorso("/diario");
-            }}
-            className="tocco rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
+            aria-pressed={percorso === "/diario"}
+            onClick={apriOChiudiDiario}
+            className={`tocco rounded-[10px] border border-transparent p-2 hover:bg-velo hover:text-testo ${
+              percorso === "/diario" ? "bg-velo text-testo" : "text-testo-2"
+            }`}
           >
             <CalendarClock size={18} strokeWidth={1.75} />
           </button>
@@ -809,6 +896,7 @@ export function PaginaRegia() {
           onAzzeraSerata={azzeraSerataUi}
           bloccato={bloccato}
           onSblocca={() => void impostaBlocco(false)}
+          anteprima={anteprima}
         />
       ) : (
         <Live
@@ -852,6 +940,7 @@ export function PaginaRegia() {
           onParla={faiParla}
           disabilitata={!motoreOnline}
           soundcheck={soundcheck}
+          compatta={vista !== "live"}
         />
       )}
     </div>

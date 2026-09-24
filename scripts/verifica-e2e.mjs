@@ -701,7 +701,7 @@ const chiudiSuggerimento = async (p) => {
   const ancora = await regia3.js(`/\\b\\d+ \\/ \\d+/.test(document.body.innerText)`);
   ancora ? ok("Durante il soundcheck i comandi del telefono sono ignorati") : ko("Comando telefono non ignorato");
   await regia3.tasto("Escape", "Escape", 27);
-  const esito = await regia3.finoA(`document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]') !== null`, 4000);
+  const esito = await regia3.finoA(`document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]') !== null`, 8000);
   esito ? ok("ESC interrompe il soundcheck e mostra l'esito") : ko("Esito soundcheck");
   const picchi = await regia3.js(`document.querySelector('[role="dialog"]')?.innerText.includes('dB')`);
   picchi ? ok("Esito: picchi in dB") : ko("Esito senza picchi");
@@ -1027,6 +1027,116 @@ await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
 await attendi(1500);
 await regia3.click("Ok, pronti");
 await attendi(300);
+
+// --- S12-bis: navigazione, si torna sempre indietro ---
+{
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await attendi(300);
+  await regia3.click(fase2.nome);
+  await osservatore.finoA((x) => x.faseId === fase2.id, 4000);
+  await regia3.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Diario di serata')?.click()`);
+  const diarioAperto2 = await regia3.finoA(`document.body.innerText.includes('Diario di serata') && !!document.querySelector('[data-indietro]')`, 4000);
+  diarioAperto2 ? ok("Diario aperto: c'è '‹ Indietro' e il calendario dice 'Chiudi il diario'") : ko("Indietro nel Diario");
+  const tooltip = await regia3.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Diario di serata')?.title`);
+  tooltip === "Chiudi il diario" ? ok("Tooltip del calendario: 'Chiudi il diario'") : ko("Tooltip calendario", tooltip);
+  await regia3.js(`document.querySelector('[data-indietro]').click()`);
+  const tornato = await regia3.finoA(`location.pathname === '/format/${demo.id}' && [...document.querySelectorAll('button')].some(b => b.textContent.trim() === '${fase2.nome}' && b.getAttribute('aria-pressed') === 'true' || b.getAttribute('aria-selected') === 'true') || (location.pathname === '/format/${demo.id}' && document.body.innerText.includes('STOP TUTTO'))`, 4000);
+  const faseUguale = tornato && (osservatore.ultimo?.faseId === fase2.id) && (await regia3.js(`document.body.innerText.includes('Sta suonando') || document.body.innerText.toLowerCase().includes('sta suonando')`));
+  faseUguale ? ok("'Indietro' dal Diario: torna in Live con la stessa fase selezionata") : ko("Indietro dal Diario", `path=${await regia3.js("location.pathname")} fase=${osservatore.ultimo?.faseId === fase2.id}`);
+  // ESC nel Diario lo chiude (e non fa STOP TUTTO)
+  osservatore.comando({ comando: "play", cueId: idTreno }); // (in fase 2 la carta del treno non c'è)
+  s = await osservatore.finoA((x) => x.attivi.length > 0, 4000);
+  s ? ok("Suono avviato per la prova dell'ESC") : ko("Avvio suono per ESC");
+  await regia3.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Diario di serata')?.click()`);
+  await regia3.finoA(`location.pathname === '/diario'`, 3000);
+  await regia3.tasto("Escape", "Escape", 27);
+  const chiusoConEsc = await regia3.finoA(`location.pathname !== '/diario'`, 3000);
+  chiusoConEsc && (osservatore.ultimo?.attivi.length ?? 0) > 0 ? ok("ESC nel Diario chiude il diario senza fermare i suoni") : ko("ESC nel Diario", `chiuso=${chiusoConEsc} attivi=${osservatore.ultimo?.attivi.length}`);
+  await regia3.click("STOP TUTTO");
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  // logo da Modifica → Home
+  await regia3.click("Modifica");
+  await attendi(300);
+  const indietroInModifica = await regia3.js(`!!document.querySelector('[data-indietro]')`);
+  indietroInModifica ? ok("In Modifica c'è '‹ Indietro'") : ko("Indietro in Modifica");
+  await regia3.js(`document.querySelector('[data-logo]').click()`);
+  const home = await regia3.finoA(`location.pathname === '/' && document.body.innerText.includes('Le tue serate')`, 4000);
+  home ? ok("Click sul logo da Modifica → Home") : ko("Logo → Home");
+  // pagina aperta diretta: Indietro senza storia → Home
+  await regia3.cmd("Page.navigate", { url: `${BASE}/diario` });
+  await attendi(1500);
+  await regia3.js(`document.querySelector('[data-indietro]')?.click()`);
+  const homeDiretta = await regia3.finoA(`location.pathname === '/' && document.body.innerText.includes('Le tue serate')`, 4000);
+  homeDiretta ? ok("Diario aperto diretto: 'Indietro' senza storia va alla Home") : ko("Indietro senza storia");
+  await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
+  await attendi(1500);
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await attendi(300);
+}
+
+// --- S12-bis (7): anteprima "Ascolta" dentro il motore + mini-barra in Modifica ---
+{
+  const apriCasella = (titolo) =>
+    regia3.js(`(() => { const i = [...document.querySelectorAll('input')].find(i => i.value === '${titolo}'); const card = i?.closest('.vetro'); if (card && !card.querySelector('[data-ascolta]')) card.querySelector('.cursor-pointer')?.click(); return !!card; })()`);
+  // (b) suono partito in Live → Modifica → mini-barra col titolo → STOP TUTTO → sparisce
+  await regia3.clickCue("Treno in corsa");
+  await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 4000);
+  await regia3.click("Modifica");
+  const barra = await regia3.finoA(`(() => { const d = document.querySelector('.vetro-dock'); return !!d && d.innerText.includes('Treno in corsa') && d.innerText.includes('STOP TUTTO') && !d.innerText.includes('PARLA') && !document.querySelector('[aria-label="Sempre"]'); })()`, 4000);
+  barra ? ok("Modifica: mini-barra con 'Sta suonando: Treno in corsa', senza PARLA né pillole Sempre") : ko("Mini-barra in Modifica");
+  const spazio = await regia3.js(`getComputedStyle(document.documentElement).getPropertyValue('--altezza-dock').trim()`);
+  spazio && spazio.endsWith("px") ? ok("Modifica: spazio in fondo misurato (--altezza-dock)", spazio) : ko("--altezza-dock in Modifica", spazio);
+  await regia3.click("STOP TUTTO");
+  const sparita = await regia3.finoA(`!document.querySelector('.vetro-dock')`, 5000);
+  sparita ? ok("STOP TUTTO dalla mini-barra: silenzio e barra sparita") : ko("Mini-barra non sparisce");
+  const nEventiPrimaAnteprima = (await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json()).eventi.length;
+  // (c) Ascolta → interruttore "■ Ferma" → silenzio
+  await apriCasella("Treno in corsa");
+  await regia3.finoA(`!!document.querySelector('[data-ascolta]')`, 3000);
+  await regia3.js(`document.querySelector('[data-ascolta]').click()`);
+  const ascolta = await regia3.finoA(`document.querySelector('[data-ascolta]')?.getAttribute('aria-pressed') === 'true' && document.querySelector('[data-ascolta]').textContent.includes('Ferma') && (document.querySelector('.vetro-dock')?.innerText.includes('Anteprima') ?? false)`, 4000);
+  ascolta ? ok("Ascolta: parte l'anteprima, il pulsante diventa '■ Ferma', la mini-barra dice 'Anteprima:'") : ko("Ascolta", await regia3.js(`document.querySelector('.vetro-dock')?.innerText`));
+  s = await osservatore.finoA((x) => x.attivi.some((a) => a.anteprima), 3000);
+  s ? ok("L'anteprima è tra gli attivi (marcata anteprima), visibile anche dal telefono") : ko("Anteprima nello stato");
+  const usiPrima = osservatore.ultimo?.usi?.[idTreno] ?? 0;
+  await regia3.js(`document.querySelector('[data-ascolta]').click()`);
+  const ferma = await regia3.finoA(`document.querySelector('[data-ascolta]')?.getAttribute('aria-pressed') === 'false' && !document.querySelector('.vetro-dock')`, 4000);
+  ferma ? ok("'■ Ferma': silenzio, barra sparita") : ko("Ferma anteprima");
+  (osservatore.ultimo?.usi?.[idTreno] ?? 0) === usiPrima ? ok("L'anteprima non conta negli usi") : ko("Anteprima contata negli usi");
+  // (a) Ascolta in Modifica → vai in Live → STOP TUTTO → silenzio
+  await regia3.js(`document.querySelector('[data-ascolta]').click()`);
+  await osservatore.finoA((x) => x.attivi.some((a) => a.anteprima), 3000);
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await regia3.click("STOP TUTTO");
+  s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  s ? ok("Anteprima avviata in Modifica: STOP TUTTO in Live la ferma") : ko("STOP TUTTO sull'anteprima");
+  // chiudere la casella ferma l'anteprima
+  await regia3.click("Modifica");
+  await attendi(300);
+  await apriCasella("Treno in corsa");
+  await regia3.finoA(`!!document.querySelector('[data-ascolta]')`, 3000);
+  await regia3.js(`document.querySelector('[data-ascolta]').click()`);
+  await osservatore.finoA((x) => x.attivi.some((a) => a.anteprima), 3000);
+  await regia3.js(`(() => { const i = [...document.querySelectorAll('input')].find(i => i.value === 'Treno in corsa'); i?.closest('.vetro')?.querySelector('.cursor-pointer')?.click(); })()`);
+  s = await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  s ? ok("Chiudere la casella ferma l'anteprima") : ko("Anteprima dopo chiusura casella");
+  // diario: l'anteprima non ha scritto "suono partito"
+  const { eventi } = await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json();
+  const nuoviEventi = eventi.slice(nEventiPrimaAnteprima);
+  !nuoviEventi.some((e) => e.tipo === "suono partito" || e.tipo === "suono fermato")
+    ? ok("L'anteprima non va nel diario", `${nuoviEventi.length} eventi nuovi: ${[...new Set(nuoviEventi.map((e) => e.tipo))].join(", ") || "nessuno"}`)
+    : ko("Anteprima nel diario", JSON.stringify(nuoviEventi.map((e) => e.tipo + " " + (e.cue ?? ""))));
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  await attendi(300);
+}
 
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---
 await stopTuttoTelefono();

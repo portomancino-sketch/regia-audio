@@ -49,13 +49,14 @@ export class MotoreAudio {
   onCambiamento: (() => void) | null = null;
   /** Chiamato quando una casella parte davvero (non nel soundcheck): conta gli usi. */
   onAvvio: ((cue: Cue) => void) | null = null;
-  /** Il suono di prova del soundcheck, fuori dalle regole. */
+  /** Il suono di prova (soundcheck o anteprima "Ascolta"), fuori dalle regole. */
   private prova: {
     cue: Cue;
     gain: GainNode;
     source?: AudioBufferSourceNode;
     el?: HTMLAudioElement;
     avviataA: number;
+    anteprima: boolean;
     fine: () => void;
   } | null = null;
 
@@ -136,11 +137,23 @@ export class MotoreAudio {
   }
 
   stopTutto(): void {
+    if (this.prova?.anteprima) this.interrompiProva();
     this.applica(stopTutto(this.stato));
   }
 
   fadeOut(): void {
+    if (this.prova?.anteprima) this.interrompiProva();
     this.applica(fadeOut(this.stato));
+  }
+
+  /** Anteprima "Ascolta" da Modifica: il file intero, fuori dalle regole, ma tra gli attivi. */
+  anteprima(cue: Cue): Promise<void> {
+    return this.provaCue(cue, null, true).then(() => undefined);
+  }
+
+  /** La casella in anteprima adesso (null se nessuna). */
+  get anteprimaInCorso(): string | null {
+    return this.prova?.anteprima ? this.prova.cue.id : null;
   }
 
   setMaster(valore: number): void {
@@ -368,9 +381,13 @@ export class MotoreAudio {
 
   // ---- Soundcheck "Prova tutti": suona N secondi di una casella, fuori dalle regole ----
 
-  /** Suona `durataMs` di una casella a volume pieno (master × volume) e misura il picco.
-   *  Risolve quando la prova finisce o viene interrotta. */
-  async provaCue(cue: Cue, durataMs: number): Promise<{ esito: "ok" | "mancante" | "nonDecodificabile"; picco: number | null }> {
+  /** Suona `durataMs` di una casella (null = tutto il file) a master × volume × guadagno dB
+   *  e misura il picco. Risolve quando la prova finisce o viene interrotta. */
+  async provaCue(
+    cue: Cue,
+    durataMs: number | null,
+    anteprima = false,
+  ): Promise<{ esito: "ok" | "mancante" | "nonDecodificabile"; picco: number | null }> {
     if (!cue.file) return { esito: "mancante", picco: null };
     const streaming = (cue.durataSec ?? 0) >= SOGLIA_STREAMING_SEC;
     let buffer: AudioBuffer | undefined = this.cache.get(cue.file);
@@ -405,7 +422,7 @@ export class MotoreAudio {
     const gain = this.ctx.createGain();
     gain.gain.value = 0;
     gain.connect(this.masterGain);
-    const guadagno = this.stato.master * cue.volume;
+    const guadagno = this.stato.master * cue.volume * Math.pow(10, ((cue.guadagnoAuto ?? 0) + (cue.ritocco ?? 0)) / 20);
     await new Promise<void>((risolvi) => {
       let chiusa = false;
       const fine = () => {
@@ -429,7 +446,7 @@ export class MotoreAudio {
         this.onCambiamento?.();
         risolvi();
       };
-      const prova = { cue, gain, avviataA: this.ctx.currentTime, fine } as NonNullable<MotoreAudio["prova"]>;
+      const prova = { cue, gain, avviataA: this.ctx.currentTime, anteprima, fine } as NonNullable<MotoreAudio["prova"]>;
       this.prova = prova;
       if (buffer) {
         const source = this.ctx.createBufferSource();
@@ -447,7 +464,7 @@ export class MotoreAudio {
         void el.play().catch(fine);
       }
       this.rampaGain(gain, guadagno, RAMPA_AVVIO_MS);
-      const timer = window.setTimeout(fine, durataMs);
+      const timer = durataMs === null ? 0 : window.setTimeout(fine, durataMs);
       this.onCambiamento?.();
     });
     return { esito: "ok", picco };
@@ -464,13 +481,14 @@ export class MotoreAudio {
     if (this.prova) {
       const p = this.prova;
       lista.push({
-        istanzaId: "soundcheck",
+        istanzaId: p.anteprima ? "anteprima" : "soundcheck",
         cueId: p.cue.id,
         titolo: p.cue.titolo,
         tipo: p.cue.tipo,
         posizioneSec: Math.round((this.ctx.currentTime - p.avviataA) * 10) / 10,
-        durataSec: 3,
+        durataSec: p.anteprima ? p.cue.durataSec : 3,
         inPausa: false,
+        ...(p.anteprima ? { anteprima: true } : {}),
       });
     }
     for (const i of this.stato.attivi) {

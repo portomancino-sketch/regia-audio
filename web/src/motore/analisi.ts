@@ -33,37 +33,3 @@ export async function analizzaDalServer(nomeFile: string): Promise<Analisi> {
   if (!r.ok) throw new Error("File non trovato");
   return analizzaDati(await r.arrayBuffer());
 }
-
-/** Ascolta 3 secondi di una casella col guadagno indicato (dB): per tarare a orecchio. */
-let anteprima: { ctx: AudioContext; ferma: () => void } | null = null;
-export async function ascoltaAnteprima(nomeFile: string, guadagnoDb: number, volume: number, durataMs = 3000): Promise<void> {
-  fermaAnteprima();
-  const ac = new AudioContext();
-  await ac.resume();
-  const r = await fetch(`/audio/${nomeFile}`);
-  const buffer = await ac.decodeAudioData(await r.arrayBuffer());
-  const gain = ac.createGain();
-  gain.gain.value = volume * Math.pow(10, guadagnoDb / 20);
-  gain.connect(ac.destination);
-  const source = ac.createBufferSource();
-  source.buffer = buffer;
-  source.connect(gain);
-  source.start(0);
-  const timer = window.setTimeout(() => fermaAnteprima(), durataMs);
-  anteprima = {
-    ctx: ac,
-    ferma: () => {
-      clearTimeout(timer);
-      try {
-        source.stop();
-      } catch {
-        /* già ferma */
-      }
-      void ac.close();
-    },
-  };
-}
-export function fermaAnteprima(): void {
-  anteprima?.ferma();
-  anteprima = null;
-}
