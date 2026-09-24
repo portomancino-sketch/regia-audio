@@ -20,7 +20,8 @@ export interface EventoDiario {
     | "parla spento"
     | "soundcheck"
     | "blocco_on"
-    | "blocco_off";
+    | "blocco_off"
+    | "luce";
   cue?: string;
   fase?: string;
   format?: string;

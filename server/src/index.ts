@@ -7,8 +7,9 @@ import { cartellaDati } from "./percorsi";
 import { PORTA } from "./porta";
 
 async function avvia(): Promise<void> {
-  const { app, store, avviaHub } = creaApp();
+  const { app, store, luci, avviaHub } = creaApp();
   avviaHub();
+  luci.avvia();
 
   await app.listen({ port: PORTA, host: "0.0.0.0" });
 

@@ -12,6 +12,8 @@ import type { Config, Cue, Fase, Format } from "../../shared/tipi";
 import { puoMettereInEvidenza } from "../../shared/sempre";
 import { scriviEvento, riepilogoSerata, csvGiornoConRiepilogo, maiUsati, invalidaMaiUsati } from "./diario";
 import type { Store } from "./store";
+import type { Luci } from "./luci";
+import type { Effetto, NomeEffetto } from "../../shared/luci";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
 import { indirizzoLan } from "./rete";
@@ -98,7 +100,7 @@ function cueNuovo(ordine: number, parziale?: Partial<Cue>): Cue {
   };
 }
 
-export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub | null): void {
+export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub | null, luci: Luci): void {
   const cambiata = () => {
     store.salva();
     invalidaMaiUsati();
@@ -113,6 +115,8 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return;
     const url = req.url.split("?")[0] ?? "";
     if (url === "/api/impostazioni") return;
+    // I comandi delle luci in Live restano attivi anche col lucchetto (le Impostazioni luci no).
+    if (url === "/api/luci/esegui" || url === "/api/luci/intensita" || url === "/api/luci/torna") return;
     if (url.startsWith("/api/")) return reply.status(423).send({ errore: MESSAGGIO_BLOCCO });
   });
 
@@ -247,7 +251,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.patch("/api/fasi/:id", async (req, reply) => {
     const trovata = trovaFase(store.config, (req.params as { id: string }).id);
     if (!trovata) return reply.status(404).send({ errore: "Fase non trovata" });
-    const { nome, nota, durataPrevista } = (req.body ?? {}) as { nome?: string; nota?: string; durataPrevista?: number | null };
+    const { nome, nota, durataPrevista, luce } = (req.body ?? {}) as { nome?: string; nota?: string; durataPrevista?: number | null; luce?: string | null };
+    if (luce === null || luce === "") delete trovata.fase.luce;
+    else if ((luce === "luce1" || luce === "luce2" || luce === "luce3" || luce === "torna") && !trovata.fase.sempre) trovata.fase.luce = luce;
     if (typeof nome === "string" && nome.trim() && !trovata.fase.sempre) trovata.fase.nome = nome.trim();
     if (typeof nota === "string") trovata.fase.nota = nota;
     if (durataPrevista === null) delete trovata.fase.durataPrevista;
@@ -357,6 +363,12 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       typeof corpo.analisi.picco === "number"
     ) {
       c.analisi = { rms: Math.round(corpo.analisi.rms * 10) / 10, picco: Math.round(corpo.analisi.picco * 10) / 10, versione: 1 };
+    }
+    if (corpo.luce === null || (corpo.luce as unknown) === "") delete c.luce;
+    else if (corpo.luce === "luce1" || corpo.luce === "luce2" || corpo.luce === "luce3" || corpo.luce === "torna") c.luce = corpo.luce;
+    if (typeof corpo.luceFine === "boolean") {
+      if (corpo.luceFine) c.luceFine = true;
+      else delete c.luceFine;
     }
     if (corpo.usiPrevisti === null || (corpo.usiPrevisti as unknown) === "") delete c.usiPrevisti;
     else if (typeof corpo.usiPrevisti === "number" && Number.isFinite(corpo.usiPrevisti)) {
@@ -548,6 +560,57 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
 
   /** Le caselle mai partite nelle ultime 10 serate, per format (cache in memoria). */
   app.get("/api/statistiche/mai-usati", async () => maiUsati(store.config));
+
+  // ---- Luci (Philips Hue, solo rete locale) ----
+
+  const effettoValido = (e: unknown): e is "luce1" | "luce2" | "luce3" | "torna" =>
+    e === "luce1" || e === "luce2" || e === "luce3" || e === "torna";
+  app.get("/api/luci/stato", async () => luci.stato());
+  app.get("/api/luci/live", async () => luci.statoLive());
+  app.post("/api/luci/cerca", async (req) => luci.cerca(((req.body ?? {}) as { ip?: string }).ip));
+  app.post("/api/luci/abbina", async () => luci.abbina());
+  app.get("/api/luci/lampadine", async () => luci.lampadine());
+  app.post("/api/luci/lampadine/:id/lampeggia", async (req) => {
+    luci.lampeggia((req.params as { id: string }).id);
+    return { fatto: true };
+  });
+  app.patch("/api/luci/lampadine/:id", async (req) => {
+    luci.rinominaLampada((req.params as { id: string }).id, ((req.body ?? {}) as { nome?: string }).nome ?? "");
+    return luci.stato();
+  });
+  app.post("/api/luci/gruppi", async (req) => {
+    const { nome, luci: ids } = (req.body ?? {}) as { nome?: string; luci?: string[] };
+    return luci.creaGruppo(nome ?? "Gruppo", ids ?? []);
+  });
+  app.patch("/api/luci/gruppi/:id", async (req, reply) => {
+    const g = await luci.modificaGruppo((req.params as { id: string }).id, (req.body ?? {}) as { nome?: string; luci?: string[] });
+    if (!g) return reply.status(404).send({ errore: "Gruppo non trovato" });
+    return g;
+  });
+  app.delete("/api/luci/gruppi/:id", async (req) => {
+    await luci.eliminaGruppo((req.params as { id: string }).id);
+    return { fatto: true };
+  });
+  app.post("/api/luci/importa-stanze", async () => luci.importaStanze());
+  app.put("/api/luci/effetti", async (req) => {
+    luci.salvaEffetti(((req.body ?? {}) as { effetti?: Partial<Record<NomeEffetto, Partial<Effetto>>> }).effetti ?? {});
+    return luci.stato();
+  });
+  app.post("/api/luci/prova", async (req, reply) => {
+    const { effetto } = (req.body ?? {}) as { effetto?: unknown };
+    if (!effettoValido(effetto)) return reply.status(400).send({ errore: "Effetto sconosciuto" });
+    return luci.prova(effetto);
+  });
+  app.post("/api/luci/esegui", async (req, reply) => {
+    const { effetto, origine } = (req.body ?? {}) as { effetto?: unknown; origine?: string };
+    if (!effettoValido(effetto)) return reply.status(400).send({ errore: "Effetto sconosciuto" });
+    return luci.esegui(effetto, (origine ?? "manuale").slice(0, 40));
+  });
+  app.post("/api/luci/torna", async () => luci.esegui("torna", "manuale"));
+  app.put("/api/luci/intensita", async (req) => {
+    const { valore } = (req.body ?? {}) as { valore?: number };
+    return { intensita: luci.setIntensita(Number(valore) || 100) };
+  });
 
   // ---- Rete ----
 

@@ -8,6 +8,8 @@ import { randomBytes } from "node:crypto";
 import type { StatoLive, Presentazione } from "../../shared/tipi";
 import type { Store } from "./store";
 import { scriviEvento, type EventoDiario } from "./diario";
+import type { Luci } from "./luci";
+import { luceAllaFase, luceAllaFine, luceAllaPartenza, LUCE_SU_STOP_TUTTO } from "../../shared/luci";
 
 interface Client {
   ws: WebSocket;
@@ -42,12 +44,15 @@ export class Hub {
   private soundcheck: { inizio: string; provate: number } | null = null;
   private ultimoBattito = 0;
   private ultimoStato: StatoLive | null = null;
+  /** istanzaId → cueId, per sapere quale casella è finita (le luci "a fine suono"). */
+  private diarioCueId = new Map<string, string>();
   private intervalloPing: NodeJS.Timeout;
   private intervalloBattito: NodeJS.Timeout;
 
   constructor(
     server: Server,
     private store: Store,
+    private luci: Luci | null = null,
   ) {
     const wss = new WebSocketServer({ server, path: "/ws" });
     wss.on("connection", (ws, req) => this.nuovaConnessione(ws, req));
@@ -198,7 +203,11 @@ export class Hub {
         if (client.ruolo === "telecomando" && this.ultimoStato?.soundcheck) return;
         this.ultimoComando = { comando, origine, quando: Date.now() };
         if (comando === "fade") this.annota({ tipo: "fade", origine });
-        if (comando === "stopTutto") this.annota({ tipo: "stop tutto", origine });
+        if (comando === "stopTutto") {
+          this.annota({ tipo: "stop tutto", origine });
+          // STOP TUTTO: le luci tornano com'erano (FADE OUT no).
+          void this.luci?.esegui(LUCE_SU_STOP_TUTTO, "stop tutto");
+        }
         // I comandi vanno SOLO al motore corrente.
         if (this.motore && this.motore.ws.readyState === WebSocket.OPEN) {
           this.motore.ws.send(JSON.stringify(msg));
@@ -311,6 +320,12 @@ export class Hub {
     if (stato.faseId !== prec.faseId && stato.faseId && stato.formatId === prec.formatId) {
       this.annota({ tipo: "fase cambiata", fase, format, origine: this.origineDi(["fase"], motore) });
     }
+    // Luci all'ingresso della fase (da qualsiasi dispositivo; anche quando si apre il format).
+    if (stato.faseId !== prec.faseId && stato.faseId) {
+      const faseObj = this.store.config.formats.flatMap((f) => f.fasi).find((f) => f.id === stato.faseId);
+      const luce = faseObj ? luceAllaFase(faseObj) : null;
+      if (luce) void this.luci?.esegui(luce, `fase: ${faseObj?.nome ?? "?"}`);
+    }
 
     // L'anteprima "Ascolta" non è un suono vero: niente diario.
     const adesso = new Map((stato.attivi ?? []).filter((a) => !a.anteprima).map((a) => [a.istanzaId, a.titolo]));
@@ -336,9 +351,15 @@ export class Hub {
       return;
     }
 
+    const tutteLeCaselle = () => this.store.config.formats.flatMap((f) => f.fasi).flatMap((f) => f.cue);
     for (const [id, titolo] of adesso) {
       if (!prec.istanze.has(id)) {
         this.annota({ tipo: "suono partito", cue: titolo, fase, format, origine: this.origineDi(["play"], motore) });
+        const a = (stato.attivi ?? []).find((x) => x.istanzaId === id);
+        if (a) this.diarioCueId.set(id, a.cueId);
+        const cue = a ? tutteLeCaselle().find((c) => c.id === a.cueId) : undefined;
+        const luce = cue ? luceAllaPartenza(cue) : null;
+        if (luce) void this.luci?.esegui(luce, `casella: ${titolo}`);
       }
     }
     for (const [id, titolo] of prec.istanze) {
@@ -350,6 +371,11 @@ export class Hub {
           format,
           origine: this.origineDi(["play", "stop", "sfuma", "stopTutto", "fade"], motore),
         });
+        const cueId = this.diarioCueId.get(id);
+        this.diarioCueId.delete(id);
+        const cue = cueId ? tutteLeCaselle().find((c) => c.id === cueId) : undefined;
+        const luce = cue ? luceAllaFine(cue) : null;
+        if (luce) void this.luci?.esegui(luce, `fine: ${titolo}`);
       }
     }
 
@@ -366,6 +392,8 @@ export class Hub {
           .flatMap((f) => f.cue)
           .find((c) => c.id === cueId);
         this.annota({ tipo: "promemoria fatto", cue: cue?.titolo ?? "?", fase, format, origine: this.origineDi(["spunta"], motore) });
+        const luce = cue ? luceAllaPartenza(cue) : null;
+        if (luce) void this.luci?.esegui(luce, `promemoria: ${cue?.titolo ?? "?"}`);
       }
     }
 

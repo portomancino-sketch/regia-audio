@@ -30,6 +30,10 @@ export interface Cue {
   guadagnoAuto?: number;
   /** Ritocco a orecchio in dB (−12…+12, passo 1, default 0). */
   ritocco?: number;
+  /** Luci quando parte: uno dei tre effetti, o "torna" (com'era). Vale anche per i promemoria. */
+  luce?: "luce1" | "luce2" | "luce3" | "torna";
+  /** A fine suono (o allo stop) le luci tornano com'erano. */
+  luceFine?: boolean;
 }
 
 export interface Fase {
@@ -43,6 +47,8 @@ export interface Fase {
   sempre?: boolean;
   /** Durata prevista della fase in minuti (per l'orologio di scaletta). */
   durataPrevista?: number;
+  /** Luci all'ingresso della fase (la riga Sempre non ce l'ha). */
+  luce?: "luce1" | "luce2" | "luce3" | "torna";
 }
 
 export interface Format {

@@ -7,16 +7,19 @@ import path from "node:path";
 import { Store } from "./store";
 import { Hub } from "./ws";
 import { registraApi } from "./api";
+import { Luci } from "./luci";
 import { cartellaAudio, cartellaDist } from "./percorsi";
 
 export interface AppRegia {
   app: FastifyInstance;
   store: Store;
+  luci: Luci;
   avviaHub: () => Hub;
 }
 
 export function creaApp(): AppRegia {
   const store = new Store();
+  const luci = new Luci();
   const app = Fastify({ logger: false, bodyLimit: 10 * 1024 * 1024 });
   let hub: Hub | null = null;
 
@@ -44,7 +47,7 @@ export function creaApp(): AppRegia {
     });
   }
 
-  registraApi(app, store, () => hub);
+  registraApi(app, store, () => hub, luci);
 
   // SPA: ogni pagina non trovata torna a index.html.
   app.setNotFoundHandler((req, reply) => {
@@ -58,8 +61,9 @@ export function creaApp(): AppRegia {
   return {
     app,
     store,
+    luci,
     avviaHub: () => {
-      hub = new Hub(app.server, store);
+      hub = new Hub(app.server, store, luci);
       return hub;
     },
   };
