@@ -37,6 +37,29 @@ nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 - **Duplica** un format riusando gli stessi file; **Archivia** e ripristina.
 - Config vecchie compatibili: tutti i campi nuovi sono facoltativi.
 
+## Luci in un locale nuovo (per Jacopo, una volta)
+
+1. Centralina Philips Hue collegata al router del locale con il cavo, lampadine
+   già aggiunte alla centralina con l'app Philips Hue (quella serve solo la prima
+   volta: dopo la Regia parla direttamente con la centralina, senza internet).
+2. Sul Mac, in alto: sole/luna → **Impostazioni luci…**. Premi **Cerca sulla
+   rete**; se non la trova, scrivi l'indirizzo IP della centralina (lo trovi
+   nell'app Philips Hue o nel router) e premi **Prova questo IP**.
+3. Premi **Abbina** e, entro 30 secondi, il pulsante rotondo sulla centralina.
+   Lo stato diventa "Abbinata": la chiave resta salvata sul Mac (in
+   `~/Regia-dati/luci.json`, non nei format).
+4. **Lampadine**: premi "Lampeggia" per capire quale è e dalle un nome.
+5. **Gruppi**: crea i gruppi della sala (per esempio Sala, Bar) e spunta le
+   lampadine dentro. "Importa le stanze della centralina" le copia come punto
+   di partenza. Un gruppo con almeno 3 luci viene creato anche sulla
+   centralina, così un effetto è un comando solo.
+6. **Effetti**: per ciascuno dei tre dai nome e colore del pulsante, poi per
+   ogni gruppo scegli accese/spente, luminosità, colore e transizione. "Prova"
+   lo fa vedere e dopo 3 secondi torna com'era.
+7. In Live, Valerio vede solo i tre pulsanti e "Torna com'era". Col lucchetto
+   attivo questa pagina è in sola lettura. Se la centralina non risponde, i
+   suoni vanno avanti e "Luci" mostra un pallino grigio.
+
 ## Come si avvia
 
 - Doppio click su **Avvia Regia.command** nella cartella Regia. Si apre una

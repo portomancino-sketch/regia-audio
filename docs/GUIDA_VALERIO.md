@@ -71,6 +71,18 @@
   **1–9** = i suoni della fase (i promemoria non contano),
   **Q W E R T** = le pillole in evidenza della riga Sempre, **← →** = cambia fase.
 
+## Luci
+
+- Se la sala ha le luci collegate, nel dock c'è il pulsante **Luci**: dentro trovi
+  tre pulsanti colorati coi loro nomi (per esempio Buio, Rosso, Caldo) e
+  **Torna com'era**, che rimette le luci esattamente come le hai trovate.
+- In Modifica, su ogni casella e su ogni fase, il menu **Luci** dice quale
+  effetto parte col suono o all'inizio della fase; "A fine suono torna com'era"
+  le rimette a posto da sole. Un pallino colorato sulla card lo ricorda.
+- Il cursore **Intensità** abbassa tutte le luci insieme, senza cambiare i colori.
+- **STOP TUTTO** rimette anche le luci com'erano. Se le luci non rispondono
+  compare un pallino grigio su "Luci": il suono va avanti lo stesso.
+
 ## Dopo la serata
 
 - Il **Diario** (icona calendario in alto, solo sul Mac) ricorda tutto da solo:

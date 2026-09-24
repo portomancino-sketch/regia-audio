@@ -569,3 +569,80 @@ DECISIONI PRESE DA SOLO (S12-bis)
   in Live; il soundcheck idem.
 - STOP TUTTO durante il soundcheck non lo interrompe (per quello c'è ESC o il
   pulsante "Ferma n / N"); ferma invece sempre l'anteprima.
+
+## S13 — 24 settembre 2026 — v1.4.0: luci Philips Hue
+
+- **Due mondi**. Tecnico: Impostazioni → Luci (pagina /luci, dal sole/luna):
+  stato della centralina (Non trovata / Trovata, da abbinare / Abbinata / Non
+  raggiungibile), "Cerca sulla rete" (mDNS `_hue._tcp`, libreria
+  `multicast-dns`, impacchettata con esbuild) e IP a mano, "Abbina" con conto
+  alla rovescia di 30 s e "Premi il pulsante rotondo sulla centralina Philips";
+  lampadine (nome, accesa/spenta, raggiungibile, "Lampeggia" = 3 alert
+  "select", nome proprio della Regia che non tocca la centralina); gruppi della
+  Regia (crea, spunta, rinomina, elimina, "Importa le stanze della
+  centralina"); tre effetti con nome, colore del pulsante, per ogni gruppo
+  intero o singole luci: accese/spente, luminosità, colore (palette di 10),
+  transizione, "Prova" (torna com'era dopo 3 s). Col lucchetto: sola lettura
+  (fieldset + 423). Mondo di Valerio: menu "Luci" sulla casella (Nessuna / i
+  tre nomi / Torna com'era) + "A fine suono torna com'era"; menu "Luci
+  all'inizio della fase" sotto "Cosa succede"; pallino colorato sulla card;
+  nel dock (Mac e telefono) il pulsante "Luci" (SOLO se abbinata) con i tre
+  pulsanti grandi colorati, "Torna com'era" e "Intensità"; pallino grigio se
+  la centralina non risponde. Senza centralina non compare nulla di nuovo.
+- **Dati**: `luci` e `luceFine` sulla casella, `luce` sulla fase (riga Sempre
+  esclusa) in regia.json; tutto il resto in ~/Regia-dati/luci.json per
+  centralina (chiave = id) con la chiave di abbinamento; foto in
+  ~/Regia-dati/luci-foto.json. Niente nell'export.
+- **Server** (server/src/luci.ts): API locale v1 su HTTP (la v2 con
+  certificati è la strada futura); comandi per lampadina, e per i gruppi con
+  almeno 3 luci un gruppo gemello sulla centralina ("Regia · Nome") così il
+  comando resta uno; coda 10 comandi/s con sostituzione per lampadina/gruppo;
+  prima del PRIMO effetto di una catena foto delle luci coinvolte, `torna` la
+  ripristina per lampadina (esatta, intensità ignorata) e la cancella; effetti
+  successivi non rifotografano; all'avvio una foto rimasta viene ripristinata
+  (diario, origine "avvio"); intensità master 10–100 % condivisa (riapplica
+  subito l'effetto in corso); ricerca ogni 60 s se la centralina manca. Il hub
+  manda gli effetti da casella (partenza / fine), fase (ingresso) e STOP TUTTO
+  (torna); FADE OUT no. Diario: eventi `luce` con effetto, nome, intensità e
+  origine (casella / fine / fase / promemoria / manuale / stop tutto / prova /
+  soundcheck / avvio / intensità).
+- **Soundcheck**: in coda ai suoni, se abbinata, i tre effetti 2 s l'uno poi
+  torna; esito "Luci: ok" / "Luci: centralina non raggiungibile".
+- Verifica: shared/luci.test.ts (11 test: gruppi grandi/piccoli, singole
+  luci, colori, transizioni, intensità 50 %, coda, casella/fase/stop),
+  server/test/luci.test.ts contro la centralina finta (scripts/bridge-finto.mjs:
+  abbinamento che fallisce finché non si preme, lampadine, gruppi, PUT/GET
+  stato): scoperta, abbinamento, lampadine, lampeggia, gemello, importa, catena
+  Rosso → Buio → torna = com'era, intensità, foto ripristinata da una nuova
+  istanza, casella/fase/STOP TUTTO via WebSocket, lucchetto, centralina spenta.
+  **128 test** + typecheck; **155/155 end-to-end** (senza centralina niente
+  "Luci" né menu; con la finta: cerca, abbina, gruppi, effetti, "Luci" su Mac e
+  telefono, casella → Rosso e torna a fine suono, fase → Buio, FADE OUT no /
+  STOP TUTTO torna, intensità 50 % dal telefono, torna esatto, centralina spenta
+  → il suono parte e pallino grigio, diario). Screenshot in docs/screenshots/s13/.
+- **v1.4.0** → dist-pacchetti/Regia-v1.4.0.zip.
+
+DECISIONI PRESE DA SOLO (S13)
+- Un gruppo della Regia con almeno 3 luci ha un gemello sulla centralina
+  (creato/aggiornato/eliminato dalla Regia, nome "Regia · <nome>"); sotto le 3
+  luci si va per lampadina. La foto e il ripristino sono sempre per lampadina.
+- La foto fotografa TUTTE le luci coinvolte dai tre effetti (non solo da quello
+  in partenza): una catena può toccare gruppi diversi.
+- "Prova" da Impostazioni esegue l'effetto e torna com'era dopo 3 s da solo.
+- Il mondo di Valerio legge lo stato luci via REST (/api/luci/live) ogni 15 s
+  e dopo ogni comando: niente campi nuovi nello stato WebSocket.
+- L'intensità vive nel server (10–100, default 100), quindi è la stessa per
+  tutti i dispositivi; si perde al riavvio della Regia (non è nel format).
+- I comandi manuali e l'intensità restano attivi col lucchetto; tutte le altre
+  rotte /api/luci sono bloccate (423).
+
+DA PROVARE CON UNA CENTRALINA VERA
+- Abbinamento: mDNS sulla rete del locale (potrebbe essere bloccato dal
+  router: allora IP a mano) e pulsante entro 30 s.
+- Ritardo suono → luce: la coda manda un comando ogni 100 ms; con un gruppo
+  gemello un effetto è un comando solo, per lampadina sono N comandi.
+- Centralina che sparisce a metà serata: pallino grigio, suoni intatti,
+  ricerca ogni 60 s; da vedere se al ritorno gli effetti riprendono subito.
+- Foto ripristinata dopo uno spegnimento del Mac: all'avvio, se
+  luci-foto.json esiste e la centralina risponde, "torna com'era" automatico.
+- Transizioni lunghe e "Lampeggia" (alert "select") sulle lampadine reali.
