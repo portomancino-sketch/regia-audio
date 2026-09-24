@@ -528,3 +528,44 @@ DECISIONI PRESE DA SOLO (S12)
 NON FATTO
 - Nessun punto scartato. Unica deviazione: l'obiettivo "5 card sopra il dock"
   di S9 resta per geometria (vedi S9).
+
+## S12-bis — 24 settembre 2026 — v1.3.1: si torna sempre indietro + anteprima nel motore
+
+- **Navigazione**: "Regia · Porto Mancino" in alto è un link alla Home (stesso
+  stile, manina). In Modifica e nel Diario, a sinistra del titolo, "‹ Indietro"
+  (vetro, 44 px): torna alla pagina precedente di QUESTA app; senza storia
+  (pagina aperta diretta) va alla Home — la Regia conta le proprie navigazioni
+  e non esce mai dal sito con "indietro". Il calendario è un interruttore con
+  tooltip "Diario" / "Chiudi il diario". ESC nel Diario lo chiude; in Live
+  resta STOP TUTTO.
+- **Anteprima "Ascolta" dentro il motore**: niente più contesto audio separato.
+  Il motore la suona come prova fuori dalle regole (non abbassa il base, non
+  conta negli usi, non va nel diario: il hub la salta) ma dentro l'elenco degli
+  attivi, marcata `anteprima: true`: STOP TUTTO e FADE OUT la fermano ovunque,
+  "Sta suonando" la mostra come "Anteprima: <titolo>", anche sul telefono.
+  "Ascolta" è un interruttore: file intero, pulsante "■ Ferma"; chiudere o
+  smontare la casella la ferma. Se la finestra non comanda, "Ascolta" chiede
+  "Prendi il controllo" e l'anteprima parte da sola appena comanda.
+- **Mini-barra in Modifica**: se qualcosa suona (anteprima o suoni partiti in
+  Live) compare in basso il dock in versione compatta (senza PARLA, senza
+  interruttore del tema, senza pillole Sempre): "Sta suonando" con "finisce
+  tra", volume master, FADE OUT, STOP TUTTO. Sparisce quando non suona più
+  niente. Spazio in fondo misurato (`--altezza-dock`, minimo 128 px).
+- Verifica: 106 test + typecheck verdi; **140/140 end-to-end** (nuovi:
+  Indietro dal Diario torna in Live con la stessa fase; tooltip; ESC nel
+  Diario senza fermare i suoni; logo da Modifica → Home; Diario aperto diretto
+  → Home; mini-barra col titolo e senza PARLA; --altezza-dock in Modifica;
+  STOP TUTTO fa sparire la barra; Ascolta → "■ Ferma"; anteprima negli attivi,
+  non negli usi, non nel diario; STOP TUTTO in Live ferma l'anteprima; chiudere
+  la casella la ferma). Screenshot in docs/screenshots/s12bis/.
+- **v1.3.1** → dist-pacchetti/Regia-v1.3.1.zip.
+
+DECISIONI PRESE DA SOLO (S12-bis)
+- In Live resta la piccola freccia "Torna ai format" accanto al nome; il
+  pulsante "‹ Indietro" grande sta solo dove il brief lo chiede (Modifica, Diario).
+- "Indietro" usa la storia del browser solo per le pagine aperte dalla Regia
+  (contatore interno): aperta diretta o dopo un ricaricamento → Home.
+- L'anteprima usa il guadagno della casella (auto + ritocco) e il master, come
+  in Live; il soundcheck idem.
+- STOP TUTTO durante il soundcheck non lo interrompe (per quello c'è ESC o il
+  pulsante "Ferma n / N"); ferma invece sempre l'anteprima.
