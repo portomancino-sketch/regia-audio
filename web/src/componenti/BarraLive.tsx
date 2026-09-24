@@ -8,6 +8,8 @@ import { Dock } from "./ui/Dock";
 import { Pulsante } from "./ui/Pulsante";
 import { Slider } from "./ui/Slider";
 import { Pillola } from "./ui/Pillola";
+import { PulsanteLuci } from "./PannelloLuci";
+import type { LuciLive } from "../api";
 
 export function BarraLive(props: {
   attivi: CueAttivo[];
@@ -28,6 +30,9 @@ export function BarraLive(props: {
   soundcheck?: { indice: number; totale: number } | null;
   /** Mini-barra in Modifica: senza PARLA e senza extra, solo quando qualcosa suona. */
   compatta?: boolean;
+  /** Luci (solo se la centralina è abbinata): il pulsante "Luci" col suo pannello. */
+  luci?: LuciLive | null;
+  onLuciCambiate?: () => void;
 }) {
   const { attivi } = props;
   return (
@@ -84,6 +89,9 @@ export function BarraLive(props: {
           il dock cresce e la pagina lo misura, niente finisce sotto. */}
       <div className={`flex items-center gap-2 ${props.telefono ? "basis-full flex-wrap" : ""}`}>
         {!props.compatta && props.extra}
+        {!props.compatta && props.luci?.abbinata && (
+          <PulsanteLuci luci={props.luci} telefono={props.telefono} onCambiato={props.onLuciCambiate} />
+        )}
         {!props.compatta && props.onParla && (
           <Pulsante
             variante={props.parla ? "primario" : "secondario"}

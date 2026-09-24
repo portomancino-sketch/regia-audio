@@ -1,6 +1,7 @@
 // Piccoli hook condivisi.
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { CueAttivo } from "../../shared/tipi";
+import { api, type LuciLive } from "./api";
 
 /**
  * Fa scorrere le posizioni tra un aggiornamento di stato e l'altro:
@@ -62,4 +63,29 @@ export function useAdesso(attivo: boolean): number {
     return () => clearInterval(t);
   }, [attivo]);
   return adesso;
+}
+
+/** Il mondo di Valerio per le luci: nomi, colori, se la centralina c'è e risponde.
+ *  Riletto ogni 15 s; `ricarica()` subito dopo un comando. */
+export function useLuciLive(attivo = true): { luci: LuciLive | null; ricarica: () => void } {
+  const [luci, setLuci] = useState<LuciLive | null>(null);
+  const [versione, setVersione] = useState(0);
+  useEffect(() => {
+    if (!attivo) return;
+    let vivo = true;
+    const leggi = () =>
+      void api.luci
+        .live()
+        .then((l) => {
+          if (vivo) setLuci(l);
+        })
+        .catch(() => undefined);
+    leggi();
+    const t = setInterval(leggi, 15_000);
+    return () => {
+      vivo = false;
+      clearInterval(t);
+    };
+  }, [attivo, versione]);
+  return { luci, ricarica: () => setVersione((v) => v + 1) };
 }

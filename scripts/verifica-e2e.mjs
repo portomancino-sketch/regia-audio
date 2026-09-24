@@ -169,7 +169,7 @@ console.log(`Avvio un server di prova sulla porta ${PORTA_TEST} (dati temporanei
 const datiTemp = fs.mkdtempSync(path.join(os.tmpdir(), "regia-e2e-"));
 const server = spawn("npx", ["tsx", "server/src/index.ts"], {
   stdio: "ignore",
-  env: { ...process.env, PORT: String(PORTA_TEST), REGIA_DIR: datiTemp },
+  env: { ...process.env, PORT: String(PORTA_TEST), REGIA_DIR: datiTemp, REGIA_HUE_MDNS: "0" },
 });
 process.on("exit", () => {
   server.kill();
@@ -1136,6 +1136,118 @@ await attendi(300);
   await attendi(400);
   await regia3.click("Ok, pronti");
   await attendi(300);
+}
+
+// ================= S13: luci Philips Hue =================
+{
+  const jsonPost = (url, corpo) => fetch(`${BASE}${url}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo ?? {}) }).then((r) => r.json());
+  const jsonPut = (url, corpo) => fetch(`${BASE}${url}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo ?? {}) }).then((r) => r.json());
+  const jsonPatch = (url, corpo) => fetch(`${BASE}${url}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(corpo ?? {}) }).then((r) => r.json());
+  // 1) Senza centralina: niente "Luci" in Live (Mac e telefono), niente menu in Modifica.
+  const nienteMac = await regia3.js(`!document.querySelector('[data-luci]')`);
+  const nienteTel = await tel.js(`!document.querySelector('[data-luci]')`);
+  nienteMac && nienteTel ? ok("Senza centralina: nessun pulsante 'Luci' in Live (Mac e telefono)") : ko("'Luci' presente senza centralina");
+  await regia3.click("Modifica");
+  await attendi(400);
+  const nienteMenu = await regia3.js(`!document.querySelector('[data-menu-luci]') && !document.querySelector('[data-luci-fase]')`);
+  nienteMenu ? ok("Senza centralina: nessun menu Luci in Modifica") : ko("Menu Luci senza centralina");
+  // 2) Centralina finta: cerca, abbina, gruppi, effetti.
+  const { avviaBridgeFinto } = await import("./bridge-finto.mjs");
+  let bridge = await avviaBridgeFinto();
+  const cercata = await jsonPost("/api/luci/cerca", { ip: bridge.ip });
+  cercata.stato === "daAbbinare" ? ok("Centralina finta trovata con l'IP: 'da abbinare'") : ko("Cerca centralina", JSON.stringify(cercata));
+  let ab = await jsonPost("/api/luci/abbina");
+  bridge.premiPulsante();
+  const ab2 = await jsonPost("/api/luci/abbina");
+  !ab.abbinata && ab2.abbinata ? ok("Abbina: fallisce finché non si preme il pulsante, poi riesce") : ko("Abbinamento", JSON.stringify([ab, ab2]));
+  await jsonPost("/api/luci/importa-stanze");
+  const stLuci = await (await fetch(`${BASE}/api/luci/stato`)).json();
+  const sala = Object.values(stLuci.mappa.gruppi).find((g) => g.nome === "Sala");
+  const bar = Object.values(stLuci.mappa.gruppi).find((g) => g.nome === "Bar");
+  sala?.gruppoBridge && !bar?.gruppoBridge ? ok("Stanze importate: 'Sala' (3 luci) ha il gemello sulla centralina, 'Bar' (1 luce) no") : ko("Gruppi importati", JSON.stringify(stLuci.mappa.gruppi));
+  await jsonPut("/api/luci/effetti", { effetti: {
+    luce1: { nome: "Buio", voci: { [sala.id]: { acceso: false, luminosita: 0, colore: "bianco-caldo", transizione: 1 } } },
+    luce2: { nome: "Rosso", voci: { [sala.id]: { acceso: true, luminosita: 80, colore: "rosso", transizione: 0 } } },
+    luce3: { nome: "Caldo", voci: { [bar.id]: { acceso: true, luminosita: 50, colore: "bianco-caldo", transizione: 0 } } },
+  } });
+  // 3) In Live compare "Luci" su Mac e telefono; in Modifica i menu.
+  await attendi(500);
+  const menu = await regia3.finoA(`!!document.querySelector('[data-luci-fase]')`, 20000);
+  menu ? ok("Con la centralina abbinata: menu 'Luci all'inizio della fase' in Modifica") : ko("Menu fase");
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  const luciMac = await regia3.finoA(`!!document.querySelector('[data-luci]')`, 20000);
+  const luciTel = await tel.finoA(`!!document.querySelector('[data-luci]')`, 20000);
+  luciMac && luciTel ? ok("Pulsante 'Luci' nel dock su Mac e telefono") : ko("Pulsante Luci", `mac=${luciMac} tel=${luciTel}`);
+  // 4) Casella con luce: parte → Rosso; a fine suono → torna com'era. Fase con luce → Buio all'ingresso.
+  const camp = fase1.cue.find((c) => c.titolo === "Campanello");
+  await jsonPatch(`/api/cue/${camp.id}`, { luce: "luce2", luceFine: true });
+  await jsonPatch(`/api/fasi/${fase2.id}`, { luce: "luce1" });
+  await attendi(1200);
+  await regia3.click(fase1.nome);
+  await attendi(300);
+  const primaLuce1 = JSON.stringify(bridge.lights()["1"].state);
+  bridge.azzeraComandi();
+  osservatore.comando({ comando: "play", cueId: camp.id });
+  await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === camp.id), 4000);
+  await attendi(700);
+  const rosso = bridge.comandi.some((c) => c.tipo === "gruppo" && c.stato.hue === 0);
+  rosso ? ok("Casella con luce: alla partenza un comando solo al gruppo 'Sala' (Rosso)") : ko("Luce alla partenza", JSON.stringify(bridge.comandi));
+  await osservatore.finoA((x) => !x.attivi.some((a) => a.cueId === camp.id), 6000);
+  await attendi(1500);
+  JSON.stringify(bridge.lights()["1"].state) === primaLuce1 ? ok("A fine suono: torna com'era (la lampadina è esattamente come prima)") : ko("Torna a fine suono", `${primaLuce1} → ${JSON.stringify(bridge.lights()["1"].state)}`);
+  bridge.azzeraComandi();
+  await regia3.click(fase2.nome);
+  await osservatore.finoA((x) => x.faseId === fase2.id, 4000);
+  await attendi(700);
+  bridge.comandi.some((c) => c.stato.on === false) ? ok("Fase con luce: all'ingresso parte 'Buio'") : ko("Luce all'ingresso della fase", JSON.stringify(bridge.comandi));
+  // 5) STOP TUTTO → torna com'era; FADE OUT no.
+  bridge.azzeraComandi();
+  await regia3.click("FADE OUT");
+  await attendi(500);
+  const dopoFade = bridge.comandi.length;
+  await regia3.click("STOP TUTTO");
+  await attendi(1200);
+  dopoFade === 0 && bridge.comandi.length > 0 && JSON.stringify(bridge.lights()["1"].state) === primaLuce1
+    ? ok("FADE OUT non tocca le luci; STOP TUTTO → torna com'era")
+    : ko("STOP TUTTO / FADE OUT", `fade=${dopoFade} stop=${bridge.comandi.length}`);
+  // 6) Pannello dal telefono: effetto manuale, intensità 50 % dimezza la luminosità, torna la ignora.
+  await tel.js(`document.querySelector('[data-luci]').click()`);
+  await tel.finoA(`!!document.querySelector('[role="dialog"][aria-label="Luci"]')`, 3000);
+  bridge.azzeraComandi();
+  await tel.js(`document.querySelector('[data-effetto="luce2"]').click()`);
+  await attendi(700);
+  const pieno = bridge.comandi.find((c) => c.tipo === "gruppo");
+  await tel.js(`(() => { const i = document.querySelector('input[aria-label="Intensità delle luci"]'); const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; s.call(i, '50'); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await attendi(900);
+  const meta = [...bridge.comandi].reverse().find((c) => c.tipo === "gruppo" && c !== pieno);
+  pieno && meta && meta.stato.bri === Math.round(pieno.stato.bri * 0.5) && meta.stato.hue === pieno.stato.hue
+    ? ok("Intensità 50 % dal telefono: luminosità dimezzata, colore intatto, riapplicata subito", `${pieno.stato.bri} → ${meta.stato.bri}`)
+    : ko("Intensità", JSON.stringify([pieno, meta]));
+  bridge.azzeraComandi();
+  await tel.js(`document.querySelector('[data-effetto="torna"]').click()`);
+  await attendi(1200);
+  bridge.lights()["1"].state.bri === JSON.parse(primaLuce1).bri ? ok("'Torna com'era' ignora l'intensità: luminosità esatta della foto") : ko("Torna con intensità", String(bridge.lights()["1"].state.bri));
+  await fetch(`${BASE}/api/luci/intensita`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ valore: 100 }) });
+  await tel.click("Chiudi");
+  // 7) Centralina spenta: la serata parte uguale; pallino grigio.
+  await bridge.chiudi();
+  await jsonPost("/api/luci/esegui", { effetto: "luce1" });
+  await regia3.click(fase1.nome);
+  await attendi(300);
+  osservatore.comando({ comando: "play", cueId: idTreno });
+  s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno), 4000);
+  const grigio = await regia3.finoA(`!!document.querySelector('[data-pallino-grigio]')`, 20000);
+  s && grigio ? ok("Centralina spenta: il suono parte lo stesso e 'Luci' ha il pallino grigio") : ko("Centralina spenta", `suona=${!!s} grigio=${grigio}`);
+  await regia3.click("STOP TUTTO");
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  // Diario: eventi luce con le origini
+  const { eventi } = await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json();
+  const origini = new Set(eventi.filter((e) => e.tipo === "luce").map((e) => e.origine.split(":")[0]));
+  ["casella", "fine", "fase", "stop tutto", "manuale"].every((o) => origini.has(o)) ? ok("Diario: eventi 'luce' con origine casella / fine / fase / stop tutto / manuale") : ko("Diario luci", [...origini].join(", "));
+  // via la centralina per i test che seguono
+  await fetch(`${BASE}/api/luci/cerca`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ip: "127.0.0.1:1" }) }).catch(() => undefined);
 }
 
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---

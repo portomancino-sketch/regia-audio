@@ -12,6 +12,8 @@ import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { OrologioScaletta } from "../componenti/OrologioScaletta";
+import { useLuciLive } from "../hooks";
+import { coloreLuceDi } from "../util";
 
 const CHIAVE_PIN = "regia-pin";
 
@@ -180,6 +182,7 @@ export function PaginaTelecomando() {
   useSchermoAcceso(autenticato);
   // Posizioni fluide tra uno stato e l'altro (il hook vive PRIMA dei return).
   const attiviFluidi = useAttiviFluidi(stato?.attivi ?? []);
+  const { luci, ricarica: ricaricaLuci } = useLuciLive(autenticato);
 
   useEffect(() => {
     void api.config().then(setConfig);
@@ -453,6 +456,7 @@ export function PaginaTelecomando() {
             onSfuma={() => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}
             fatto={stato?.fatti?.includes(c.id)}
             usi={stato?.usi?.[c.id]}
+            coloreLuce={coloreLuceDi(c.luce, luci)}
             onSpunta={() => invia({ tipo: "comando", comando: "spunta", cueId: c.id })}
           />
         ))}
@@ -495,6 +499,8 @@ export function PaginaTelecomando() {
         parla={stato?.parla === true}
         onParla={(acceso) => invia({ tipo: "comando", comando: "parla", acceso })}
         disabilitata={bloccato}
+        luci={luci}
+        onLuciCambiate={ricaricaLuci}
       />
     </div>
   );

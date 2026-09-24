@@ -13,6 +13,35 @@ import { CheckSquare, ChevronDown, Copy, FileAudio, GripVertical, Headphones, Lo
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { analizzaDalServer, analizzaFile } from "../motore/analisi";
 import { BarraAvanzamento } from "../componenti/ui/BarraAvanzamento";
+import { EFFETTI, type ComandoLuceCue } from "../../../shared/luci";
+import type { LuciLive } from "../api";
+
+/** Il menu "Luci" del mondo di Valerio: Nessuna / i tre nomi / Torna com'era. */
+function MenuLuci(props: { luci: LuciLive; valore: ComandoLuceCue | undefined; etichetta: string; onCambia: (v: ComandoLuceCue | null) => void }) {
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-[13px] text-testo-2">
+      <span className="etichetta">{props.etichetta}</span>
+      <select
+        value={props.valore ?? ""}
+        onChange={(e) => props.onCambia((e.target.value || null) as ComandoLuceCue | null)}
+        aria-label={props.etichetta}
+        data-menu-luci
+        className="vetro vetro-campo bg-velo px-2 py-1.5 text-[14px] text-testo focus:border-brand-chiaro focus:outline-none"
+      >
+        <option value="">Nessuna</option>
+        {EFFETTI.map((e) => (
+          <option key={e} value={e}>
+            {props.luci.nomi[e]}
+          </option>
+        ))}
+        <option value="torna">Torna com'era</option>
+      </select>
+      {props.valore && (
+        <span aria-hidden className="h-3 w-3 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.valore === "torna" ? "var(--testo-3)" : props.luci.colori[props.valore] }} />
+      )}
+    </label>
+  );
+}
 import type { Cue, Fase, Format, TipoCue } from "../../../shared/tipi";
 import { MAX_EVIDENZA, inEvidenza, puoMettereInEvidenza } from "../../../shared/sempre";
 import { api } from "../api";
@@ -58,6 +87,8 @@ function CasellaCue(props: {
   maiUsato?: boolean;
   /** Anteprima "Ascolta": passa dal motore della finestra che comanda. */
   anteprima?: Anteprima;
+  /** Luci (solo se la centralina è abbinata): il menu sulla casella. */
+  luci?: LuciLive | null;
 }) {
   const { cue, salva } = props;
   const [avviso, setAvviso] = useState<string | null>(null);
@@ -344,6 +375,16 @@ function CasellaCue(props: {
             </div>
           )}
 
+          {props.luci?.abbinata && (
+            <div className="flex flex-wrap items-center gap-4">
+              <MenuLuci luci={props.luci} etichetta="Luci" valore={cue.luce} onCambia={(v) => salva(() => api.modificaCue(cue.id, { luce: v as never }))} />
+              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-testo-2">
+                <input type="checkbox" checked={cue.luceFine === true} onChange={(e) => salva(() => api.modificaCue(cue.id, { luceFine: e.target.checked }))} className="h-4 w-4 accent-[var(--brand)]" data-luce-fine />
+                A fine suono torna com'era
+              </label>
+            </div>
+          )}
+
           {cue.tipo !== "promemoria" && (
             <label className="flex items-center gap-2 text-[13px] text-testo-2">
               <span className="etichetta">Usi previsti in serata</span>
@@ -438,7 +479,7 @@ function CasellaCue(props: {
   );
 }
 
-function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void; maiUsati?: Set<string>; anteprima?: Anteprima }) {
+function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId: string) => void; maiUsati?: Set<string>; anteprima?: Anteprima; luci?: LuciLive | null }) {
   const { fase, salva } = props;
   const sempre = fase.sempre === true;
   const sortFase = useSortable({ id: `fase-${fase.id}`, disabled: sempre });
@@ -568,6 +609,11 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
         onCambia={(v) => salva(() => api.modificaFase(fase.id, { nota: v }))}
         className="mb-4 w-full resize-y rounded-[var(--raggio-campo)] border border-vetro-bordo bg-velo px-3 py-2 text-[14px] leading-relaxed text-testo-2 placeholder:text-testo-3 focus:border-brand-chiaro focus:outline-none"
       />
+      {!sempre && props.luci?.abbinata && (
+        <div className="mb-4" data-luci-fase>
+          <MenuLuci luci={props.luci} etichetta="Luci all'inizio della fase" valore={fase.luce} onCambia={(v) => salva(() => api.modificaFase(fase.id, { luce: v }))} />
+        </div>
+      )}
 
       <DndContext collisionDetection={closestCenter} onDragEnd={fineTrascinamentoCue}>
         <SortableContext items={cueOrdinati.map((c) => c.id)} strategy={rectSortingStrategy}>
@@ -580,6 +626,7 @@ function SezioneFase(props: { fase: Fase; salva: Salva; onAzzeraSerata?: (faseId
                 rigaSempre={sempre ? cueOrdinati : undefined}
                 maiUsato={props.maiUsati?.has(c.titolo) === true}
                 anteprima={props.anteprima}
+                luci={props.luci}
                 onEliminata={() => salva(() => api.eliminaCue(c.id))}
                 onDuplicata={() => salva(() => api.duplicaCue(c.id))}
               />
@@ -620,6 +667,7 @@ export function Modifica(props: {
   onSblocca?: () => void;
   /** Anteprima "Ascolta" via motore. */
   anteprima?: Anteprima;
+  luci?: LuciLive | null;
 }) {
   const { format } = props;
   const [pendenti, setPendenti] = useState(0);
@@ -804,7 +852,7 @@ export function Modifica(props: {
         <SortableContext items={fasiTrascinabili.map((f) => `fase-${f.id}`)} strategy={verticalListSortingStrategy}>
           <div className="space-y-4 md:space-y-5">
             {fasiOrdinate.map((f) => (
-              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} maiUsati={maiUsati} anteprima={props.anteprima} />
+              <SezioneFase key={f.id} fase={f} salva={salva} onAzzeraSerata={props.onAzzeraSerata} maiUsati={maiUsati} anteprima={props.anteprima} luci={props.luci} />
             ))}
           </div>
         </SortableContext>

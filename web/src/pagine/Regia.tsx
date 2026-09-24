@@ -7,10 +7,13 @@ import { azzeraUsi, giornoDi, incrementaUsi, usiDelGiorno, type Usi } from "../.
 import { api } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
-import { BookOpenText, CalendarClock, ChevronLeft, ListChecks, Lock, LockOpen, Volume2 } from "lucide-react";
+import { BookOpenText, CalendarClock, ChevronLeft, Lightbulb, ListChecks, Lock, LockOpen, Volume2 } from "lucide-react";
 import { EsitoSoundcheck } from "../componenti/EsitoSoundcheck";
 import { Home } from "./Home";
 import { Diario } from "./Diario";
+import { Luci } from "./Luci";
+import { useLuciLive } from "../hooks";
+import { EFFETTI } from "../../../shared/luci";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
 import { PannelloTelecomando } from "./PannelloTelecomando";
@@ -58,6 +61,9 @@ export function PaginaRegia() {
   const [soundcheck, setSoundcheck] = useState<{ indice: number; totale: number } | null>(null);
   const soundcheckRef = useRef<{ indice: number; totale: number; annullato: boolean } | null>(null);
   const [esitoSoundcheck, setEsitoSoundcheck] = useState<EsitoCasella[] | null>(null);
+  const [esitoLuci, setEsitoLuci] = useState<string | null>(null);
+  // Luci, mondo di Valerio: nomi, colori, abbinata, risponde.
+  const { luci, ricarica: ricaricaLuci } = useLuciLive(true);
   // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno).
   const [suggerisciBlocco, setSuggerisciBlocco] = useState(false);
   // Anteprima "Ascolta" da Modifica: la casella chiesta quando la finestra non comanda.
@@ -458,9 +464,25 @@ export function PaginaRegia() {
       if (corso.annullato) break;
       await new Promise((ok) => setTimeout(ok, SOUNDCHECK_PAUSA_MS));
     }
+    // In coda ai suoni: i tre effetti luce 2 s l'uno, poi torna com'era (se la centralina è abbinata).
+    let esitoLuciTesto: string | null = null;
+    if (luci?.abbinata && !corso.annullato) {
+      let ok = true;
+      for (const e of EFFETTI) {
+        if (corso.annullato) break;
+        const r = await api.luci.esegui(e, "soundcheck").catch(() => ({ ok: false }));
+        if (!r.ok) ok = false;
+        await new Promise((fine) => setTimeout(fine, 2000));
+      }
+      const t = await api.luci.esegui("torna", "soundcheck").catch(() => ({ ok: false }));
+      if (!t.ok) ok = false;
+      esitoLuciTesto = ok ? "ok" : "nonRaggiungibile";
+      ricaricaLuci();
+    }
     soundcheckRef.current = null;
     setSoundcheck(null);
     inviaStato();
+    setEsitoLuci(esitoLuciTesto);
     setEsitoSoundcheck(esiti);
   }
   function interrompiSoundcheck() {
@@ -689,7 +711,7 @@ export function PaginaRegia() {
         </div>
       )}
 
-      {esitoSoundcheck && <EsitoSoundcheck esiti={esitoSoundcheck} onChiudi={() => setEsitoSoundcheck(null)} />}
+      {esitoSoundcheck && <EsitoSoundcheck esiti={esitoSoundcheck} luci={esitoLuci} onChiudi={() => setEsitoSoundcheck(null)} />}
 
       {suggerisciBlocco && !bloccato && (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
@@ -730,7 +752,7 @@ export function PaginaRegia() {
             <span className="text-[17px] font-semibold tracking-[-0.01em] text-testo">Regia</span>
             <span className="hidden text-[12px] text-testo-3 sm:block">Porto Mancino</span>
           </a>
-          {(percorso === "/diario" || (formatAperto && vista === "modifica")) && (
+          {(percorso === "/diario" || percorso === "/luci" || (formatAperto && vista === "modifica")) && (
             <button
               type="button"
               onClick={indietro}
@@ -852,6 +874,10 @@ export function PaginaRegia() {
                     {Math.round((config.impostazioni.livelloParla ?? 0.25) * 100)}%
                   </span>
                 </div>
+                <div className="etichetta mb-1.5 mt-4">Luci</div>
+                <Pulsante variante="secondario" misura="sm" className="w-full" onClick={() => vaiA("/luci")} data-vai-luci>
+                  <Lightbulb size={14} strokeWidth={1.75} aria-hidden /> Impostazioni luci…
+                </Pulsante>
               </>
             }
           />
@@ -875,6 +901,8 @@ export function PaginaRegia() {
 
       {percorso === "/diario" ? (
         <Diario />
+      ) : percorso === "/luci" ? (
+        <Luci bloccato={bloccato} />
       ) : !formatAperto ? (
         <Home
           config={config}
@@ -897,6 +925,7 @@ export function PaginaRegia() {
           bloccato={bloccato}
           onSblocca={() => void impostaBlocco(false)}
           anteprima={anteprima}
+          luci={luci}
         />
       ) : (
         <Live
@@ -905,6 +934,7 @@ export function PaginaRegia() {
           attivi={attiviFluidi}
           fatti={fatti}
           usi={usi}
+          luci={luci}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
           onFerma={fermaCue}
@@ -923,6 +953,7 @@ export function PaginaRegia() {
                 attivi={attiviFluidi}
                 fatti={fatti}
                 usi={usi}
+                luci={luci}
                 onPremi={premiCue}
                 onFerma={fermaCue}
                 onSfuma={sfumaCueUi}
@@ -941,6 +972,8 @@ export function PaginaRegia() {
           disabilitata={!motoreOnline}
           soundcheck={soundcheck}
           compatta={vista !== "live"}
+          luci={luci}
+          onLuciCambiate={ricaricaLuci}
         />
       )}
     </div>

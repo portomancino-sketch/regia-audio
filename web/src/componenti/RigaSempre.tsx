@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, CircleCheck } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
 import { altriSempre, inEvidenza } from "../../../shared/sempre";
-import { coloreCue } from "../util";
+import { coloreCue, coloreLuceDi } from "../util";
+import type { LuciLive } from "../api";
 import { AltriSempre } from "./AltriSempre";
 import { ICONE_TIPO, PulsanteCue } from "./PulsanteCue";
 import { Equalizzatore } from "./ui/Equalizzatore";
@@ -108,6 +109,7 @@ export function RigaSempre(props: {
   attivi: CueAttivo[];
   fatti?: string[];
   usi?: Record<string, number>;
+  luci?: LuciLive | null;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
   onSfuma: (cue: Cue) => void;
@@ -160,6 +162,7 @@ export function RigaSempre(props: {
               attivi={props.attivi}
               fatto={props.fatti?.includes(c.id)}
               usi={props.usi?.[c.id]}
+              coloreLuce={coloreLuceDi(c.luce, props.luci)}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               onPremi={() => props.onPremi(c)}

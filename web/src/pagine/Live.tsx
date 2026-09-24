@@ -6,6 +6,8 @@ import { PulsanteCue } from "../componenti/PulsanteCue";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Vetro } from "../componenti/ui/Vetro";
 import { OrologioScaletta } from "../componenti/OrologioScaletta";
+import { coloreLuceDi } from "../util";
+import type { LuciLive } from "../api";
 
 export function Live(props: {
   format: Format;
@@ -14,6 +16,7 @@ export function Live(props: {
   fatti?: string[];
   /** Contatori "già suonato" della serata (cueId → partenze). */
   usi?: Record<string, number>;
+  luci?: LuciLive | null;
   onCambiaFase: (faseId: string) => void;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
@@ -105,6 +108,7 @@ export function Live(props: {
               attivi={props.attivi}
               fatto={props.fatti?.includes(c.id)}
               usi={props.usi?.[c.id]}
+              coloreLuce={coloreLuceDi(c.luce, props.luci)}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               ritardoEntrataMs={Math.min(i, 9) * 35}

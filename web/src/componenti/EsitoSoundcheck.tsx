@@ -2,7 +2,7 @@
 import { ordinaEsito, type EsitoCasella } from "../../../shared/soundcheck";
 import { Pulsante } from "./ui/Pulsante";
 
-export function EsitoSoundcheck(props: { esiti: EsitoCasella[]; onChiudi: () => void }) {
+export function EsitoSoundcheck(props: { esiti: EsitoCasella[]; luci?: string | null; onChiudi: () => void }) {
   const { mancanti, nonDecodificabili, picchi } = ordinaEsito(props.esiti);
   const problemi = mancanti.length + nonDecodificabili.length;
   return (
@@ -17,6 +17,11 @@ export function EsitoSoundcheck(props: { esiti: EsitoCasella[]; onChiudi: () => 
         <p className="mb-4 text-[15px] text-testo-2">
           {props.esiti.length} caselle provate
           {problemi === 0 ? ", nessun problema." : `, ${problemi} con problemi.`}
+          {props.luci && (
+            <span className={`block ${props.luci === "ok" ? "text-testo-2" : "text-rosso"}`} data-esito-luci>
+              Luci: {props.luci === "ok" ? "ok" : "centralina non raggiungibile"}
+            </span>
+          )}
         </p>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           {mancanti.length > 0 && (

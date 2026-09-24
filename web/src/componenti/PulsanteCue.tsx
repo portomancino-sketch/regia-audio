@@ -47,6 +47,8 @@ export function PulsanteCue(props: {
   telefono?: boolean;
   /** Quante volte è partita in serata (per "usato 1/3" e "già suonato"). */
   usi?: number;
+  /** Colore dell'effetto luce impostato sulla casella (pallino). */
+  coloreLuce?: string;
   /** Ritardo dell'entrata a cascata, in ms. */
   ritardoEntrataMs?: number;
 }) {
@@ -111,6 +113,7 @@ export function PulsanteCue(props: {
               >
                 {cue.titolo}
               </div>
+              {props.coloreLuce && <span aria-label="con luci" className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.coloreLuce }} data-pallino-luce />}
               <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: colore }} />
             </div>
             {cue.nota && (
@@ -157,7 +160,10 @@ export function PulsanteCue(props: {
               fill={fatto ? "var(--brand-glow)" : "none"}
             />
           </Cerchietto>
-          <Pillola colore={colore}>{fatto ? "fatto" : NOMI_TIPO[cue.tipo]}</Pillola>
+          <span className="flex items-center gap-1.5">
+            {props.coloreLuce && <span aria-label="con luci" className="h-2.5 w-2.5 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.coloreLuce }} data-pallino-luce />}
+            <Pillola colore={colore}>{fatto ? "fatto" : NOMI_TIPO[cue.tipo]}</Pillola>
+          </span>
         </div>
         <div className="mt-3 min-w-0">
           <div
@@ -181,6 +187,9 @@ export function PulsanteCue(props: {
   const spento = props.disabilitato || !cue.file;
   // "Già suonato": usato 1/3, esaurito (attenuata ma SEMPRE premibile), ✓ già suonato.
   const su = statoUsi(cue, props.usi === undefined ? undefined : { [cue.id]: props.usi });
+  const pallinoLuce = props.coloreLuce ? (
+    <span aria-label="con luci" title="Questa casella cambia le luci" className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.coloreLuce }} data-pallino-luce />
+  ) : null;
   const badgeUsi =
     su.previsti !== null ? (
       <span
@@ -259,6 +268,7 @@ export function PulsanteCue(props: {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-tight text-testo">{cue.titolo}</div>
+              {pallinoLuce}
               {badgeUsi}
               {inPausa ? (
                 <Pillola colore={colore}>in pausa</Pillola>
@@ -281,6 +291,7 @@ export function PulsanteCue(props: {
               )}
             </Cerchietto>
             <span className="flex min-w-0 items-center gap-1.5">
+              {pallinoLuce}
               {badgeUsi}
               <Pillola colore={colore}>{inPausa ? "in pausa" : NOMI_TIPO[cue.tipo]}</Pillola>
             </span>

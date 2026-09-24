@@ -40,3 +40,10 @@ export function formattaTempo(sec: number | null | undefined): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, "0")}`;
 }
+
+/** Il colore del pallino "luci" di una casella (o fase): quello dell'effetto, grigio per "torna". */
+export function coloreLuceDi(luce: string | undefined, luci: { abbinata: boolean; colori: Record<string, string> } | null | undefined): string | undefined {
+  if (!luce || !luci?.abbinata) return undefined;
+  if (luce === "torna") return "var(--testo-3)";
+  return luci.colori[luce];
+}
