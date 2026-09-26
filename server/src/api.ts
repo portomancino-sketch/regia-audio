@@ -10,14 +10,14 @@ import AdmZip from "adm-zip";
 import { parseFile } from "music-metadata";
 import type { Config, Cue, Fase, Format } from "../../shared/tipi";
 import { puoMettereInEvidenza } from "../../shared/sempre";
-import { scriviEvento, riepilogoSerata, csvGiornoConRiepilogo, maiUsati, invalidaMaiUsati } from "./diario";
+import { scriviEvento, riepilogoSerata, csvGiornoConRiepilogo, maiUsati, invalidaMaiUsati, serataDiOggi, chiudiSerata } from "./diario";
 import type { Store } from "./store";
 import type { Luci } from "./luci";
 import type { Effetto, NomeEffetto } from "../../shared/luci";
 import type { Hub } from "./ws";
 import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
 import { indirizzoLan } from "./rete";
-import { elencoGiorni, leggiGiorno } from "./diario";
+import { elencoSerate, leggiSerata } from "./diario";
 import { PORTA } from "./porta";
 
 const ESTENSIONI_AUDIO = new Set(["mp3", "wav", "m4a", "aac", "ogg"]);
@@ -117,6 +117,8 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (url === "/api/impostazioni") return;
     // I comandi delle luci in Live restano attivi anche col lucchetto (le Impostazioni luci no).
     if (url === "/api/luci/esegui" || url === "/api/luci/intensita" || url === "/api/luci/torna") return;
+    // La serata (soundcheck, avviso, "Chiudi serata") si scrive anche col lucchetto.
+    if (url.startsWith("/api/serata")) return;
     if (url.startsWith("/api/")) return reply.status(423).send({ errore: MESSAGGIO_BLOCCO });
   });
 
@@ -544,18 +546,106 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
 
   // ---- Diario di serata ----
 
-  app.get("/api/diario", async () => elencoGiorni());
+  /** Le serate (una riga per serata: un giorno chiuso due volte col pulsante ne ha due). */
+  app.get("/api/diario", async () => elencoSerate());
+
+  /** Il numero della serata nel giorno (?serata=N); senza, tutto il giorno. */
+  const numeroSerata = (req: { query: unknown }): number | null => {
+    const q = (req.query ?? {}) as { serata?: string };
+    if (q.serata === undefined || q.serata === "") return null;
+    const n = Number(q.serata);
+    return Number.isInteger(n) && n >= 0 ? n : null;
+  };
 
   app.get("/api/diario/:data", async (req) => {
-    const eventi = leggiGiorno((req.params as { data: string }).data);
+    const eventi = leggiSerata((req.params as { data: string }).data, numeroSerata(req));
     return { eventi, riepilogo: riepilogoSerata(eventi, store.config) };
   });
 
   app.get("/api/diario/:data/csv", async (req, reply) => {
     const data = (req.params as { data: string }).data;
+    const serata = numeroSerata(req);
     reply.header("Content-Type", "text/csv; charset=utf-8");
-    reply.header("Content-Disposition", `attachment; filename="diario-${data}.csv"`);
-    return csvGiornoConRiepilogo(data, store.config);
+    reply.header("Content-Disposition", `attachment; filename="diario-${data}${serata === null ? "" : `-serata${serata + 1}`}.csv"`);
+    return csvGiornoConRiepilogo(data, store.config, serata);
+  });
+
+  // ---- La serata di oggi: soundcheck ricordato, avviso, "Chiudi serata" ----
+
+  /** Stato della serata aperta (soundcheck per format, avviso) + i suoi eventi (per l'orologio). */
+  app.get("/api/serata", async () => {
+    const { stato, eventi } = serataDiOggi();
+    return { ...stato, eventi };
+  });
+
+  /** Il Mac ha finito "Prova tutti": l'esito va nel diario (un evento, coi problemi). */
+  app.post("/api/serata/soundcheck", async (req, reply) => {
+    const corpo = (req.body ?? {}) as {
+      formatId?: string;
+      inizio?: string;
+      caselle?: number;
+      problemi?: number;
+      mancanti?: { cueId: string; titolo?: string; fase?: string; esito: string }[];
+      completo?: boolean;
+    };
+    const format = typeof corpo.formatId === "string" ? trovaFormat(store.config, corpo.formatId) : undefined;
+    if (!format) return reply.status(404).send({ errore: "Format non trovato" });
+    const mancanti = (Array.isArray(corpo.mancanti) ? corpo.mancanti : [])
+      .filter((m) => m && typeof m.cueId === "string")
+      .map((m) => ({
+        cueId: m.cueId,
+        titolo: typeof m.titolo === "string" ? m.titolo.slice(0, 80) : undefined,
+        fase: typeof m.fase === "string" ? m.fase.slice(0, 80) : undefined,
+        esito: m.esito === "nonDecodificabile" ? "nonDecodificabile" : "mancante",
+      }));
+    scriviEvento({
+      ora: new Date().toISOString(),
+      tipo: "soundcheck",
+      format: format.nome,
+      origine: "mac",
+      dettagli: {
+        formatId: format.id,
+        inizio: typeof corpo.inizio === "string" ? corpo.inizio : new Date().toISOString(),
+        fine: new Date().toISOString(),
+        caselle: typeof corpo.caselle === "number" ? Math.max(0, Math.round(corpo.caselle)) : 0,
+        problemi: typeof corpo.problemi === "number" ? Math.max(0, Math.round(corpo.problemi)) : mancanti.length,
+        mancanti,
+        completo: corpo.completo !== false,
+      },
+    });
+    hub()?.serataCambiata();
+    return serataDiOggi().stato;
+  });
+
+  /** La finestra "Non hai ancora provato i suoni di oggi" è comparsa: mai più in questa serata. */
+  app.post("/api/serata/avviso", async (req) => {
+    const { formatId, scelta } = (req.body ?? {}) as { formatId?: string; scelta?: string };
+    const format = typeof formatId === "string" ? trovaFormat(store.config, formatId) : undefined;
+    scriviEvento({
+      ora: new Date().toISOString(),
+      tipo: "avviso_soundcheck",
+      format: format?.nome,
+      origine: "mac",
+      dettagli: { formatId: format?.id, scelta: typeof scelta === "string" ? scelta.slice(0, 20) : "mostrato" },
+    });
+    hub()?.serataCambiata();
+    return serataDiOggi().stato;
+  });
+
+  /** "Chiudi serata": luci com'erano, lucchetto spento, fine_serata nel diario, riepilogo. */
+  app.post("/api/serata/chiudi", async () => {
+    if (luci.statoLive().abbinata) await luci.esegui("torna", "chiudi serata").catch(() => undefined);
+    const imp = store.config.impostazioni;
+    if (imp.bloccoModifiche) {
+      imp.bloccoModifiche = false;
+      scriviEvento({ ora: new Date().toISOString(), tipo: "blocco_off", origine: "mac" });
+      store.salva();
+      hub()?.configCambiata();
+    }
+    const { data, serata } = chiudiSerata("mac");
+    const eventi = leggiSerata(data, serata);
+    hub()?.serataCambiata();
+    return { data, serata, riepilogo: riepilogoSerata(eventi, store.config), eventi };
   });
 
   /** Le caselle mai partite nelle ultime 10 serate, per format (cache in memoria). */

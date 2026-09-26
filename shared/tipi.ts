@@ -125,6 +125,8 @@ export type Comando =
   | { tipo: "comando"; comando: "spunta"; cueId: string }
   | { tipo: "comando"; comando: "azzeraSpunte"; faseId: string }
   | { tipo: "comando"; comando: "azzeraSerata"; faseId: string }
+  /** "Chiudi serata": via tutte le spunte e tutti i contatori "già suonato". */
+  | { tipo: "comando"; comando: "azzeraTutto" }
   | { tipo: "comando"; comando: "parla"; acceso: boolean }
   | { tipo: "comando"; comando: "fade" }
   | { tipo: "comando"; comando: "stopTutto" }

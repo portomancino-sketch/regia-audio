@@ -60,7 +60,22 @@ describe("riepilogo di una serata", () => {
     expect(r.comandi).toEqual({ telefono: 4, mac: 6 }); // soundcheck escluso
   });
   it("una serata vuota non rompe niente", () => {
-    expect(riepilogoSerata([], CONFIG)).toMatchObject({ inizio: null, fine: null, durataMin: 0, fasi: [], stopTutto: 0 });
+    expect(riepilogoSerata([], CONFIG)).toMatchObject({ inizio: null, fine: null, durataMin: 0, fasi: [], stopTutto: 0, chiusa: false, soundcheck: null });
+  });
+  it("con 'Chiudi serata' la fine è quella esplicita, e il soundcheck compare nel riepilogo", () => {
+    const chiusa: EventoDiario[] = [
+      ...SERATA.slice(0, 2),
+      { ora: ora(-400), tipo: "soundcheck", format: "Orient", origine: "mac", dettagli: { formatId: "f1", fine: ora(-400), caselle: 5, problemi: 2, completo: true } },
+      ...SERATA.slice(2),
+      { ora: ora(3600), tipo: "fine_serata", origine: "mac" },
+      { ora: ora(3700), tipo: "luce", origine: "avvio" }, // dopo la chiusura: non conta
+    ];
+    const r = riepilogoSerata(chiusa, CONFIG);
+    expect(r.chiusa).toBe(true);
+    expect(r.fine).toBe(ora(3600));
+    expect(r.durataMin).toBe(60);
+    expect(r.soundcheck).toEqual({ ora: ora(-400), problemi: 2, completo: true });
+    expect(r.comandi).toEqual({ telefono: 4, mac: 6 }); // fine_serata e luce esclusi
   });
 });
 

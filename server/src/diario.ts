@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { cartellaDati } from "./percorsi";
 import type { Config } from "../../shared/tipi";
+import { serataCorrente, soundcheckDellaSerata, spezzaInSerate, statoSerata, type StatoSerata } from "../../shared/serata";
 
 const GIORNI_DA_TENERE = 365;
 
@@ -21,7 +22,9 @@ export interface EventoDiario {
     | "soundcheck"
     | "blocco_on"
     | "blocco_off"
-    | "luce";
+    | "luce"
+    | "fine_serata"
+    | "avviso_soundcheck";
   cue?: string;
   fase?: string;
   format?: string;
@@ -34,7 +37,7 @@ function cartellaDiario(): string {
   return path.join(cartellaDati(), "diario");
 }
 
-function nomeGiorno(d: Date): string {
+export function nomeGiorno(d: Date): string {
   const z = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 }
@@ -81,43 +84,78 @@ export function leggiGiorno(data: string): EventoDiario[] {
     .filter((e): e is EventoDiario => e !== null);
 }
 
-export interface RiassuntoGiorno {
+export interface RiassuntoSerata {
   data: string;
+  /** Numero della serata in quel giorno (0 = la prima). */
+  serata: number;
+  /** Chiusa col pulsante "Chiudi serata" (altrimenti: taglio a mezzanotte). */
+  chiusa: boolean;
   formats: string[];
   primo: string;
   ultimo: string;
   durataMin: number;
   suoni: number;
+  soundcheck: { ora: string; problemi: number; completo: boolean } | null;
 }
 
-export function elencoGiorni(): RiassuntoGiorno[] {
+/** Le serate, dalla più recente: un giorno chiuso col pulsante due volte dà due righe. */
+export function elencoSerate(): RiassuntoSerata[] {
   const cartella = cartellaDiario();
   if (!fs.existsSync(cartella)) return [];
-  const giorni: RiassuntoGiorno[] = [];
+  const serate: RiassuntoSerata[] = [];
   for (const f of fs.readdirSync(cartella).sort().reverse()) {
     if (!f.endsWith(".jsonl")) continue;
     const data = f.replace(".jsonl", "");
-    const eventi = leggiGiorno(data);
-    if (eventi.length === 0) continue;
-    const formats = [...new Set(eventi.map((e) => e.format).filter((x): x is string => !!x))];
-    const primo = eventi[0]!.ora;
-    const ultimo = eventi[eventi.length - 1]!.ora;
-    giorni.push({
-      data,
-      formats,
-      primo,
-      ultimo,
-      durataMin: Math.round((new Date(ultimo).getTime() - new Date(primo).getTime()) / 60000),
-      suoni: eventi.filter((e) => e.tipo === "suono partito").length,
-    });
+    const tratti = spezzaInSerate(leggiGiorno(data));
+    for (let i = tratti.length - 1; i >= 0; i--) {
+      const eventi = tratti[i]!;
+      const formats = [...new Set(eventi.map((e) => e.format).filter((x): x is string => !!x))];
+      const primo = eventi[0]!.ora;
+      const ultimo = eventi[eventi.length - 1]!.ora;
+      serate.push({
+        data,
+        serata: i,
+        chiusa: eventi[eventi.length - 1]!.tipo === "fine_serata",
+        formats,
+        primo,
+        ultimo,
+        durataMin: Math.round((new Date(ultimo).getTime() - new Date(primo).getTime()) / 60000),
+        suoni: eventi.filter((e) => e.tipo === "suono partito").length,
+        soundcheck: soundcheckDellaSerata(eventi),
+      });
+    }
   }
-  return giorni;
+  return serate;
 }
 
-export function csvGiorno(data: string): string {
+/** Gli eventi di una serata (`serata` = numero nel giorno); senza numero, tutto il giorno. */
+export function leggiSerata(data: string, serata: number | null): EventoDiario[] {
+  const eventi = leggiGiorno(data);
+  if (serata === null) return eventi;
+  return spezzaInSerate(eventi)[serata] ?? [];
+}
+
+// ---- La serata di oggi (quella aperta) ----
+
+/** Lo stato della serata aperta di oggi: soundcheck per format, avviso, inizio. */
+export function serataDiOggi(): { stato: StatoSerata; eventi: EventoDiario[] } {
+  const data = nomeGiorno(new Date());
+  const { indice, eventi } = serataCorrente(leggiGiorno(data));
+  return { stato: statoSerata(data, indice, eventi), eventi };
+}
+
+/** "Chiudi serata": scrive fine_serata e dice quale serata si è chiusa. */
+export function chiudiSerata(origine: string): { data: string; serata: number } {
+  const data = nomeGiorno(new Date());
+  const { indice } = serataCorrente(leggiGiorno(data));
+  scriviEvento({ ora: new Date().toISOString(), tipo: "fine_serata", origine });
+  return { data, serata: indice };
+}
+
+export function csvGiorno(data: string, serata: number | null = null): string {
   const campi = ["ora", "tipo", "cue", "fase", "format", "origine"] as const;
   const scappa = (v: string | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
-  const righe = leggiGiorno(data).map((e) => campi.map((c) => scappa(e[c])).join(","));
+  const righe = leggiSerata(data, serata).map((e) => campi.map((c) => scappa(e[c])).join(","));
   return [campi.join(","), ...righe].join("\n") + "\n";
 }
 
@@ -132,7 +170,11 @@ export interface RigaFase {
 
 export interface Riepilogo {
   inizio: string | null; // primo suono vero
-  fine: string | null; // ultimo evento
+  fine: string | null; // "Chiudi serata" se c'è, altrimenti l'ultimo evento
+  /** Chiusa col pulsante "Chiudi serata". */
+  chiusa: boolean;
+  /** Il soundcheck della serata (null = non fatto). */
+  soundcheck: { ora: string; problemi: number; completo: boolean } | null;
   durataMin: number;
   fasi: RigaFase[];
   stopTutto: number;
@@ -157,8 +199,10 @@ export function riepilogoSerata(eventi: EventoDiario[], config: Config | null): 
   const t = (e: EventoDiario) => new Date(e.ora).getTime();
   const primoSuono = eventi.find((e) => e.tipo === "suono partito") ?? null;
   const ultimo = eventi.length > 0 ? eventi[eventi.length - 1]! : null;
+  const chiusura = eventi.find((e) => e.tipo === "fine_serata") ?? null;
   const inizio = primoSuono ? primoSuono.ora : null;
-  const fine = ultimo ? ultimo.ora : null;
+  // Fine esplicita ("Chiudi serata") quando c'è; altrimenti l'ultimo evento.
+  const fine = chiusura ? chiusura.ora : ultimo ? ultimo.ora : null;
   const durataMin = inizio && fine ? Math.max(0, Math.round((new Date(fine).getTime() - new Date(inizio).getTime()) / 60000)) : 0;
 
   // Tempo reale per fase (dal primo suono in poi), nell'ordine in cui si sono viste.
@@ -200,6 +244,7 @@ export function riepilogoSerata(eventi: EventoDiario[], config: Config | null): 
   const comandi = { telefono: 0, mac: 0 };
   for (const e of eventi) {
     if (e.tipo === "soundcheck" || e.tipo === "blocco_on" || e.tipo === "blocco_off") continue;
+    if (e.tipo === "fine_serata" || e.tipo === "avviso_soundcheck" || e.tipo === "luce") continue;
     if (e.origine.startsWith("telefono")) comandi.telefono++;
     else comandi.mac++;
   }
@@ -207,6 +252,8 @@ export function riepilogoSerata(eventi: EventoDiario[], config: Config | null): 
   return {
     inizio,
     fine,
+    chiusa: chiusura !== null,
+    soundcheck: soundcheckDellaSerata(eventi),
     durataMin,
     fasi,
     stopTutto: eventi.filter((e) => e.tipo === "stop tutto").length,
@@ -217,24 +264,27 @@ export function riepilogoSerata(eventi: EventoDiario[], config: Config | null): 
 
 /** Il CSV della serata: prima un blocco "chiave,valore" col riepilogo, una riga
  *  vuota, poi la cronologia con la sua intestazione. */
-export function csvGiornoConRiepilogo(data: string, config: Config | null): string {
-  const eventi = leggiGiorno(data);
+export function csvGiornoConRiepilogo(data: string, config: Config | null, serata: number | null = null): string {
+  const eventi = leggiSerata(data, serata);
   const r = riepilogoSerata(eventi, config);
   const scappa = (v: string | number | null | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   const righe: string[] = ["chiave,valore"];
-  righe.push(`inizio,${scappa(r.inizio)}`, `fine,${scappa(r.fine)}`, `durata_min,${r.durataMin}`);
+  righe.push(`inizio,${scappa(r.inizio)}`, `fine,${scappa(r.fine)}`, `durata_min,${r.durataMin}`, `chiusa,${r.chiusa ? "si" : "no"}`);
+  righe.push(`soundcheck,${scappa(r.soundcheck ? `${r.soundcheck.completo ? "fatto" : "interrotto"} alle ${r.soundcheck.ora}, problemi ${r.soundcheck.problemi}` : "non fatto")}`);
   righe.push(`stop_tutto,${r.stopTutto}`, `possibili_errori,${r.possibiliErrori}`);
   righe.push(`comandi_telefono,${r.comandi.telefono}`, `comandi_mac,${r.comandi.mac}`);
   for (const f of r.fasi) righe.push(`fase,${scappa(`${f.nome}: previsti ${f.previstiMin ?? "-"} min, reali ${f.realiMin} min, scarto ${f.scartoMin ?? "-"}`)}`);
   righe.push("");
-  return righe.join("\n") + "\n" + csvGiorno(data);
+  return righe.join("\n") + "\n" + csvGiorno(data, serata);
 }
 
 // ---- Suoni mai usati nelle ultime N serate ----
 
 export interface MaiUsati {
-  serate: string[]; // le date considerate
+  serate: string[]; // le date considerate (una data può ripetersi: due serate lo stesso giorno)
   formats: { nome: string; caselle: string[] }[];
+  /** Quante di quelle serate sono andate senza un soundcheck completo. */
+  senzaSoundcheck: number;
 }
 
 const SERATE_DA_GUARDARE = 10;
@@ -260,14 +310,15 @@ export function calcolaMaiUsati(config: Config, serate: { data: string; eventi: 
       .map((c) => c.titolo);
     formats.push({ nome: nomeFormat, caselle });
   }
-  return { serate: serate.map((s) => s.data), formats };
+  const senzaSoundcheck = serate.filter((s) => !(soundcheckDellaSerata(s.eventi)?.completo ?? false)).length;
+  return { serate: serate.map((s) => s.data), formats, senzaSoundcheck };
 }
 
 export function maiUsati(config: Config): MaiUsati {
   if (cacheMaiUsati) return cacheMaiUsati;
-  const serate = elencoGiorni()
+  const serate = elencoSerate()
     .slice(0, SERATE_DA_GUARDARE)
-    .map((g) => ({ data: g.data, eventi: leggiGiorno(g.data) }));
+    .map((g) => ({ data: g.data, eventi: leggiSerata(g.data, g.serata) }));
   cacheMaiUsati = calcolaMaiUsati(config, serate);
   return cacheMaiUsati;
 }

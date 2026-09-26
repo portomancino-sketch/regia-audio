@@ -40,7 +40,7 @@ export class Hub {
   private diarioPrec: { istanze: Map<string, string>; faseId: string | null; formatId: string | null; parla: boolean; fatti: Set<string> } =
     { istanze: new Map(), faseId: null, formatId: null, parla: false, fatti: new Set() };
   private ultimoComando: { comando: string; origine: string; quando: number } | null = null;
-  /** Soundcheck in corso: quando è partito e quante caselle ha provato. */
+  /** Soundcheck in corso (i suoni di prova non vanno nel diario). */
   private soundcheck: { inizio: string; provate: number } | null = null;
   private ultimoBattito = 0;
   private ultimoStato: StatoLive | null = null;
@@ -274,6 +274,11 @@ export class Hub {
     this.aTutti({ tipo: "configCambiata" });
   }
 
+  /** La serata è cambiata (soundcheck, avviso, chiusura): Mac e telefoni rileggono /api/serata. */
+  serataCambiata(): void {
+    this.aTutti({ tipo: "serataCambiata" });
+  }
+
   private aTutti(msg: unknown): void {
     const testo = JSON.stringify(msg);
     for (const c of this.clienti) {
@@ -338,14 +343,9 @@ export class Hub {
       return;
     }
     if (this.soundcheck) {
-      const sc = this.soundcheck;
+      // L'evento "soundcheck" lo scrive il Mac a fine giro (POST /api/serata/soundcheck),
+      // con l'esito: qui si chiude solo la parentesi.
       this.soundcheck = null;
-      this.annota({
-        tipo: "soundcheck",
-        format,
-        origine: `mac·${motore.id4}`,
-        dettagli: { inizio: sc.inizio, fine: new Date().toISOString(), caselle: sc.provate },
-      });
       // Ciò che suona adesso (se qualcosa) è la base: niente "partito" fantasma.
       this.diarioPrec = { ...prec, istanze: adesso, faseId: stato.faseId, formatId: stato.formatId };
       return;
