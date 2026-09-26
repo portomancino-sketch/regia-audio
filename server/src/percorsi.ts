@@ -1,6 +1,7 @@
 // Dove stanno i dati: ~/Regia-dati (o la cartella indicata da REGIA_DIR).
 // Mai ~/Regia: sui dischi Mac, che non distinguono le maiuscole, coinciderebbe
 // con la cartella del codice ~/regia e i dati finirebbero nel repository.
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,4 +26,14 @@ export function cartellaBackup(): string {
 
 export function cartellaDist(): string {
   return path.join(radiceProgetto, "dist");
+}
+
+/** La versione della Regia: fissata dal pacchetto (REGIA_VERSIONE), altrimenti dal package.json. */
+export function versioneRegia(): string {
+  if (process.env.REGIA_VERSIONE) return process.env.REGIA_VERSIONE;
+  try {
+    return (JSON.parse(fs.readFileSync(path.join(radiceProgetto, "package.json"), "utf8")) as { version?: string }).version ?? "?";
+  } catch {
+    return "?";
+  }
 }

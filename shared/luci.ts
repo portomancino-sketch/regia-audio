@@ -218,3 +218,23 @@ export function luceAllaFase(fase: { luce?: ComandoLuceCue; sempre?: boolean }):
 }
 /** STOP TUTTO manda sempre "torna com'era"; FADE OUT no. */
 export const LUCE_SU_STOP_TUTTO: "torna" = "torna";
+
+/** Il colore a schermo di una lampadina (per i pallini delle luci simulate):
+ *  spenta = grigio; "ct" = bianco più o meno caldo; "hs" = la tinta; la luminosità
+ *  attenua verso il grigio. Ritorna un colore CSS. */
+export function coloreDiStatoHue(stato: { on: boolean; bri?: number; hue?: number; sat?: number; ct?: number; colormode?: string }): string {
+  if (!stato.on) return "#6b7280";
+  const bri = Math.min(254, Math.max(0, stato.bri ?? 254)) / 254;
+  const luminosita = 25 + bri * 45; // 25 % (fioca) … 70 % (piena)
+  if (stato.colormode === "hs" || (stato.hue !== undefined && stato.colormode !== "ct")) {
+    const gradi = Math.round(((stato.hue ?? 0) / 65535) * 360);
+    const sat = Math.round(((stato.sat ?? 254) / 254) * 100);
+    return `hsl(${gradi} ${sat}% ${Math.round(luminosita)}%)`;
+  }
+  // Bianco: ct 153 (freddo) … 500 (caldo) → tinta 210° (azzurrina) … 35° (ambra), poco satura.
+  const ct = Math.min(500, Math.max(153, stato.ct ?? 366));
+  const caldo = (ct - 153) / (500 - 153);
+  const tonalita = caldo < 0.5 ? 210 : 35;
+  const satura = Math.round(Math.abs(caldo - 0.5) * 2 * 60);
+  return `hsl(${tonalita} ${satura}% ${Math.round(luminosita + 15)}%)`;
+}

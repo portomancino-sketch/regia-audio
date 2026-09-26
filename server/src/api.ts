@@ -15,7 +15,8 @@ import type { Store } from "./store";
 import type { Luci } from "./luci";
 import type { Effetto, NomeEffetto } from "../../shared/luci";
 import type { Hub } from "./ws";
-import { cartellaAudio, cartellaBackup, percorsoConfig } from "./percorsi";
+import { cartellaAudio, cartellaBackup, cartellaDati, percorsoConfig, versioneRegia } from "./percorsi";
+import { spawn } from "node:child_process";
 import { indirizzoLan } from "./rete";
 import { elencoSerate, leggiSerata } from "./diario";
 import { PORTA } from "./porta";
@@ -145,6 +146,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
     if (typeof corpo.fadeOutMs === "number") imp.fadeOutMs = Math.max(100, corpo.fadeOutMs);
     if (typeof corpo.livelloAbbassa === "number") imp.livelloAbbassa = Math.min(1, Math.max(0, corpo.livelloAbbassa));
     if (typeof corpo.livelloParla === "number") imp.livelloParla = Math.min(0.6, Math.max(0, corpo.livelloParla));
+    if (typeof corpo.crossfadeDefault === "number" && Number.isFinite(corpo.crossfadeDefault)) {
+      imp.crossfadeDefault = Math.round(Math.min(5, Math.max(0, corpo.crossfadeDefault)) * 10) / 10;
+    }
     if (typeof corpo.bloccoModifiche === "boolean" && corpo.bloccoModifiche !== (imp.bloccoModifiche ?? false)) {
       imp.bloccoModifiche = corpo.bloccoModifiche;
       scriviEvento({ ora: new Date().toISOString(), tipo: corpo.bloccoModifiche ? "blocco_on" : "blocco_off", origine: "mac" });
@@ -165,6 +169,9 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
       ordine: store.config.formats.length,
       fasi: [{ id: randomUUID(), nome: "Sempre", ordine: -1, sempre: true, cue: [] }],
     };
+    // Il passaggio tra sottofondi di default per i format nuovi (Impostazioni → Serata).
+    const cf = store.config.impostazioni.crossfadeDefault;
+    if (typeof cf === "number" && cf !== 2) format.crossfade = cf;
     store.config.formats.push(format);
     cambiata();
     return format;
@@ -700,6 +707,30 @@ export function registraApi(app: FastifyInstance, store: Store, hub: () => Hub |
   app.put("/api/luci/intensita", async (req) => {
     const { valore } = (req.body ?? {}) as { valore?: number };
     return { intensita: luci.setIntensita(Number(valore) || 100) };
+  });
+  /** Luci simulate: la centralina finta in memoria (mai di default, non sopravvive al riavvio). */
+  app.get("/api/luci/simulate", async () => ({ attive: luci.luciSimulate, lampadine: luci.lampadineSimulate() }));
+  app.post("/api/luci/simulate", async (req) => {
+    const { attive } = (req.body ?? {}) as { attive?: boolean };
+    if (attive) await luci.attivaSimulate();
+    else await luci.disattivaSimulate();
+    hub()?.configCambiata();
+    return { attive: luci.luciSimulate, lampadine: luci.lampadineSimulate() };
+  });
+
+  // ---- Dati e versione (Impostazioni → Dati) ----
+
+  app.get("/api/versione", async () => ({ versione: versioneRegia(), cartellaDati: cartellaDati() }));
+
+  /** "Apri nel Finder": apre la cartella dati sul Mac (altrove non fa niente). */
+  app.post("/api/dati/apri", async () => {
+    if (process.platform !== "darwin") return { aperta: false };
+    try {
+      spawn("open", [cartellaDati()], { stdio: "ignore", detached: true }).unref();
+      return { aperta: true };
+    } catch {
+      return { aperta: false };
+    }
   });
 
   // ---- Rete ----

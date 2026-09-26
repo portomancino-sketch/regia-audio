@@ -8,6 +8,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { cartellaDati } from "./percorsi";
 import { scriviEvento } from "./diario";
+import { CentralinaFinta, CHIAVE_FINTA, ID_CENTRALINA_FINTA } from "./luci-finte";
 import {
   CodaLuci,
   comandiRipristino,
@@ -66,6 +67,8 @@ export class Luci {
   /** Intensità master di serata (10–100 %), condivisa, non salvata nel format. */
   private intensita = INTENSITA_MAX;
   private effettoCorrente: NomeEffetto | null = null;
+  /** "Luci simulate": la centralina finta in memoria e i dati veri messi da parte. */
+  private simulate: { centralina: CentralinaFinta; datiVeri: DatiLuci; fotoVera: Foto | null } | null = null;
 
   constructor(private opzioni: { mdns?: boolean } = {}) {
     this.dati = this.carica();
@@ -87,6 +90,7 @@ export class Luci {
     return { bridge: null, perBridge: {} };
   }
   private salva(): void {
+    if (this.simulate) return; // le luci simulate non toccano luci.json
     try {
       fs.mkdirSync(cartellaDati(), { recursive: true });
       fs.writeFileSync(fileLuci(), JSON.stringify(this.dati, null, 2));
@@ -103,6 +107,7 @@ export class Luci {
     return null;
   }
   private salvaFoto(): void {
+    if (this.simulate) return; // la foto delle luci simulate resta in memoria
     try {
       if (this.foto) fs.writeFileSync(fileFoto(), JSON.stringify(this.foto, null, 2));
       else if (fs.existsSync(fileFoto())) fs.unlinkSync(fileFoto());
@@ -162,7 +167,57 @@ export class Luci {
       foto: this.foto !== null,
       intensita: this.intensita,
       effettoCorrente: this.effettoCorrente,
+      simulate: this.simulate !== null,
     };
+  }
+
+  // ---- Luci simulate ----
+  get luciSimulate(): boolean {
+    return this.simulate !== null;
+  }
+  /** Le sei lampadine finte come sono adesso (per i pallini in Impostazioni). */
+  lampadineSimulate(): { id: string; nome: string; stato: { on: boolean; bri: number; hue: number; sat: number; ct: number; colormode: string } }[] {
+    if (!this.simulate) return [];
+    return Object.entries(this.simulate.centralina.lights).map(([id, l]) => ({
+      id,
+      nome: l.name,
+      stato: { on: l.state.on, bri: l.state.bri, hue: l.state.hue, sat: l.state.sat, ct: l.state.ct, colormode: l.state.colormode },
+    }));
+  }
+  /** Accende le luci simulate: centralina finta, 6 lampadine in "Sala" e "Palco", tre effetti pronti. */
+  async attivaSimulate(): Promise<void> {
+    if (this.simulate) return;
+    const centralina = new CentralinaFinta();
+    await centralina.avvia();
+    this.simulate = { centralina, datiVeri: this.dati, fotoVera: this.foto };
+    this.foto = null;
+    this.effettoCorrente = null;
+    this.raggiungibile = true;
+    this.dati = {
+      bridge: { id: ID_CENTRALINA_FINTA, ip: centralina.ip, nome: "Luci simulate", chiave: CHIAVE_FINTA },
+      perBridge: { [ID_CENTRALINA_FINTA]: mappaVuota() },
+    };
+    const sala = await this.creaGruppo("Sala", ["1", "2", "3"]);
+    const palco = await this.creaGruppo("Palco", ["4", "5", "6"]);
+    this.salvaEffetti({
+      luce1: { voci: { [sala.id]: { acceso: false, luminosita: 0, colore: "bianco-caldo", transizione: 1 }, [palco.id]: { acceso: true, luminosita: 15, colore: "blu", transizione: 1 } } },
+      luce2: { voci: { [sala.id]: { acceso: true, luminosita: 80, colore: "rosso", transizione: 0.5 }, [palco.id]: { acceso: true, luminosita: 60, colore: "rosso", transizione: 0.5 } } },
+      luce3: { voci: { [sala.id]: { acceso: true, luminosita: 70, colore: "bianco-caldo", transizione: 2 }, [palco.id]: { acceso: true, luminosita: 90, colore: "arancio", transizione: 2 } } },
+    });
+  }
+  /** "Torna alle luci vere": spegne la centralina finta e rimette i dati veri. */
+  async disattivaSimulate(): Promise<void> {
+    const sim = this.simulate;
+    if (!sim) return;
+    this.simulate = null;
+    await sim.centralina.chiudi();
+    this.dati = sim.datiVeri;
+    this.foto = sim.fotoVera;
+    this.effettoCorrente = null;
+    this.intensita = INTENSITA_MAX;
+    this.coda = new CodaLuci(10);
+    this.raggiungibile = true;
+    if (this.dati.bridge) void this.provaIp(this.dati.bridge.ip);
   }
   /** Il mondo di Valerio: solo nomi, colori, se c'è e se risponde. */
   statoLive() {
@@ -487,6 +542,7 @@ export class Luci {
     this.salvaFoto();
   }
   chiudi(): void {
+    if (this.simulate) void this.simulate.centralina.chiudi();
     if (this.timerCoda) clearInterval(this.timerCoda);
     if (this.timerRicerca) clearInterval(this.timerRicerca);
     if (this.timerProva) clearTimeout(this.timerProva);

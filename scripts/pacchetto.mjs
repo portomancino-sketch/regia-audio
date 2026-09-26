@@ -34,6 +34,8 @@ const opzioni = {
   banner: {
     js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
   },
+  // La versione finisce dentro il server (Impostazioni → Dati la mostra).
+  define: { "process.env.REGIA_VERSIONE": JSON.stringify(versione) },
   logLevel: "warning",
 };
 let bundleOk = true;

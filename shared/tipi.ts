@@ -75,6 +75,8 @@ export interface Impostazioni {
   livelloParla?: number;
   /** Modalità serata: la pagina Modifica è in sola lettura su ogni finestra. */
   bloccoModifiche?: boolean;
+  /** Passaggio tra sottofondi per i format NUOVI, in secondi (0–5, default 2). */
+  crossfadeDefault?: number;
 }
 
 export interface Config {

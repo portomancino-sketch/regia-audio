@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  coloreDiStatoHue,
   CodaLuci,
   comandiRipristino,
   effettoInComandi,
@@ -120,5 +121,17 @@ describe("caselle, fasi e stop", () => {
   });
   it("STOP TUTTO manda sempre 'torna'", () => {
     expect(LUCE_SU_STOP_TUTTO).toBe("torna");
+  });
+});
+
+describe("colore a schermo di una lampadina (luci simulate)", () => {
+  it("spenta grigia; rossa piena; bianco caldo chiaro; fioca più scura", () => {
+    expect(coloreDiStatoHue({ on: false })).toBe("#6b7280");
+    expect(coloreDiStatoHue({ on: true, bri: 254, hue: 0, sat: 254, colormode: "hs" })).toBe("hsl(0 100% 70%)");
+    expect(coloreDiStatoHue({ on: true, bri: 254, ct: 500, colormode: "ct" })).toBe("hsl(35 60% 85%)");
+    const piena = coloreDiStatoHue({ on: true, bri: 254, hue: 46920, sat: 254, colormode: "hs" });
+    const fioca = coloreDiStatoHue({ on: true, bri: 50, hue: 46920, sat: 254, colormode: "hs" });
+    expect(piena).toBe("hsl(258 100% 70%)");
+    expect(fioca).toBe("hsl(258 100% 34%)");
   });
 });
