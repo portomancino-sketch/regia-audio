@@ -8,16 +8,17 @@ import type { SoundcheckSerata } from "../../../shared/serata";
 import { api, type RiepilogoWeb, type SerataOggi } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
-import { BookOpenText, CalendarClock, ChevronLeft, Lightbulb, ListChecks, Lock, LockOpen, Volume2 } from "lucide-react";
+import { CalendarClock, ChevronLeft, ListChecks, Lock, LockOpen, Settings, Volume2 } from "lucide-react";
 import { EsitoSoundcheck } from "../componenti/EsitoSoundcheck";
 import { FoglioInizio } from "../componenti/FoglioInizio";
 import { AvvisoSoundcheck } from "../componenti/AvvisoSoundcheck";
 import { FinestraRiepilogo } from "../componenti/RiepilogoSerata";
 import { Home } from "./Home";
 import { Diario } from "./Diario";
-import { Luci } from "./Luci";
+import { Impostazioni } from "./Impostazioni";
 import { useLuciLive, useSerata } from "../hooks";
 import { EFFETTI } from "../../../shared/luci";
+import { useSuggerimentoCheSparisce } from "../hooks";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
 import { PannelloTelecomando } from "./PannelloTelecomando";
@@ -28,7 +29,6 @@ import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { useAttiviFluidi } from "../hooks";
-import { Slider } from "../componenti/ui/Slider";
 
 type Vista = "modifica" | "live";
 
@@ -84,8 +84,12 @@ export function PaginaRegia() {
   const foglioSerataRef = useRef<string | null>(null);
   // Luci, mondo di Valerio: nomi, colori, abbinata, risponde.
   const { luci, ricarica: ricaricaLuci } = useLuciLive(true);
-  // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno).
+  const ricaricaLuciRef = useRef(ricaricaLuci);
+  ricaricaLuciRef.current = ricaricaLuci;
+  // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno):
+  // sparisce da solo dopo 8 s (vale come "No") e al primo click altrove.
   const [suggerisciBlocco, setSuggerisciBlocco] = useState(false);
+  const bannerBloccoRef = useSuggerimentoCheSparisce(suggerisciBlocco, () => setSuggerisciBlocco(false), 8000);
   // Anteprima "Ascolta" da Modifica: la casella chiesta quando la finestra non comanda.
   const [anteprimaRichiesta, setAnteprimaRichiesta] = useState<Cue | null>(null);
   // Foglio "Prima di iniziare".
@@ -358,7 +362,10 @@ export function PaginaRegia() {
         }
       },
       telefoni: setTelefoni,
-      configCambiata: () => void ricaricaConfig(),
+      configCambiata: () => {
+        void ricaricaConfig();
+        ricaricaLuciRef.current(); // anche le luci (simulate accese/spente) cambiano da qui
+      },
       serataCambiata: () => ricaricaSerataRef.current(),
       },
       () => sessione.current,
@@ -770,6 +777,9 @@ export function PaginaRegia() {
     if (percorsoRef.current === "/diario") indietro();
     else vaiA("/diario");
   }
+  function apriImpostazioni() {
+    if (percorsoRef.current !== "/impostazioni" && percorsoRef.current !== "/luci") vaiA("/impostazioni");
+  }
   function passaAlive(format: Format) {
     setVista("live");
     apriFoglioSeServe(format);
@@ -799,6 +809,9 @@ export function PaginaRegia() {
   const problemiFile = soundcheckDelFormat?.mancanti;
   const serveSblocco = sonoIlMotore && !audioAttivo && motoreRef.current !== null;
   const bloccato = config.impostazioni.bloccoModifiche === true;
+  const inImpostazioni = percorso === "/impostazioni" || percorso === "/luci";
+  // Sotto 1200 px le etichette di Prova tutti / Blocca / Diario tornano a icona (col tooltip).
+  const etichetta = "hidden min-[1200px]:inline";
 
   return (
     <div className="min-h-full">
@@ -883,7 +896,7 @@ export function PaginaRegia() {
 
       {suggerisciBlocco && !bloccato && (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
-          <div className="vetro vetro-solido flex flex-wrap items-center gap-3 px-4 py-3" role="status">
+          <div ref={bannerBloccoRef} className="vetro vetro-solido flex flex-wrap items-center gap-3 px-4 py-3" role="status" data-suggerimento-blocco>
             <Lock size={16} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
             <span className="text-[14px] text-testo">Vuoi bloccare le modifiche per la serata?</span>
             <Pulsante
@@ -903,9 +916,10 @@ export function PaginaRegia() {
         </div>
       )}
 
-      {/* Barra superiore */}
+      {/* Barra superiore: a sinistra "‹ Serate" e il titolo, al centro Modifica/Live,
+          a destra Prova tutti, Blocca, Diario, sole/luna, Impostazioni, Telecomando. */}
       <header className="vetro-barra sticky top-0 z-30 border-b border-[var(--hairline-barra)] px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
+        <div className="mx-auto flex max-w-6xl items-center gap-2">
           {/* Il logo è un link alla Home (stesso stile, cursore a manina). */}
           <a
             href="/"
@@ -920,7 +934,7 @@ export function PaginaRegia() {
             <span className="text-[17px] font-semibold tracking-[-0.01em] text-testo">Regia</span>
             <span className="hidden text-[12px] text-testo-3 sm:block">Porto Mancino</span>
           </a>
-          {(percorso === "/diario" || percorso === "/luci" || (formatAperto && vista === "modifica")) && (
+          {(percorso === "/diario" || inImpostazioni) && (
             <button
               type="button"
               onClick={indietro}
@@ -933,16 +947,16 @@ export function PaginaRegia() {
           )}
           {formatAperto && (
             <>
-              {vista === "live" && (
-                <button
-                  type="button"
-                  onClick={tornaAllaHome}
-                  aria-label="Torna ai format"
-                  className="tocco rounded-[10px] border border-transparent p-1.5 text-testo-2 hover:bg-velo hover:text-testo"
-                >
-                  <ChevronLeft size={18} strokeWidth={1.75} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={tornaAllaHome}
+                aria-label="Serate"
+                title="Torna all'elenco delle serate"
+                data-serate
+                className="vetro vetro-campo tocco inline-flex h-11 shrink-0 items-center gap-1 pl-2 pr-3 text-[14px] font-medium text-testo"
+              >
+                <ChevronLeft size={18} strokeWidth={1.75} aria-hidden /> Serate
+              </button>
               <div className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">
                 <InputInline
                   valore={formatAperto.nome}
@@ -960,49 +974,6 @@ export function PaginaRegia() {
           >
             {salvataggi > 0 ? "Salvataggio…" : "Salvato"}
           </span>
-          {formatAperto && vista === "live" && (
-            <button
-              type="button"
-              title="Rileggi 'Prima di iniziare'"
-              aria-label="Rileggi 'Prima di iniziare'"
-              onClick={() => setFoglioAperto(true)}
-              className="tocco shrink-0 rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
-            >
-              <BookOpenText size={18} strokeWidth={1.75} />
-            </button>
-          )}
-          {formatAperto && vista === "live" && sonoIlMotore && (
-            <Pulsante
-              variante={soundcheck ? "primario" : "secondario"}
-              misura="sm"
-              title={soundcheck ? "Interrompi il soundcheck (ESC)" : "Suona 3 secondi di ogni casella, una alla volta"}
-              onClick={() => (soundcheck ? interrompiSoundcheck() : void avviaSoundcheck(formatAperto))}
-              className="shrink-0"
-            >
-              <ListChecks size={15} strokeWidth={1.75} aria-hidden />
-              {soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}
-              {!soundcheck && !soundcheckDelFormat && (
-                <span aria-label="Soundcheck di oggi non fatto" className="h-2 w-2 rounded-full bg-rosso" data-pallino-soundcheck />
-              )}
-            </Pulsante>
-          )}
-          {formatAperto && vista === "live" && (
-            <button
-              type="button"
-              aria-label={bloccato ? "Modifiche bloccate (si sblocca dalla pagina Modifica)" : "Blocca modifiche"}
-              aria-pressed={bloccato}
-              title={bloccato ? "Modifiche bloccate: si sblocca dal banner in Modifica" : "Blocca modifiche per la serata"}
-              onClick={() => {
-                if (!bloccato) void impostaBlocco(true);
-                else setVista("modifica");
-              }}
-              className={`tocco shrink-0 rounded-[10px] border p-2 ${
-                bloccato ? "border-transparent bg-brand text-white" : "border-transparent text-testo-2 hover:bg-velo hover:text-testo"
-              }`}
-            >
-              {bloccato ? <Lock size={18} strokeWidth={1.75} /> : <LockOpen size={18} strokeWidth={1.75} />}
-            </button>
-          )}
           {formatAperto && (
             <ControlloSegmentato
               className="w-48 shrink-0"
@@ -1014,45 +985,72 @@ export function PaginaRegia() {
               onCambia={(v) => (v === "live" ? (formatAperto.archiviato ? undefined : passaAlive(formatAperto)) : setVista("modifica"))}
             />
           )}
+          {formatAperto && vista === "live" && sonoIlMotore && (
+            <Pulsante
+              variante={soundcheck ? "primario" : "secondario"}
+              misura="sm"
+              title={soundcheck ? "Interrompi il soundcheck (ESC)" : "Prova tutti: 3 secondi di ogni casella, una alla volta"}
+              aria-label={soundcheck ? `Ferma il soundcheck ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}
+              onClick={() => (soundcheck ? interrompiSoundcheck() : void avviaSoundcheck(formatAperto))}
+              className="min-h-11 shrink-0"
+              data-prova-tutti
+            >
+              <ListChecks size={16} strokeWidth={1.75} aria-hidden />
+              <span className={soundcheck ? "" : etichetta}>{soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}</span>
+              {!soundcheck && !soundcheckDelFormat && (
+                <span aria-label="Soundcheck di oggi non fatto" className="h-2 w-2 rounded-full bg-rosso" data-pallino-soundcheck />
+              )}
+            </Pulsante>
+          )}
+          {formatAperto && vista === "live" && (
+            <button
+              type="button"
+              aria-label={bloccato ? "Modifiche bloccate (si sblocca dalla pagina Modifica)" : "Blocca modifiche"}
+              aria-pressed={bloccato}
+              title={bloccato ? "Modifiche bloccate: si sblocca dal banner in Modifica" : "Blocca le modifiche per la serata"}
+              onClick={() => {
+                if (!bloccato) void impostaBlocco(true);
+                else setVista("modifica");
+              }}
+              data-blocca
+              className={`tocco inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] border px-2.5 text-[13px] font-medium ${
+                bloccato ? "border-transparent bg-brand text-white" : "border-transparent text-testo-2 hover:bg-velo hover:text-testo"
+              }`}
+            >
+              {bloccato ? <Lock size={18} strokeWidth={1.75} aria-hidden /> : <LockOpen size={18} strokeWidth={1.75} aria-hidden />}
+              <span className={etichetta}>{bloccato ? "Bloccato" : "Blocca"}</span>
+            </button>
+          )}
           <button
             type="button"
             title={percorso === "/diario" ? "Chiudi il diario" : "Diario"}
             aria-label="Diario di serata"
             aria-pressed={percorso === "/diario"}
             onClick={apriOChiudiDiario}
-            className={`tocco rounded-[10px] border border-transparent p-2 hover:bg-velo hover:text-testo ${
+            data-diario
+            className={`tocco inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] border border-transparent px-2.5 text-[13px] font-medium hover:bg-velo hover:text-testo ${
               percorso === "/diario" ? "bg-velo text-testo" : "text-testo-2"
             }`}
           >
-            <CalendarClock size={18} strokeWidth={1.75} />
+            <CalendarClock size={18} strokeWidth={1.75} aria-hidden />
+            <span className={etichetta}>Diario</span>
           </button>
-          <InterruttoreTema
-            chiave="tema-regia"
-            extra={
-              <>
-                <div className="etichetta mb-1.5 mt-4">Volume del suono base quando parlo</div>
-                <div className="flex items-center gap-2">
-                  <Slider
-                    valore={(config.impostazioni.livelloParla ?? 0.25) / 0.6}
-                    onCambia={(v) => {
-                      const livello = Math.round(v * 60) / 100;
-                      void api.impostazioni({ livelloParla: livello }).then(() => void ricaricaConfig());
-                    }}
-                    className="flex-1"
-                    aria-label="Volume del suono base quando parlo"
-                  />
-                  <span className="w-10 text-right text-[13px] tabular-nums text-testo-2">
-                    {Math.round((config.impostazioni.livelloParla ?? 0.25) * 100)}%
-                  </span>
-                </div>
-                <div className="etichetta mb-1.5 mt-4">Luci</div>
-                <Pulsante variante="secondario" misura="sm" className="w-full" onClick={() => vaiA("/luci")} data-vai-luci>
-                  <Lightbulb size={14} strokeWidth={1.75} aria-hidden /> Impostazioni luci…
-                </Pulsante>
-              </>
-            }
-          />
-          <PannelloTelecomando telefoni={telefoni} />
+          <InterruttoreTema chiave="tema-regia" />
+          <button
+            type="button"
+            title="Impostazioni"
+            aria-label="Impostazioni"
+            aria-pressed={inImpostazioni}
+            onClick={apriImpostazioni}
+            data-impostazioni
+            className={`tocco inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] border border-transparent px-2.5 text-[13px] font-medium hover:bg-velo hover:text-testo ${
+              inImpostazioni ? "bg-velo text-testo" : "text-testo-2"
+            }`}
+          >
+            <Settings size={18} strokeWidth={1.75} aria-hidden />
+            <span className={formatAperto ? etichetta : "hidden sm:inline"}>Impostazioni</span>
+          </button>
+          <PannelloTelecomando telefoni={telefoni} chiave={`${percorso}|${vista}`} />
         </div>
         {!sonoIlMotore && (
           <div className="mx-auto mt-2 flex max-w-6xl items-center gap-2">
@@ -1072,8 +1070,8 @@ export function PaginaRegia() {
 
       {percorso === "/diario" ? (
         <Diario />
-      ) : percorso === "/luci" ? (
-        <Luci bloccato={bloccato} />
+      ) : inImpostazioni ? (
+        <Impostazioni config={config} bloccato={bloccato} onRicarica={ricaricaConfig} />
       ) : !formatAperto ? (
         <Home
           config={config}
@@ -1082,6 +1080,7 @@ export function PaginaRegia() {
             setConfig(c);
           }}
           onApriFormat={apriFormat}
+          onApriImpostazioni={apriImpostazioni}
         />
       ) : vista === "modifica" ? (
         <Modifica
@@ -1108,6 +1107,7 @@ export function PaginaRegia() {
           luci={luci}
           problemi={problemiFile}
           serataId={serata?.id}
+          onRileggi={() => setFoglioAperto(true)}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
           onFerma={fermaCue}

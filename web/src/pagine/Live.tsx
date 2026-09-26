@@ -1,6 +1,7 @@
 // La vista Live: fasi in alto, nota guida, pulsanti grandi, dock in basso.
 import { useState } from "react";
-import { Info, Keyboard, Music } from "lucide-react";
+import { BookOpenText, Info, Keyboard, Music } from "lucide-react";
+import { Menu } from "../componenti/ui/Menu";
 import type { Cue, CueAttivo, Format } from "../../../shared/tipi";
 import { PulsanteCue } from "../componenti/PulsanteCue";
 import { ControlloSegmentato } from "../componenti/ui/ControlloSegmentato";
@@ -21,6 +22,8 @@ export function Live(props: {
   problemi?: Record<string, "mancante" | "nonDecodificabile">;
   /** Id della serata: al cambio l'orologio di scaletta rilegge subito. */
   serataId?: string;
+  /** "Rileggi 'Prima di iniziare'" (nel menu ⋯ della fase). */
+  onRileggi?: () => void;
   onCambiaFase: (faseId: string) => void;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
@@ -75,6 +78,19 @@ export function Live(props: {
           >
             <Keyboard size={18} strokeWidth={1.75} aria-label="Scorciatoie da tastiera" />
           </span>
+          {props.onRileggi && (
+            <div className="shrink-0" data-menu-fase>
+              <Menu
+                etichetta="Menu della fase"
+                voci={[
+                  { testo: "Rileggi 'Prima di iniziare'", icona: <BookOpenText size={15} strokeWidth={1.75} />, onScelta: props.onRileggi },
+                  ...(fase?.nota && notaChiusa
+                    ? [{ testo: "Mostra la nota della fase", icona: <Info size={15} strokeWidth={1.75} />, onScelta: () => setNoteChiuse((n) => ({ ...n, [fase.id]: false })) }]
+                    : []),
+                ]}
+              />
+            </div>
+          )}
         </div>
       )}
 

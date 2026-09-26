@@ -1,8 +1,9 @@
 // Impostazioni → Luci: il mondo TECNICO (Jacopo, una volta per locale).
 // Centralina, abbinamento, lampadine, gruppi della Regia, i tre effetti.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Lightbulb, Plus, Trash2, Zap } from "lucide-react";
+import { FlaskConical, Lightbulb, Plus, Trash2, Zap } from "lucide-react";
 import {
+  coloreDiStatoHue,
   COLORI_LUCE,
   COLORI_ORDINE,
   EFFETTI,
@@ -13,7 +14,7 @@ import {
   type NomeEffetto,
   type VoceEffetto,
 } from "../../../shared/luci";
-import { api, type Lampadina, type LuciStato } from "../api";
+import { api, type Lampadina, type LampadinaSimulata, type LuciStato } from "../api";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InputInline } from "../componenti/comuni";
@@ -26,8 +27,9 @@ const TESTO_STATO: Record<LuciStato["stato"], string> = {
   nonRaggiungibile: "Non raggiungibile",
 };
 
-export function Luci(props: { bloccato?: boolean }) {
+export function Luci(props: { bloccato?: boolean; /** Dentro Impostazioni: senza titolo. */ incorporata?: boolean }) {
   const [stato, setStato] = useState<LuciStato | null>(null);
+  const [lampadineSim, setLampadineSim] = useState<LampadinaSimulata[]>([]);
   const [lampadine, setLampadine] = useState<Lampadina[]>([]);
   const [ip, setIp] = useState("");
   const [cercando, setCercando] = useState(false);
@@ -49,6 +51,34 @@ export function Luci(props: { bloccato?: boolean }) {
   useEffect(() => {
     void ricarica();
   }, [ricarica]);
+  // Luci simulate accese: i sei pallini seguono le lampadine finte (ogni secondo).
+  const simulate = stato?.simulate === true;
+  useEffect(() => {
+    if (!simulate) {
+      setLampadineSim([]);
+      return;
+    }
+    let vivo = true;
+    const leggi = () =>
+      void api.luci
+        .simulate()
+        .then((r) => {
+          if (vivo) setLampadineSim(r.lampadine);
+        })
+        .catch(() => undefined);
+    leggi();
+    const t = setInterval(leggi, 1000);
+    return () => {
+      vivo = false;
+      clearInterval(t);
+    };
+  }, [simulate]);
+  async function impostaSimulate(attive: boolean) {
+    setMessaggio(null);
+    await api.luci.impostaSimulate(attive).catch(() => undefined);
+    setIp("");
+    await ricarica();
+  }
   useEffect(
     () => () => {
       if (timerAbbina.current) clearInterval(timerAbbina.current);
@@ -122,9 +152,23 @@ export function Luci(props: { bloccato?: boolean }) {
   const nomeLampada = (id: string) => lampadine.find((l) => l.id === id)?.nome ?? `Lampadina ${id}`;
 
   return (
-    <fieldset disabled={props.bloccato} className="mx-auto m-0 min-w-0 max-w-4xl space-y-4 border-0 p-0 px-4 py-6">
-      <h1 className="text-[28px] font-semibold">Luci</h1>
+    <fieldset disabled={props.bloccato} className={`m-0 min-w-0 space-y-4 border-0 p-0 ${props.incorporata ? "" : "mx-auto max-w-4xl px-4 py-6"}`}>
+      {!props.incorporata && <h1 className="text-[28px] font-semibold">Luci</h1>}
       {props.bloccato && <p className="text-[14px] text-testo-2">Serata in corso: le impostazioni delle luci sono in sola lettura.</p>}
+
+      {simulate && (
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-[var(--raggio-campo)] border px-4 py-3"
+          style={{ borderColor: "color-mix(in srgb, var(--tipo-effetto) 60%, transparent)", backgroundColor: "color-mix(in srgb, var(--tipo-effetto) 12%, transparent)" }}
+          data-luci-simulate-attive
+        >
+          <FlaskConical size={18} strokeWidth={1.75} style={{ color: "var(--tipo-effetto)" }} aria-hidden />
+          <span className="min-w-0 flex-1 text-[15px] font-semibold text-testo">Luci simulate: niente lampadine vere</span>
+          <Pulsante variante="secondario" misura="sm" onClick={() => void impostaSimulate(false)} data-luci-vere>
+            Torna alle luci vere
+          </Pulsante>
+        </div>
+      )}
 
       {/* ---- Centralina ---- */}
       <Vetro className="p-5" data-sezione="centralina">
@@ -172,6 +216,16 @@ export function Luci(props: { bloccato?: boolean }) {
           </p>
         )}
         {messaggio && <p className="mt-2 text-[13px] text-testo-2">{messaggio}</p>}
+        {stato.stato === "nessuna" && !simulate && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[var(--raggio-campo)] border border-vetro-bordo bg-velo px-4 py-3" data-luci-a-vuoto>
+            <p className="min-w-0 flex-1 text-[14px] text-testo-2">
+              Serve essere sulla rete WiFi del locale dove c'è la centralina Philips. Da un'altra rete non si può fare niente.
+            </p>
+            <Pulsante variante="secondario" misura="sm" onClick={() => void impostaSimulate(true)} data-luci-simulate>
+              <FlaskConical size={14} strokeWidth={1.75} aria-hidden /> Prova con luci simulate
+            </Pulsante>
+          </div>
+        )}
         <p className="mt-3 text-[12px] text-testo-3">
           La Regia parla solo con la centralina sulla rete del locale, mai con internet. Le luci non fermano mai un suono.
         </p>
@@ -362,6 +416,24 @@ export function Luci(props: { bloccato?: boolean }) {
           <p className="text-[12px] text-testo-3">
             In Live, Valerio vede solo i tre nomi e "Torna com'era": prima del primo effetto la Regia fotografa le luci e "Torna com'era" le rimette esattamente così.
           </p>
+          {simulate && (
+            <Vetro className="p-5" data-pallini-simulate>
+              <div className="etichetta mb-2">Le luci simulate adesso</div>
+              <p className="mb-3 text-[13px] text-testo-2">Sei lampadine d'esempio: quello che farebbero le luci vere.</p>
+              <div className="flex flex-wrap gap-5">
+                {lampadineSim.map((l) => (
+                  <div key={l.id} className="flex flex-col items-center gap-1.5" data-pallino-simulato={l.id}>
+                    <span
+                      aria-label={`${l.nome}: ${l.stato.on ? "accesa" : "spenta"}`}
+                      className="h-9 w-9 rounded-full border border-vetro-bordo transition-colors duration-500"
+                      style={{ backgroundColor: coloreDiStatoHue(l.stato), boxShadow: l.stato.on ? `0 0 18px ${coloreDiStatoHue(l.stato)}` : "none" }}
+                    />
+                    <span className="text-[11px] text-testo-3">{l.nome}</span>
+                  </div>
+                ))}
+              </div>
+            </Vetro>
+          )}
         </>
       )}
     </fieldset>

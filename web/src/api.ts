@@ -44,6 +44,13 @@ export interface LuciStato {
   foto: boolean;
   intensita: number;
   effettoCorrente: NomeEffetto | null;
+  /** Luci simulate accese (centralina finta in memoria). */
+  simulate: boolean;
+}
+export interface LampadinaSimulata {
+  id: string;
+  nome: string;
+  stato: { on: boolean; bri: number; hue: number; sat: number; ct: number; colormode: string };
 }
 export interface Lampadina {
   id: string;
@@ -77,6 +84,8 @@ export const api = {
   rete: () => chiama<InfoRete>("GET", "/api/rete"),
   maiUsati: () => chiama<{ serate: string[]; formats: { nome: string; caselle: string[] }[] }>("GET", "/api/statistiche/mai-usati"),
   impostazioni: (dati: Partial<Impostazioni>) => chiama<Impostazioni>("PATCH", "/api/impostazioni", dati),
+  versione: () => chiama<{ versione: string; cartellaDati: string }>("GET", "/api/versione"),
+  apriDati: () => chiama<{ aperta: boolean }>("POST", "/api/dati/apri", {}),
 
   serata: {
     oggi: () => chiama<SerataOggi>("GET", "/api/serata"),
@@ -152,6 +161,8 @@ export const api = {
     prova: (effetto: ComandoLuceCue) => chiama<{ ok: boolean; errore?: string }>("POST", "/api/luci/prova", { effetto }),
     esegui: (effetto: ComandoLuceCue, origine = "manuale") => chiama<{ ok: boolean; errore?: string }>("POST", "/api/luci/esegui", { effetto, origine }),
     intensita: (valore: number) => chiama<{ intensita: number }>("PUT", "/api/luci/intensita", { valore }),
+    simulate: () => chiama<{ attive: boolean; lampadine: LampadinaSimulata[] }>("GET", "/api/luci/simulate"),
+    impostaSimulate: (attive: boolean) => chiama<{ attive: boolean; lampadine: LampadinaSimulata[] }>("POST", "/api/luci/simulate", { attive }),
   },
 
   async importaZip(file: File): Promise<void> {

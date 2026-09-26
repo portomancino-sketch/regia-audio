@@ -75,7 +75,13 @@ class Pagina {
   clickSel(selettore) {
     return this.js(`(() => { const b = document.querySelector('${selettore}'); if (b) { b.click(); return true; } return false; })()`);
   }
-  rileggi() {
+  async rileggi() {
+    // Telefono: icona libro; Mac: menu ⋯ della fase.
+    if (await this.js(`!!document.querySelector('[data-menu-fase]')`)) {
+      await this.js(`document.querySelector('[data-menu-fase] button')?.click()`);
+      await attendi(150);
+      return this.click("Rileggi 'Prima di iniziare'");
+    }
     return this.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'")?.click()`);
   }
   async scatta(nome) {

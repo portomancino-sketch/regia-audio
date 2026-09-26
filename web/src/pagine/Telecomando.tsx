@@ -185,6 +185,8 @@ export function PaginaTelecomando() {
   // Posizioni fluide tra uno stato e l'altro (il hook vive PRIMA dei return).
   const attiviFluidi = useAttiviFluidi(stato?.attivi ?? []);
   const { luci, ricarica: ricaricaLuci } = useLuciLive(autenticato);
+  const ricaricaLuciRef = useRef(ricaricaLuci);
+  ricaricaLuciRef.current = ricaricaLuci;
   // La serata di oggi: soundcheck fatto/non fatto (riletta ogni 15 s, subito quando cambia).
   const { serata, ricarica: ricaricaSerata } = useSerata(autenticato);
   const ricaricaSerataRef = useRef(ricaricaSerata);
@@ -221,7 +223,10 @@ export function PaginaTelecomando() {
         setAutenticato(false);
         setPinSbagliato(true);
       },
-      configCambiata: () => void api.config().then(setConfig),
+      configCambiata: () => {
+        void api.config().then(setConfig);
+        ricaricaLuciRef.current();
+      },
       serataCambiata: () => ricaricaSerataRef.current(),
     });
     wsRef.current = ws;

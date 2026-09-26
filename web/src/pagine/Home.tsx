@@ -3,7 +3,7 @@ import { useState } from "react";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Archive, ArchiveRestore, Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Clapperboard, Copy, GripVertical, Pencil, Plus, Settings, Trash2 } from "lucide-react";
 import type { Config, Format } from "../../../shared/tipi";
 import { api } from "../api";
 import { InputInline } from "../componenti/comuni";
@@ -90,8 +90,25 @@ export function Home(props: {
   config: Config;
   onConfigCambiata: (c: Config) => void;
   onApriFormat: (id: string) => void;
+  onApriImpostazioni?: () => void;
 }) {
   const [occupato, setOccupato] = useState(false);
+  const cardImpostazioni = props.onApriImpostazioni ? (
+    <button
+      type="button"
+      onClick={props.onApriImpostazioni}
+      data-card-impostazioni
+      className="vetro tocco flex min-h-[150px] cursor-pointer flex-col items-start p-5 text-left"
+    >
+      <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-full" style={{ backgroundColor: "color-mix(in srgb, var(--brand) 14%, transparent)" }}>
+        <Settings size={18} strokeWidth={1.75} className="text-brand-chiaro" />
+      </span>
+      <span className="mt-auto pt-4">
+        <span className="block text-[22px] font-semibold leading-tight text-testo">Impostazioni</span>
+        <span className="mt-1 block text-[13px] text-testo-2">Serata, luci, aspetto, dati</span>
+      </span>
+    </button>
+  ) : null;
   const formats = [...props.config.formats].filter((f) => !f.archiviato).sort((a, b) => a.ordine - b.ordine);
   const archiviati = [...props.config.formats].filter((f) => f.archiviato).sort((a, b) => a.ordine - b.ordine);
 
@@ -139,6 +156,7 @@ export function Home(props: {
           <Pulsante variante="primario" disabled={occupato} onClick={() => void nuovo()}>
             <Plus size={16} strokeWidth={1.75} /> Nuovo format
           </Pulsante>
+          {cardImpostazioni && <div className="w-full max-w-xs">{cardImpostazioni}</div>}
         </div>
       ) : (
         <DndContext collisionDetection={closestCenter} onDragEnd={(e) => void fineTrascinamento(e)}>
@@ -176,6 +194,7 @@ export function Home(props: {
                 <Plus size={22} strokeWidth={1.75} />
                 <span className="text-[15px] font-medium">Nuovo format</span>
               </button>
+              {cardImpostazioni}
             </div>
           </SortableContext>
         </DndContext>

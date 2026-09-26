@@ -1,5 +1,5 @@
 // Il pannello apribile con QR, indirizzo, PIN e telefoni collegati.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import type { InfoRete } from "../../../shared/tipi";
@@ -7,8 +7,38 @@ import { api } from "../api";
 import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
 
-export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
+export function PannelloTelecomando(props: {
+  telefoni: { ip: string }[];
+  /** Cambia quando si cambia pagina o vista: il pannello si chiude. */
+  chiave?: string;
+}) {
   const [aperto, setAperto] = useState(false);
+  const contenitore = useRef<HTMLDivElement | null>(null);
+
+  // Cambio di pagina o vista (Modifica/Live/Diario/Impostazioni): chiuso.
+  useEffect(() => setAperto(false), [props.chiave]);
+  // ESC (senza arrivare a STOP TUTTO) e click fuori: chiuso.
+  useEffect(() => {
+    if (!aperto) return;
+    const fuori = (e: MouseEvent) => {
+      if (!contenitore.current?.contains(e.target as Node)) setAperto(false);
+    };
+    const tasto = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        e.preventDefault();
+        setAperto(false);
+      }
+    };
+    document.addEventListener("mousedown", fuori);
+    document.addEventListener("click", fuori);
+    window.addEventListener("keydown", tasto, { capture: true });
+    return () => {
+      document.removeEventListener("mousedown", fuori);
+      document.removeEventListener("click", fuori);
+      window.removeEventListener("keydown", tasto, { capture: true });
+    };
+  }, [aperto]);
   const [rete, setRete] = useState<InfoRete | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [pinBozza, setPinBozza] = useState("");
@@ -29,13 +59,13 @@ export function PannelloTelecomando(props: { telefoni: { ip: string }[] }) {
   }
 
   return (
-    <div className="relative">
-      <Pulsante variante="secondario" onClick={() => setAperto(!aperto)}>
+    <div className="relative" ref={contenitore}>
+      <Pulsante variante="secondario" onClick={() => setAperto(!aperto)} aria-expanded={aperto} className="min-h-11" data-telecomando>
         <Smartphone size={16} strokeWidth={1.75} aria-hidden />
         Telecomando{props.telefoni.length > 0 && ` (${props.telefoni.length})`}
       </Pulsante>
       {aperto && (
-        <Vetro className="absolute right-0 top-14 z-50 w-80 vetro-solido p-5">
+        <Vetro className="absolute right-0 top-14 z-50 w-80 vetro-solido p-5" role="dialog" aria-label="Telecomando" data-pannello-telecomando>
           {!rete ? (
             <p className="text-testo-2">Un attimo…</p>
           ) : (

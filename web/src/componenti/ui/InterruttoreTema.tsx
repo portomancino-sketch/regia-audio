@@ -37,7 +37,7 @@ export function useTema(chiave: string): [Scelta, (s: Scelta) => void] {
 }
 
 /** Intensità dello sfondo 0–100, scrive --sfondo-intensita (default 55). */
-function useIntensita(chiave: string): [number, (v: number) => void] {
+export function useIntensita(chiave: string): [number, (v: number) => void] {
   const chiaveIntensita = `${chiave}-intensita`;
   const [valore, setValore] = useState<number>(() => {
     const salvata = Number(localStorage.getItem(chiaveIntensita));
@@ -50,7 +50,7 @@ function useIntensita(chiave: string): [number, (v: number) => void] {
   return [valore, setValore];
 }
 
-export function InterruttoreTema(props: { chiave: string; className?: string; sopra?: boolean; extra?: React.ReactNode }) {
+export function InterruttoreTema(props: { chiave: string; className?: string; sopra?: boolean }) {
   const [scelta, imposta] = useTema(props.chiave);
   const [intensita, setIntensita] = useIntensita(props.chiave);
   const [aperto, setAperto] = useState(false);
@@ -62,7 +62,11 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
       if (!contenitore.current?.contains(e.target as Node)) setAperto(false);
     };
     document.addEventListener("mousedown", fuori);
-    return () => document.removeEventListener("mousedown", fuori);
+    document.addEventListener("click", fuori);
+    return () => {
+      document.removeEventListener("mousedown", fuori);
+      document.removeEventListener("click", fuori);
+    };
   }, [aperto]);
 
   const Icona = scelta === "chiaro" ? Sun : scelta === "scuro" ? Moon : SunMoon;
@@ -76,7 +80,8 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
         title={`Tema: ${NOMI[scelta]}`}
         aria-label={`Tema: ${NOMI[scelta]}`}
         aria-expanded={aperto}
-        className="tocco rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
+        className="tocco min-h-11 min-w-11 rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
+        data-tema-pulsante
       >
         <Icona size={18} strokeWidth={1.75} />
       </button>
@@ -104,7 +109,6 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
             />
             <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{intensita}</span>
           </div>
-          {props.extra}
         </Vetro>
       )}
     </div>

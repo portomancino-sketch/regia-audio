@@ -278,10 +278,15 @@ rigaRossa ? ok("S14: nel foglio 'Soundcheck di oggi: NON FATTO' (rosso) con 'Pro
 await regia.click("Ok, pronti");
 const foglioChiuso = await regia.finoA(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
 foglioChiuso ? ok("'Ok, pronti' chiude il foglio") : ko("Chiusura foglio");
-// icona per riaprirlo
-await regia.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'"); if (b) b.click(); })()`);
+// S14-bis: si riapre dal menu ⋯ della fase (l'icona libro non sta più nella barra)
+const rileggiMac = async (p) => {
+  await p.js(`document.querySelector('[data-menu-fase] button')?.click()`);
+  await attendi(150);
+  return p.click("Rileggi 'Prima di iniziare'");
+};
+await rileggiMac(regia);
 const foglioRiaperto = await regia.finoA(`document.body.innerText.toLowerCase().includes('ok, pronti')`);
-foglioRiaperto ? ok("Il foglio si riapre dall'icona") : ko("Riapertura foglio");
+foglioRiaperto ? ok("Il foglio si riapre dal menu ⋯ della fase") : ko("Riapertura foglio");
 await regia.click("Ok, pronti");
 await attendi(300);
 // nota della fase: visibile, si chiude con un tocco, si riapre dall'icona
@@ -1077,8 +1082,8 @@ await attendi(300);
   // logo da Modifica → Home
   await regia3.click("Modifica");
   await attendi(300);
-  const indietroInModifica = await regia3.js(`!!document.querySelector('[data-indietro]')`);
-  indietroInModifica ? ok("In Modifica c'è '‹ Indietro'") : ko("Indietro in Modifica");
+  const indietroInModifica = await regia3.js(`!!document.querySelector('[data-serate]') && !document.querySelector('[data-indietro]')`);
+  indietroInModifica ? ok("In Modifica c'è '‹ Serate' (S14-bis: al posto di Indietro)") : ko("Serate in Modifica");
   await regia3.js(`document.querySelector('[data-logo]').click()`);
   const home = await regia3.finoA(`location.pathname === '/' && document.body.innerText.includes('Le tue serate')`, 4000);
   home ? ok("Click sul logo da Modifica → Home") : ko("Logo → Home");
@@ -1154,6 +1159,112 @@ await attendi(300);
   await attendi(400);
   await regia3.click("Ok, pronti");
   await attendi(300);
+}
+
+// ================= S14-bis: ordine nell'interfaccia =================
+{
+  // 1) Barra di Live: "‹ Serate", Prova tutti / Blocca / Diario con etichetta, Impostazioni, niente icona libro.
+  const barra = await regia3.js(`!!document.querySelector('[data-serate]') && !!document.querySelector('[data-prova-tutti]') && !!document.querySelector('[data-blocca]') && !!document.querySelector('[data-diario]') && !!document.querySelector('[data-impostazioni]') && !!document.querySelector('[data-tema-pulsante]') && !!document.querySelector('[data-telecomando]') && ![...document.querySelectorAll('header button')].some(b => b.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'")`);
+  const testi = await regia3.js(`['[data-serate]','[data-prova-tutti]','[data-blocca]','[data-diario]','[data-impostazioni]'].map(s => document.querySelector(s)?.textContent.trim()).join(' | ')`);
+  barra && /Serate \| Prova tutti \| Blocca \| Diario \| Impostazioni/.test(testi) ? ok("S14-bis: barra Live con Serate, Prova tutti, Blocca, Diario, Impostazioni, Telecomando (niente icona libro)", testi) : ko("S14-bis: barra Live", testi);
+  const alti = await regia3.js(`[...document.querySelectorAll('header button')].filter(b => b.getAttribute('role') !== 'tab').every(b => b.getBoundingClientRect().height >= 44)`);
+  alti ? ok("S14-bis: ogni pulsante della barra è alto almeno 44 px") : ko("S14-bis: pulsanti sotto i 44 px");
+  // 2) Pannello Telecomando: ESC (senza STOP TUTTO), click fuori, cambio di vista.
+  await regia3.clickCue("Treno in corsa");
+  await osservatore.finoA((x) => x.attivi.length > 0, 4000);
+  await regia3.js(`document.querySelector('[data-telecomando]').click()`);
+  const pannello1 = await regia3.finoA(`!!document.querySelector('[data-pannello-telecomando]')`, 3000);
+  await regia3.tasto("Escape", "Escape", 27);
+  const chiusoEsc = await regia3.finoA(`!document.querySelector('[data-pannello-telecomando]')`, 2000);
+  await attendi(300);
+  pannello1 && chiusoEsc && (osservatore.ultimo?.attivi.length ?? 0) > 0 ? ok("S14-bis: pannello Telecomando: ESC lo chiude (e non fa STOP TUTTO)") : ko("S14-bis: pannello con ESC", `aperto=${pannello1} chiuso=${chiusoEsc} attivi=${osservatore.ultimo?.attivi.length}`);
+  await regia3.js(`document.querySelector('[data-telecomando]').click()`);
+  await regia3.finoA(`!!document.querySelector('[data-pannello-telecomando]')`, 3000);
+  await regia3.js(`document.querySelector('h1, main, .grid')?.click(); document.body.click()`);
+  const chiusoFuori = await regia3.finoA(`!document.querySelector('[data-pannello-telecomando]')`, 2000);
+  chiusoFuori ? ok("S14-bis: pannello Telecomando: un click fuori lo chiude") : ko("S14-bis: pannello con click fuori");
+  await regia3.js(`document.querySelector('[data-telecomando]').click()`);
+  await regia3.finoA(`!!document.querySelector('[data-pannello-telecomando]')`, 3000);
+  await regia3.click("Modifica");
+  const chiusoVista = await regia3.finoA(`!document.querySelector('[data-pannello-telecomando]')`, 2000);
+  chiusoVista ? ok("S14-bis: pannello Telecomando: cambiando vista (Modifica) sparisce") : ko("S14-bis: pannello al cambio vista");
+  await regia3.click("Live");
+  await attendi(300);
+  await regia3.click("STOP TUTTO");
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  // 3) Suggerimento "Vuoi bloccare le modifiche?": sparisce da solo dopo 8 s, e al primo click altrove.
+  await regia3.js(`localStorage.removeItem('blocco-suggerito')`);
+  osservatore.comando({ comando: "play", cueId: idTreno });
+  const banner1 = await regia3.finoA(`!!document.querySelector('[data-suggerimento-blocco]')`, 4000);
+  log("Aspetto 8 s che il suggerimento sparisca da solo...");
+  await attendi(8500);
+  const sparito = await regia3.js(`!document.querySelector('[data-suggerimento-blocco]')`);
+  banner1 && sparito ? ok("S14-bis: il suggerimento 'Vuoi bloccare le modifiche?' sparisce da solo dopo 8 s") : ko("S14-bis: suggerimento a tempo", `apparso=${banner1} sparito=${sparito}`);
+  osservatore.comando({ comando: "stopTutto" });
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  await regia3.js(`localStorage.removeItem('blocco-suggerito')`);
+  osservatore.comando({ comando: "play", cueId: idTreno });
+  const banner2 = await regia3.finoA(`!!document.querySelector('[data-suggerimento-blocco]')`, 4000);
+  await attendi(300);
+  await regia3.js(`document.body.click()`);
+  const sparitoClick = await regia3.finoA(`!document.querySelector('[data-suggerimento-blocco]')`, 2000);
+  banner2 && sparitoClick ? ok("S14-bis: ...e al primo click altrove") : ko("S14-bis: suggerimento al click", `apparso=${banner2} sparito=${sparitoClick}`);
+  osservatore.comando({ comando: "stopTutto" });
+  await osservatore.finoA((x) => x.attivi.length === 0, 4000);
+  // 4) Popover sole/luna: solo tema e intensità.
+  await regia3.js(`document.querySelector('[data-tema-pulsante]').click()`);
+  await attendi(300);
+  const popover = await regia3.js(`(() => { const p = document.querySelector('[data-tema-pulsante]')?.parentElement; const t = p?.innerText ?? ''; const u = t.toLowerCase(); return { tema: u.includes('tema') && u.includes('intensità sfondo'), extra: u.includes('parlo') || u.includes('impostazioni luci') }; })()`);
+  popover.tema && !popover.extra ? ok("S14-bis: il popover sole/luna ha solo Tema e Intensità sfondo") : ko("S14-bis: popover sole/luna", JSON.stringify(popover));
+  await regia3.js(`document.body.click()`);
+  // 5) Impostazioni: dalla barra e dalla Home, quattro sezioni; /luci resta un alias.
+  await regia3.js(`document.querySelector('[data-impostazioni]').click()`);
+  const impostazioniBarra = await regia3.finoA(`location.pathname === '/impostazioni' && ['serata','luci','aspetto','dati'].every(s => !!document.querySelector('[data-sezione-impostazioni="' + s + '"]')) && !!document.querySelector('[data-indietro]')`, 4000);
+  impostazioniBarra ? ok("S14-bis: Impostazioni dalla barra: Serata, Luci, Aspetto, Dati (e '‹ Indietro')") : ko("S14-bis: Impostazioni dalla barra");
+  const versione = await regia3.js(`document.querySelector('[data-versione]')?.innerText ?? ''`);
+  /versione \d+\.\d+\.\d+/.test(versione) && (await regia3.js(`(document.querySelector('[data-cartella-dati]')?.innerText ?? '').length > 3`)) ? ok("S14-bis: Dati: versione della Regia e cartella dei dati", versione) : ko("S14-bis: Dati", versione);
+  await regia3.js(`document.querySelector('[data-logo]').click()`);
+  await regia3.finoA(`location.pathname === '/' && !!document.querySelector('[data-card-impostazioni]')`, 4000);
+  await regia3.js(`document.querySelector('[data-card-impostazioni]').click()`);
+  const impostazioniHome = await regia3.finoA(`location.pathname === '/impostazioni' && !!document.querySelector('[data-sezione-impostazioni="serata"]')`, 4000);
+  impostazioniHome ? ok("S14-bis: Impostazioni dalla card in fondo alla Home") : ko("S14-bis: card Impostazioni");
+  await regia3.cmd("Page.navigate", { url: `${BASE}/luci` });
+  const alias = await regia3.finoA(`!!document.querySelector('[data-sezione-impostazioni="luci"]')`, 4000);
+  alias ? ok("S14-bis: /luci apre la stessa pagina Impostazioni") : ko("S14-bis: alias /luci");
+  // 6) Luci a vuoto: il testo sulla rete WiFi e "Prova con luci simulate".
+  const aVuoto = await regia3.finoA(`!!document.querySelector('[data-luci-a-vuoto]') && document.body.innerText.includes('rete WiFi del locale') && !!document.querySelector('[data-luci-simulate]')`, 4000);
+  aVuoto ? ok("S14-bis: Luci a vuoto: 'Serve essere sulla rete WiFi del locale…' + 'Prova con luci simulate'") : ko("S14-bis: luci a vuoto");
+  await regia3.js(`document.querySelector('[data-luci-simulate]').click()`);
+  const simOn = await regia3.finoA(`!!document.querySelector('[data-luci-simulate-attive]') && document.querySelectorAll('[data-pallino-simulato]').length === 6 && document.querySelectorAll('[data-gruppo]').length === 2 && document.querySelectorAll('[data-lampadina]').length === 6`, 8000);
+  simOn ? ok("S14-bis: luci simulate accese: riquadro giallo, 6 lampadine, 2 gruppi (Sala, Palco), 6 pallini") : ko("S14-bis: luci simulate accese");
+  // un effetto dai pallini: "Prova" di Rosso → i pallini della Sala diventano rossi
+  const coloriPrima = await regia3.js(`[...document.querySelectorAll('[data-pallino-simulato] span:first-child')].map(s => s.style.backgroundColor).join('|')`);
+  await regia3.js(`document.querySelector('[data-prova="luce2"]')?.click()`);
+  const pallini = await regia3.finoA(`[...document.querySelectorAll('[data-pallino-simulato] span:first-child')].map(s => s.style.backgroundColor).join('|') !== '${coloriPrima}'`, 4000);
+  pallini ? ok("S14-bis: 'Prova' di un effetto si vede sui pallini") : ko("S14-bis: pallini fermi");
+  await attendi(3500);
+  // in Live: pannello Luci nel dock (Mac e telefono), menu Luci sulle caselle in Modifica
+  await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
+  await attendi(1500);
+  const menuSim = await regia3.finoA(`!!document.querySelector('[data-luci-fase]')`, 20000);
+  await regia3.click("Live");
+  await attendi(400);
+  await regia3.click("Ok, pronti");
+  const luciMacSim = await regia3.finoA(`!!document.querySelector('[data-luci]')`, 20000);
+  const luciTelSim = await tel.finoA(`!!document.querySelector('[data-luci]')`, 20000);
+  menuSim && luciMacSim && luciTelSim ? ok("S14-bis: con le luci simulate: menu Luci in Modifica, pannello Luci nel dock (Mac e telefono)") : ko("S14-bis: mondo di Valerio con le simulate", `menu=${menuSim} mac=${luciMacSim} tel=${luciTelSim}`);
+  await regia3.js(`document.querySelector('[data-luci]').click()`);
+  await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Luci"]')`, 3000);
+  const nomiSim = await regia3.js(`document.querySelector('[role="dialog"][aria-label="Luci"]')?.innerText ?? ''`);
+  nomiSim.includes("Buio") && nomiSim.includes("Rosso") && nomiSim.includes("Caldo") ? ok("S14-bis: pannello Luci coi tre effetti pronti (Buio, Rosso, Caldo)") : ko("S14-bis: pannello Luci simulate", nomiSim.slice(0, 80));
+  await regia3.js(`document.querySelector('[role="dialog"] button[aria-label="Chiudi"]')?.click()`);
+  // spente: tutto sparisce
+  await fetch(`${BASE}/api/luci/simulate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ attive: false }) });
+  const viaMac = await regia3.finoA(`!document.querySelector('[data-luci]')`, 20000);
+  const viaTel = await tel.finoA(`!document.querySelector('[data-luci]')`, 20000);
+  const statoDopo = await (await fetch(`${BASE}/api/luci/stato`)).json();
+  viaMac && viaTel && statoDopo.stato === "nessuna" && !statoDopo.simulate ? ok("S14-bis: luci simulate spente: tutto sparisce, centralina 'nessuna'") : ko("S14-bis: simulate spente", `mac=${viaMac} tel=${viaTel} stato=${statoDopo.stato}`);
+  !fs.existsSync(path.join(datiTemp, "luci.json")) ? ok("S14-bis: le luci simulate non hanno scritto luci.json") : ko("S14-bis: luci.json scritto dalle simulate");
 }
 
 // ================= S13: luci Philips Hue =================
@@ -1271,7 +1382,7 @@ await attendi(300);
 // ================= S14: soundcheck pre-serata ricordato + "Chiudi serata" =================
 {
   const serataOggi = () => fetch(`${BASE}/api/serata`).then((r) => r.json());
-  const rileggi = (p) => p.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'")?.click()`);
+  const rileggi = (p) => (p === tel ? p.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'")?.click()`) : rileggiMac(p));
   const statoFoglio = (p) => p.js(`document.querySelector('[role="dialog"][aria-label="Prima di iniziare"] [data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato')`);
   // 1) Serata nuova: rosso sul foglio (Mac e telefono) e pallini rossi in Live.
   await rileggi(regia3);

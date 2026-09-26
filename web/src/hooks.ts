@@ -112,3 +112,25 @@ export function useSerata(attivo = true): { serata: SerataOggi | null; ricarica:
   }, [attivo, versione]);
   return { serata, ricarica: () => setVersione((v) => v + 1) };
 }
+
+/** Un avviso che sparisce da solo dopo `ms` e al primo click fuori da sé.
+ *  Ritorna il ref da mettere sul riquadro dell'avviso. */
+export function useSuggerimentoCheSparisce(visibile: boolean, chiudi: () => void, ms: number) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!visibile) return;
+    const t = setTimeout(chiudi, ms);
+    const click = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) chiudi();
+    };
+    // In fase di cattura e dal tick dopo: il click che ha fatto nascere l'avviso non lo chiude.
+    const arma = setTimeout(() => document.addEventListener("click", click, { capture: true }), 0);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(arma);
+      document.removeEventListener("click", click, { capture: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibile, ms]);
+  return ref;
+}
