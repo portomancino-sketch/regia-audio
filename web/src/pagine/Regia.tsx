@@ -810,8 +810,13 @@ export function PaginaRegia() {
   const serveSblocco = sonoIlMotore && !audioAttivo && motoreRef.current !== null;
   const bloccato = config.impostazioni.bloccoModifiche === true;
   const inImpostazioni = percorso === "/impostazioni" || percorso === "/luci";
-  // Sotto 1200 px le etichette di Prova tutti / Blocca / Diario tornano a icona (col tooltip).
-  const etichetta = "hidden min-[1200px]:inline";
+  // Il titolo del format ha la precedenza: sono le etichette a cedere, in quest'ordine
+  // (dalla finestra più stretta): Impostazioni → icona sotto 1600, Diario sotto 1440,
+  // Blocca sotto 1360, Prova tutti sotto 1280. Sopra i 1600 px tutte le etichette.
+  const etichettaProva = "hidden min-[1280px]:inline";
+  const etichettaBlocca = "hidden min-[1360px]:inline";
+  const etichettaDiario = "hidden min-[1440px]:inline";
+  const etichettaImpostazioni = "hidden min-[1600px]:inline";
 
   return (
     <div className="min-h-full">
@@ -919,7 +924,7 @@ export function PaginaRegia() {
       {/* Barra superiore: a sinistra "‹ Serate" e il titolo, al centro Modifica/Live,
           a destra Prova tutti, Blocca, Diario, sole/luna, Impostazioni, Telecomando. */}
       <header className="vetro-barra sticky top-0 z-30 border-b border-[var(--hairline-barra)] px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center gap-2">
+        <div className="mx-auto flex max-w-[1600px] items-center gap-2">
           {/* Il logo è un link alla Home (stesso stile, cursore a manina). */}
           <a
             href="/"
@@ -957,18 +962,21 @@ export function PaginaRegia() {
               >
                 <ChevronLeft size={18} strokeWidth={1.75} aria-hidden /> Serate
               </button>
-              <div className="min-w-0 flex-1 text-[17px] font-semibold tracking-[-0.01em]">
+              {/* Il titolo: almeno 180 px, ellissi solo oltre i 320. */}
+              <div className="min-w-[180px] max-w-[320px] flex-1 text-[17px] font-semibold tracking-[-0.01em]" data-titolo-format>
                 <InputInline
                   valore={formatAperto.nome}
                   onCambia={(v) => void api.rinominaFormat(formatAperto.id, v).then(() => void ricaricaConfig())}
+                  className="w-full truncate rounded-[10px] border border-transparent bg-transparent px-1.5 py-0.5 transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:bg-velo focus:outline-none"
                 />
               </div>
             </>
           )}
           {!formatAperto && <div className="flex-1" />}
+          {/* Il titolo cresce fino a 320 px; quel che avanza finisce qui (ml-auto), a destra. */}
           <span
             aria-live="polite"
-            className={`hidden shrink-0 text-[12px] transition-opacity duration-300 sm:block ${
+            className={`ml-auto hidden shrink-0 text-[12px] transition-opacity duration-300 sm:block ${
               salvataggi > 0 ? "text-testo-2" : salvatoAlmeno ? "text-testo-3" : "opacity-0"
             }`}
           >
@@ -996,7 +1004,7 @@ export function PaginaRegia() {
               data-prova-tutti
             >
               <ListChecks size={16} strokeWidth={1.75} aria-hidden />
-              <span className={soundcheck ? "" : etichetta}>{soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}</span>
+              <span className={soundcheck ? "" : etichettaProva}>{soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}</span>
               {!soundcheck && !soundcheckDelFormat && (
                 <span aria-label="Soundcheck di oggi non fatto" className="h-2 w-2 rounded-full bg-rosso" data-pallino-soundcheck />
               )}
@@ -1018,7 +1026,7 @@ export function PaginaRegia() {
               }`}
             >
               {bloccato ? <Lock size={18} strokeWidth={1.75} aria-hidden /> : <LockOpen size={18} strokeWidth={1.75} aria-hidden />}
-              <span className={etichetta}>{bloccato ? "Bloccato" : "Blocca"}</span>
+              <span className={etichettaBlocca}>{bloccato ? "Bloccato" : "Blocca"}</span>
             </button>
           )}
           <button
@@ -1033,7 +1041,7 @@ export function PaginaRegia() {
             }`}
           >
             <CalendarClock size={18} strokeWidth={1.75} aria-hidden />
-            <span className={etichetta}>Diario</span>
+            <span className={etichettaDiario}>Diario</span>
           </button>
           <InterruttoreTema chiave="tema-regia" />
           <button
@@ -1048,12 +1056,12 @@ export function PaginaRegia() {
             }`}
           >
             <Settings size={18} strokeWidth={1.75} aria-hidden />
-            <span className={formatAperto ? etichetta : "hidden sm:inline"}>Impostazioni</span>
+            <span className={formatAperto ? etichettaImpostazioni : "hidden sm:inline"}>Impostazioni</span>
           </button>
           <PannelloTelecomando telefoni={telefoni} chiave={`${percorso}|${vista}`} />
         </div>
         {!sonoIlMotore && (
-          <div className="mx-auto mt-2 flex max-w-6xl items-center gap-2">
+          <div className="mx-auto mt-2 flex max-w-[1600px] items-center gap-2">
             <span className="inline-block rounded-full border border-vetro-bordo bg-velo px-3 py-1 text-[12px] text-testo-2">
               Un'altra finestra Regia sta comandando.
             </span>

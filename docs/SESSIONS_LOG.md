@@ -774,3 +774,19 @@ DECISIONI PRESE DA SOLO (S14-bis)
 - Le luci simulate hanno un pulsante "Prova con luci simulate" solo quando la
   centralina è "non trovata": con una centralina vera abbinata o da abbinare
   non si propone.
+
+## S14-ter — 27 settembre 2026 — v1.5.1: il titolo del format non sparisce mai
+
+- In S14-bis la barra di Live aveva un contenitore da 1152 px: con tutte le
+  etichette accese il titolo del format finiva schiacciato a 14 px (invisibile).
+  Ora il contenitore arriva a 1600 px e il titolo (dopo "‹ Serate") ha la
+  precedenza: larghezza minima 180 px, cresce fino a 320 px (ellissi solo
+  oltre), è lui a prendersi lo spazio libero per primo (il resto va a destra
+  con `ml-auto`). Sono le etichette a cedere, dalla finestra più stretta:
+  "Impostazioni" → icona sotto 1600, "Diario" sotto 1440, "Blocca" sotto 1360,
+  "Prova tutti" sotto 1280. Sopra i 1600 px tutte le etichette.
+- Verificato a 1280, 1440 e 1680 px col format demo "Demo — Orient Express":
+  titolo per intero in tutti e tre (268 / 320 / 320 px), etichette come
+  atteso. e2e: a 1440 il titolo è largo più di 150 px e non è tagliato.
+  Screenshot in docs/screenshots/s14ter/ (scripts/screenshot-s14ter.mjs).
+- **v1.5.1** → dist-pacchetti/Regia-v1.5.1.zip.

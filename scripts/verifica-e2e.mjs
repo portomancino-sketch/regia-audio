@@ -1173,6 +1173,9 @@ await attendi(300);
   barra && /Serate \| Prova tutti \| Blocca \| Diario \| Impostazioni/.test(testi) ? ok("S14-bis: barra Live con Serate, Prova tutti, Blocca, Diario, Impostazioni, Telecomando (niente icona libro)", testi) : ko("S14-bis: barra Live", testi);
   const alti = await regia3.js(`[...document.querySelectorAll('header button')].filter(b => b.getAttribute('role') !== 'tab').every(b => b.getBoundingClientRect().height >= 44)`);
   alti ? ok("S14-bis: ogni pulsante della barra è alto almeno 44 px") : ko("S14-bis: pulsanti sotto i 44 px");
+  // S14-ter: a 1440 px il titolo del format resta leggibile per intero (larghezza > 150 px, niente taglio).
+  const titolo = await regia3.js(`(() => { const i = document.querySelector('[data-titolo-format] input'); if (!i) return null; return { larghezza: Math.round(i.getBoundingClientRect().width), tagliato: i.scrollWidth > i.clientWidth, finestra: window.innerWidth, valore: i.value }; })()`);
+  titolo && titolo.larghezza > 150 && !titolo.tagliato ? ok("S14-ter: il titolo del format è largo più di 150 px e per intero a 1440", `${titolo.larghezza} px · "${titolo.valore}"`) : ko("S14-ter: titolo del format", JSON.stringify(titolo));
   // 2) Pannello Telecomando: ESC (senza STOP TUTTO), click fuori, cambio di vista.
   await regia3.clickCue("Treno in corsa");
   await osservatore.finoA((x) => x.attivi.length > 0, 4000);
