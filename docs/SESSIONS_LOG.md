@@ -646,3 +646,61 @@ DA PROVARE CON UNA CENTRALINA VERA
 - Foto ripristinata dopo uno spegnimento del Mac: all'avvio, se
   luci-foto.json esiste e la centralina risponde, "torna com'era" automatico.
 - Transizioni lunghe e "Lampeggia" (alert "select") sulle lampadine reali.
+
+## S14 — 26 settembre 2026 — v1.4.1: soundcheck pre-serata ricordato + "Chiudi serata"
+
+- **Concetto**: la "serata" va dal foglio "Prima di iniziare" al pulsante
+  "Chiudi serata", non più il giorno di calendario. Il diario resta un file al
+  giorno; l'evento `fine_serata` chiude un tratto e il tratto dopo è una serata
+  nuova (shared/serata.ts: `spezzaInSerate`, `serataCorrente`, `statoSerata`,
+  id "2026-09-26#0"). Se nessuno chiude, resta il taglio a mezzanotte.
+  Riepilogo e statistiche usano la fine esplicita quando c'è.
+- **F — Soundcheck ricordato (mai bloccante)**. L'esito di "Prova tutti" va nel
+  diario dal Mac (`POST /api/serata/soundcheck`: caselle, problemi, file
+  mancanti/rotti, `completo`; interrotto con ESC = non fatto). Foglio "Prima di
+  iniziare" (Mac e telefono, ora anche senza nota): prima riga grande
+  "Soundcheck di oggi: NON FATTO" in rosso, sul Mac con "Prova tutti i suoni"
+  dentro, sul telefono "Fallo dal Mac"; dopo: "Soundcheck fatto alle 18:40 ·
+  tutto ok" in verde o "· 2 problemi" in ambra con "vedi l'esito". Pallino
+  rosso accanto a "Prova tutti" (Mac) e sotto il nome della fase (telefono)
+  finché non è fatto. Primo suono vero senza soundcheck: finestra "Non hai
+  ancora provato i suoni di oggi." con "Prova tutti (1 min)" / "Vado avanti",
+  una sola volta per serata (evento `avviso_soundcheck`); il suono è già
+  partito. File mancanti o rotti: "file mancante" in rosso sulla card già in
+  Live (Mac e telefono); il soundcheck ricontrolla su disco anche i file già
+  in cache. Riepilogo: riga "Soundcheck: fatto alle … / non fatto"; Diario:
+  "Senza soundcheck: N su 10".
+- **G — "Chiudi serata"**: pulsante di vetro nel dock del Mac a destra di STOP
+  TUTTO (non sul telefono). Conferma "Chiudere la serata di oggi?". Fa in
+  ordine: STOP TUTTO → luci com'erano → azzera spunte e contatori (comando
+  `azzeraTutto`) → orologio di scaletta fermo (legge solo la serata aperta) →
+  lucchetto spento → `fine_serata` nel diario → finestra col riepilogo (lo
+  stesso del Diario) con "Esporta CSV" e "Chiudi". Dopo, foglio e avviso
+  tornano al prossimo avvio (Mac: Modifica → Live o ricarica; telefono: da
+  solo, memoria per id di serata). Il server avvisa Mac e telefoni con
+  `serataCambiata`; le rotte `/api/serata/*` passano anche col lucchetto.
+- **Diario**: una riga per serata ("1ª serata" / "2ª serata" quando un giorno
+  ne ha due, "chiusa"), `GET /api/diario/:data?serata=N`, CSV per serata con
+  `chiusa` e `soundcheck` in cima.
+- Verifica: shared/serata.test.ts (10), server/test/serata.test.ts (8: stato,
+  esito nel diario, interrotto non conta, avviso, chiusura col lucchetto,
+  due serate lo stesso giorno, CSV, statistiche), diario.test.ts (+1).
+  **147 test** + typecheck; **190/190 end-to-end** (foglio rosso Mac/telefono,
+  avviso al primo suono una volta sola, ESC non conta, giro completo con un
+  file tolto dal disco → esito, foglio ambra, card "file mancante", pallini
+  spariti; Chiudi serata: conferma/annulla, riepilogo, azzeramenti, lucchetto,
+  eventi, orologio fermo, foglio che torna, avviso che torna, due righe nel
+  Diario). Screenshot in docs/screenshots/s14/ (scripts/screenshot-s14.mjs).
+- Guida: "Prova tutti prima della serata" e "Chiudi serata a fine serata".
+- **v1.4.1** → dist-pacchetti/Regia-v1.4.1.zip.
+
+DECISIONI PRESE DA SOLO (S14)
+- Un soundcheck interrotto con ESC va nel diario ma NON conta come fatto: il
+  foglio resta rosso finché non si prova tutto.
+- Il foglio "Prima di iniziare" compare anche per i format senza nota (ora ha
+  sempre la riga del soundcheck); l'icona per rileggerlo è sempre in Live.
+- L'avviso "Non hai ancora provato" è segnato nel diario appena compare, non
+  alla scelta: mai due volte anche se si ricarica la pagina.
+- Il suono che fa scattare l'avviso parte comunque ("mai bloccante").
+- Dopo "Chiudi serata" il Mac resta in Live sullo stesso format: il foglio
+  torna passando da Modifica a Live o ricaricando (il "prossimo avvio").

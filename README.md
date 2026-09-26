@@ -24,6 +24,11 @@ Lo zip si produce sul Mac di sviluppo con `npm run pacchetto`
 (finisce in `dist-pacchetti/`). Sostituire la cartella "Regia" con una versione
 nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 
+## Novità 1.4.1
+
+- **Soundcheck ricordato**: il foglio "Prima di iniziare" dice in rosso se il soundcheck di oggi non è fatto (col pulsante dentro), poi in verde con l'ora; pallino rosso su "Prova tutti"; al primo suono senza prova una finestra lo chiede, una volta sola; "file mancante" in rosso già in Live.
+- **Chiudi serata** (dock del Mac): silenzio, luci com'erano, spunte e contatori azzerati, lucchetto spento, riepilogo con CSV. Due serate lo stesso giorno = due righe nel Diario.
+
 ## Novità 1.3.0
 
 - **Prova tutti** (Live, Mac): 3 secondi di ogni casella, esito con file mancanti e picchi.
