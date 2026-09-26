@@ -12,7 +12,8 @@ import { Vetro } from "../componenti/ui/Vetro";
 import { Pulsante } from "../componenti/ui/Pulsante";
 import { InterruttoreTema } from "../componenti/ui/InterruttoreTema";
 import { OrologioScaletta } from "../componenti/OrologioScaletta";
-import { useLuciLive } from "../hooks";
+import { FoglioInizio } from "../componenti/FoglioInizio";
+import { useLuciLive, useSerata } from "../hooks";
 import { coloreLuceDi } from "../util";
 
 const CHIAVE_PIN = "regia-pin";
@@ -167,6 +168,7 @@ export function PaginaTelecomando() {
   const [scegliFormat, setScegliFormat] = useState(false);
   const [formatDaConfermare, setFormatDaConfermare] = useState<string | null>(null);
   const [foglioAperto, setFoglioAperto] = useState(false);
+  /** "formatId|serataId" per cui il foglio è già stato deciso in questa pagina. */
   const foglioVistoPer = useRef<string | null>(null);
   // Connessione: finché non è aperta, i tocchi vanno in coda (1 comando, 3 s).
   const [connessione, setConnessione] = useState(false);
@@ -183,6 +185,11 @@ export function PaginaTelecomando() {
   // Posizioni fluide tra uno stato e l'altro (il hook vive PRIMA dei return).
   const attiviFluidi = useAttiviFluidi(stato?.attivi ?? []);
   const { luci, ricarica: ricaricaLuci } = useLuciLive(autenticato);
+  // La serata di oggi: soundcheck fatto/non fatto (riletta ogni 15 s, subito quando cambia).
+  const { serata, ricarica: ricaricaSerata } = useSerata(autenticato);
+  const ricaricaSerataRef = useRef(ricaricaSerata);
+  ricaricaSerataRef.current = ricaricaSerata;
+  const soundcheckInCorsoRef = useRef(false);
 
   useEffect(() => {
     void api.config().then(setConfig);
@@ -194,6 +201,10 @@ export function PaginaTelecomando() {
       stato: (s) => {
         setStato(s);
         setAutenticato(true);
+        // Il soundcheck del Mac è appena finito: l'esito è nel diario, si rilegge.
+        const inCorso = !!s.soundcheck;
+        if (soundcheckInCorsoRef.current && !inCorso) setTimeout(() => ricaricaSerataRef.current(), 800);
+        soundcheckInCorsoRef.current = inCorso;
       },
       connesso: (ok) => {
         setConnessione(ok);
@@ -211,6 +222,7 @@ export function PaginaTelecomando() {
         setPinSbagliato(true);
       },
       configCambiata: () => void api.config().then(setConfig),
+      serataCambiata: () => ricaricaSerataRef.current(),
     });
     wsRef.current = ws;
     if (new URLSearchParams(location.search).has("prova")) {
@@ -259,24 +271,24 @@ export function PaginaTelecomando() {
   const formats = [...config.formats].filter((f) => !f.archiviato).sort((a, b) => a.ordine - b.ordine);
   const format = formats.find((f) => f.id === stato?.formatId) ?? null;
   // Il foglio "Prima di iniziare" compare una volta per serata e per format
-  // (memoria sul telefono con la data), non a ogni ricaricamento.
-  if (format && foglioVistoPer.current !== format.id) {
-    foglioVistoPer.current = format.id;
-    if (format.notaInizio?.trim()) {
-      let visti: Record<string, string> = {};
-      try {
-        visti = JSON.parse(localStorage.getItem("foglio-visto") ?? "{}") as Record<string, string>;
-      } catch {
-        /* memoria rovinata: si riparte */
-      }
-      const oggi = new Date().toDateString();
-      if (visti[format.id] !== oggi) {
-        setFoglioAperto(true);
-        visti[format.id] = oggi;
-        localStorage.setItem("foglio-visto", JSON.stringify(visti));
-      }
+  // (memoria sul telefono con l'id della serata: dopo "Chiudi serata" torna,
+  // anche lo stesso giorno), non a ogni ricaricamento.
+  if (format && serata && foglioVistoPer.current !== `${format.id}|${serata.id}`) {
+    foglioVistoPer.current = `${format.id}|${serata.id}`;
+    let visti: Record<string, string> = {};
+    try {
+      visti = JSON.parse(localStorage.getItem("foglio-visto") ?? "{}") as Record<string, string>;
+    } catch {
+      /* memoria rovinata: si riparte */
+    }
+    if (visti[format.id] !== serata.id) {
+      setFoglioAperto(true);
+      visti[format.id] = serata.id;
+      localStorage.setItem("foglio-visto", JSON.stringify(visti));
     }
   }
+  const soundcheckDelFormat = format ? (serata?.soundcheck[format.id] ?? null) : null;
+  const problemiFile = soundcheckDelFormat?.mancanti;
   const fasi = format ? [...format.fasi].filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine) : [];
   const fase = fasi.find((f) => f.id === stato?.faseId) ?? fasi[0] ?? null;
   const indiceFase = fase ? fasi.findIndex((f) => f.id === fase.id) : -1;
@@ -384,17 +396,15 @@ export function PaginaTelecomando() {
           <span className="truncate">{format.nome}</span>
           <ChevronDown size={14} strokeWidth={1.75} aria-hidden />
         </button>
-        {format.notaInizio?.trim() && (
-          <button
-            type="button"
-            title="Rileggi 'Prima di iniziare'"
-            aria-label="Rileggi 'Prima di iniziare'"
-            onClick={() => setFoglioAperto(true)}
-            className="tocco shrink-0 rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
-          >
-            <BookOpenText size={16} strokeWidth={1.75} />
-          </button>
-        )}
+        <button
+          type="button"
+          title="Rileggi 'Prima di iniziare'"
+          aria-label="Rileggi 'Prima di iniziare'"
+          onClick={() => setFoglioAperto(true)}
+          className="tocco shrink-0 rounded-[10px] border border-transparent p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
+        >
+          <BookOpenText size={16} strokeWidth={1.75} />
+        </button>
       </div>
       <div className="mb-4 flex items-center gap-2">
         <button
@@ -408,7 +418,12 @@ export function PaginaTelecomando() {
         </button>
         <div className="vetro flex min-h-16 flex-1 flex-col items-center justify-center px-2 text-center text-[17px] font-semibold tracking-[-0.01em]">
           {fase?.nome ?? "—"}
-          <OrologioScaletta format={format} faseId={fase?.id ?? null} soloScarto />
+          <OrologioScaletta format={format} faseId={fase?.id ?? null} soloScarto versione={serata?.id} />
+          {serata && !soundcheckDelFormat && (
+            <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-rosso" title="Soundcheck di oggi non fatto (si fa dal Mac)">
+              <span aria-label="Soundcheck di oggi non fatto" className="h-2 w-2 rounded-full bg-rosso" data-pallino-soundcheck /> soundcheck
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -457,22 +472,13 @@ export function PaginaTelecomando() {
             fatto={stato?.fatti?.includes(c.id)}
             usi={stato?.usi?.[c.id]}
             coloreLuce={coloreLuceDi(c.luce, luci)}
+            problemaFile={problemiFile?.[c.id]}
             onSpunta={() => invia({ tipo: "comando", comando: "spunta", cueId: c.id })}
           />
         ))}
         {cue.length === 0 && <p className="text-testo-2">Nessun suono in questa fase.</p>}
       </div>
-      {foglioAperto && format.notaInizio?.trim() && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="vetro w-full max-w-sm vetro-solido p-6">
-            <div className="etichetta mb-2">Prima di iniziare</div>
-            <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">{format.notaInizio}</p>
-            <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>
-              Ok, pronti
-            </Pulsante>
-          </div>
-        </div>
-      )}
+      {foglioAperto && <FoglioInizio telefono format={format} soundcheck={soundcheckDelFormat} onChiudi={() => setFoglioAperto(false)} />}
       <BarraLive
         telefono
         sopra={
@@ -482,6 +488,7 @@ export function PaginaTelecomando() {
               cue={cueSempre}
               attivi={attiviFluidi}
               fatti={stato?.fatti ?? []}
+              problemi={problemiFile}
               onPremi={(c) => premi(c)}
               onFerma={(c) => invia({ tipo: "comando", comando: "stop", cueId: c.id })}
               onSfuma={(c) => invia({ tipo: "comando", comando: "sfuma", cueId: c.id })}

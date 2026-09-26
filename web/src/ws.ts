@@ -8,6 +8,8 @@ export interface MessaggiRicevuti {
   motoreSostituito?: () => void;
   telefoni?: (telefoni: { ip: string }[]) => void;
   configCambiata?: () => void;
+  /** La serata è cambiata (soundcheck, avviso, chiusura): rileggere /api/serata. */
+  serataCambiata?: () => void;
   connesso?: (ok: boolean) => void;
   pinRifiutato?: () => void;
 }
@@ -65,6 +67,7 @@ export class ClientWs {
       else if (msg.tipo === "motore_sostituito") this.su.motoreSostituito?.();
       else if (msg.tipo === "telefoni") this.su.telefoni?.((msg as { telefoni?: { ip: string }[] }).telefoni ?? []);
       else if (msg.tipo === "configCambiata") this.su.configCambiata?.();
+      else if (msg.tipo === "serataCambiata") this.su.serataCambiata?.();
     };
 
     ws.onclose = (ev) => {

@@ -25,6 +25,12 @@
 10. Prova tutto in **Live** prima che arrivi la gente. Il pulsante **Prova tutti**
     suona 3 secondi di ogni casella, una alla volta, e alla fine dice quali file
     mancano o non si leggono, e quanto è forte ognuno.
+    **Prova tutti prima della serata**: il foglio "Prima di iniziare" lo ricorda in
+    rosso ("Soundcheck di oggi: NON FATTO", con il pulsante dentro) e resta un
+    pallino rosso accanto a "Prova tutti" finché non l'hai fatto; se parte un suono
+    vero senza averlo fatto, una finestra te lo chiede una volta sola ("Prova tutti"
+    o "Vado avanti"). Dopo la prova il foglio diventa verde con l'ora, e se un file
+    manca la casella lo dice in rosso già in Live.
 10b. Quando importi un file, la Regia misura da sola quanto è forte e lo porta a
     un livello uguale agli altri ("auto +4 dB"). Se vuoi ritoccare a orecchio:
     cursore **Volume** (−12…+12 dB) sulla casella e **Ascolta** per sentire.
@@ -85,11 +91,18 @@
 
 ## Dopo la serata
 
+- **Chiudi serata a fine serata**: il pulsante di vetro nel dock del Mac, a destra
+  di STOP TUTTO. Chiede conferma, poi fa silenzio, rimette le luci com'erano,
+  azzera spunte e contatori, spegne il lucchetto e ti mostra il riepilogo (con
+  "Esporta CSV"). Se lo dimentichi, la serata si chiude da sola a mezzanotte.
+  Se fai due serate lo stesso giorno, nel Diario sono due righe.
 - Il **Diario** (icona calendario in alto, solo sul Mac) ricorda tutto da solo:
   quando è partito ogni suono, i cambi di fase, chi ha premuto cosa.
   Si può scaricare la serata in CSV per riguardarla con calma.
 - In cima a ogni serata c'è il **riepilogo**: inizio, fine, durata, tempo per
-  fase contro il previsto, STOP TUTTO, possibili errori, comandi dal telefono.
+  fase contro il previsto, STOP TUTTO, possibili errori, comandi dal telefono,
+  e se il soundcheck è stato fatto (e a che ora). Nelle ultime 10 serate il
+  Diario conta anche quante sono andate senza soundcheck.
 - **Suoni mai usati**: il Diario elenca le caselle mai partite nelle ultime 10
   serate; in Modifica hanno un'etichetta grigia.
 - Nella Home, menu ⋯ del format: **Duplica** (stessi suoni, si apre subito) e

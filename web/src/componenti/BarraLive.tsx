@@ -1,6 +1,6 @@
 // Il dock in basso: cosa sta suonando, master, FADE, STOP.
 import { useEffect, useRef, useState } from "react";
-import { Mic, Volume2 } from "lucide-react";
+import { DoorClosed, Mic, Volume2 } from "lucide-react";
 import { Equalizzatore } from "./ui/Equalizzatore";
 import type { CueAttivo } from "../../../shared/tipi";
 import { tempoRimanente } from "../util";
@@ -33,6 +33,8 @@ export function BarraLive(props: {
   /** Luci (solo se la centralina è abbinata): il pulsante "Luci" col suo pannello. */
   luci?: LuciLive | null;
   onLuciCambiate?: () => void;
+  /** Solo Mac: "Chiudi serata" (vetro, a destra di STOP TUTTO). */
+  onChiudiSerata?: () => void;
 }) {
   const { attivi } = props;
   return (
@@ -117,6 +119,17 @@ export function BarraLive(props: {
         ) : (
           <Pulsante variante="pericolo" misura="lg" disabled={props.disabilitata} onClick={props.onStop} className="px-8">
             STOP TUTTO
+          </Pulsante>
+        )}
+        {!props.telefono && !props.compatta && props.onChiudiSerata && (
+          <Pulsante
+            variante="secondario"
+            misura="lg"
+            onClick={props.onChiudiSerata}
+            title="Fine serata: silenzio, luci com'erano, spunte e contatori azzerati, lucchetto spento, riepilogo"
+            data-chiudi-serata
+          >
+            <DoorClosed size={18} strokeWidth={1.75} aria-hidden /> Chiudi serata
           </Pulsante>
         )}
       </div>

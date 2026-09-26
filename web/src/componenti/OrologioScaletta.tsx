@@ -17,8 +17,8 @@ const COLORI = {
 } as const;
 
 /** `soloScarto`: sul telefono, una riga piccola con il solo testo dello scarto. */
-export function OrologioScaletta(props: { format: Format; faseId: string | null; soloScarto?: boolean; className?: string }) {
-  const eventi = useDiarioOggi(true, props.faseId);
+export function OrologioScaletta(props: { format: Format; faseId: string | null; soloScarto?: boolean; className?: string; versione?: unknown }) {
+  const eventi = useDiarioOggi(true, `${props.faseId}|${String(props.versione ?? "")}`);
   const adesso = useAdesso(true);
   const s = scarto(scalettaDi(props.format), eventi, adesso);
   if (!s.fase) return null;

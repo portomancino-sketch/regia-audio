@@ -1,7 +1,7 @@
 // Piccoli hook condivisi.
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { CueAttivo } from "../../shared/tipi";
-import { api, type LuciLive } from "./api";
+import { api, type LuciLive, type SerataOggi } from "./api";
 
 /**
  * Fa scorrere le posizioni tra un aggiornamento di stato e l'altro:
@@ -24,18 +24,16 @@ export function useAttiviFluidi(attivi: CueAttivo[]): CueAttivo[] {
   return attivi.map((a) => (a.inPausa ? a : { ...a, posizioneSec: a.posizioneSec + trascorso }));
 }
 
-/** Gli eventi del diario di oggi, riletti ogni 20 s (per l'orologio di scaletta). */
+/** Gli eventi della serata aperta (dopo l'ultimo "Chiudi serata"), riletti ogni 20 s:
+ *  è ciò che guarda l'orologio di scaletta, che dopo la chiusura si ferma. */
 export function useDiarioOggi(attivo: boolean, versione: unknown = 0): { ora: string; tipo: string; fase?: string }[] {
   const [eventi, setEventi] = useState<{ ora: string; tipo: string; fase?: string }[]>([]);
   useEffect(() => {
     if (!attivo) return;
     let vivo = true;
     const leggi = () => {
-      const d = new Date();
-      const z = (n: number) => String(n).padStart(2, "0");
-      const oggi = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-      void fetch(`/api/diario/${oggi}`)
-        .then(async (r) => (await r.json()) as { eventi: { ora: string; tipo: string; fase?: string }[] })
+      void api.serata
+        .oggi()
         .then((d) => {
           if (vivo) setEventi(d.eventi);
         })
@@ -88,4 +86,29 @@ export function useLuciLive(attivo = true): { luci: LuciLive | null; ricarica: (
     };
   }, [attivo, versione]);
   return { luci, ricarica: () => setVersione((v) => v + 1) };
+}
+
+/** La serata di oggi (soundcheck fatto/non fatto per format, avviso, eventi).
+ *  Riletta ogni 15 s; `ricarica()` subito dopo un cambiamento (o al messaggio "serataCambiata"). */
+export function useSerata(attivo = true): { serata: SerataOggi | null; ricarica: () => void } {
+  const [serata, setSerata] = useState<SerataOggi | null>(null);
+  const [versione, setVersione] = useState(0);
+  useEffect(() => {
+    if (!attivo) return;
+    let vivo = true;
+    const leggi = () =>
+      void api.serata
+        .oggi()
+        .then((s) => {
+          if (vivo) setSerata(s);
+        })
+        .catch(() => undefined);
+    leggi();
+    const t = setInterval(leggi, 15_000);
+    return () => {
+      vivo = false;
+      clearInterval(t);
+    };
+  }, [attivo, versione]);
+  return { serata, ricarica: () => setVersione((v) => v + 1) };
 }

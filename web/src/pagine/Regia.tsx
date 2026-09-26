@@ -4,15 +4,19 @@ import type { Comando, Config, Cue, CueAttivo, Format, StatoLive } from "../../.
 import { inEvidenza } from "../../../shared/sempre";
 import { SOUNDCHECK_DURATA_MS, SOUNDCHECK_PAUSA_MS, sequenzaSoundcheck, piccoInDb, type EsitoCasella } from "../../../shared/soundcheck";
 import { azzeraUsi, giornoDi, incrementaUsi, usiDelGiorno, type Usi } from "../../../shared/usi";
-import { api } from "../api";
+import type { SoundcheckSerata } from "../../../shared/serata";
+import { api, type RiepilogoWeb, type SerataOggi } from "../api";
 import { ClientWs } from "../ws";
 import { MotoreAudio } from "../motore/motore";
 import { BookOpenText, CalendarClock, ChevronLeft, Lightbulb, ListChecks, Lock, LockOpen, Volume2 } from "lucide-react";
 import { EsitoSoundcheck } from "../componenti/EsitoSoundcheck";
+import { FoglioInizio } from "../componenti/FoglioInizio";
+import { AvvisoSoundcheck } from "../componenti/AvvisoSoundcheck";
+import { FinestraRiepilogo } from "../componenti/RiepilogoSerata";
 import { Home } from "./Home";
 import { Diario } from "./Diario";
 import { Luci } from "./Luci";
-import { useLuciLive } from "../hooks";
+import { useLuciLive, useSerata } from "../hooks";
 import { EFFETTI } from "../../../shared/luci";
 import { Modifica } from "./Modifica";
 import { Live } from "./Live";
@@ -62,6 +66,22 @@ export function PaginaRegia() {
   const soundcheckRef = useRef<{ indice: number; totale: number; annullato: boolean } | null>(null);
   const [esitoSoundcheck, setEsitoSoundcheck] = useState<EsitoCasella[] | null>(null);
   const [esitoLuci, setEsitoLuci] = useState<string | null>(null);
+  const [esitoProvate, setEsitoProvate] = useState<number | undefined>(undefined);
+  /** L'ultimo esito completo di questa finestra (per "vedi l'esito" dal foglio). */
+  const [ultimoEsito, setUltimoEsito] = useState<{ formatId: string; esiti: EsitoCasella[]; luci: string | null } | null>(null);
+  // La serata di oggi: soundcheck fatto/non fatto per format, avviso già mostrato.
+  const { serata, ricarica: ricaricaSerata } = useSerata(true);
+  const serataRef = useRef<SerataOggi | null>(null);
+  const ricaricaSerataRef = useRef(ricaricaSerata);
+  ricaricaSerataRef.current = ricaricaSerata;
+  // "Non hai ancora provato i suoni di oggi": una volta per serata.
+  const [avvisoSoundcheck, setAvvisoSoundcheck] = useState(false);
+  const avvisoMostratoRef = useRef(false);
+  // "Chiudi serata": conferma, poi il riepilogo.
+  const [confermaChiusura, setConfermaChiusura] = useState(false);
+  const [riepilogoChiusura, setRiepilogoChiusura] = useState<{ data: string; serata: number; r: RiepilogoWeb } | null>(null);
+  /** Per quale serata il foglio "Prima di iniziare" è già stato aperto in questa finestra. */
+  const foglioSerataRef = useRef<string | null>(null);
   // Luci, mondo di Valerio: nomi, colori, abbinata, risponde.
   const { luci, ricarica: ricaricaLuci } = useLuciLive(true);
   // Suggerimento "Vuoi bloccare le modifiche per la serata?" (una volta al giorno).
@@ -91,6 +111,11 @@ export function PaginaRegia() {
   useEffect(() => {
     parlaUiRef.current = parlaUi;
   }, [parlaUi]);
+  useEffect(() => {
+    serataRef.current = serata;
+    // Serata nuova (o riletta): l'avviso vale quello che dice il diario.
+    if (serata) avvisoMostratoRef.current = serata.avvisoMostrato;
+  }, [serata]);
 
   // ---- Stato live in giro per tutti ----
   const inviaStatoRef = useRef<() => void>(() => undefined);
@@ -180,6 +205,13 @@ export function PaginaRegia() {
     [aggiornaUsi],
   );
 
+  /** "Chiudi serata": via tutte le spunte e tutti i contatori "già suonato". */
+  const azzeraTutto = useCallback(() => {
+    fattiRef.current = [];
+    setFatti([]);
+    aggiornaUsi({});
+  }, [aggiornaUsi]);
+
   const trovaCue = useCallback((cueId: string): Cue | null => {
     for (const f of configRef.current?.formats ?? []) {
       for (const fase of f.fasi) {
@@ -217,6 +249,9 @@ export function PaginaRegia() {
         case "azzeraSerata":
           azzeraSerataFase(c.faseId);
           break;
+        case "azzeraTutto":
+          azzeraTutto();
+          break;
         case "parla":
           m.setParla(c.acceso);
           break;
@@ -236,7 +271,7 @@ export function PaginaRegia() {
           const format = configRef.current?.formats.find((f) => f.id === c.formatId);
           if (format && !format.archiviato) {
             const primaFase = [...format.fasi].sort((a, b) => a.ordine - b.ordine)[0];
-            if (format.notaInizio?.trim() && liveRef.current.formatId !== format.id) setFoglioAperto(true);
+            apriFoglioSeServe(format);
             impostaLive(format.id, primaFase?.id ?? null);
             void m.caricaFormat(format);
             // La pagina Regia segue: apre quel format in Live.
@@ -248,8 +283,19 @@ export function PaginaRegia() {
         }
       }
     },
-    [impostaLive, trovaCue, spuntaCue, azzeraSpunteFase, azzeraSerataFase],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [impostaLive, trovaCue, spuntaCue, azzeraSpunteFase, azzeraSerataFase, azzeraTutto],
   );
+
+  /** Il foglio "Prima di iniziare" si apre quando si entra in Live con un format
+   *  (o un altro format), e di nuovo al prossimo avvio dopo "Chiudi serata". */
+  function apriFoglioSeServe(format: Format) {
+    const idSerata = serataRef.current?.id ?? null;
+    if (liveRef.current.formatId !== format.id || foglioSerataRef.current !== idSerata) {
+      foglioSerataRef.current = idSerata;
+      setFoglioAperto(true);
+    }
+  }
 
   const ricaricaConfig = useCallback(async () => {
     const c = await api.config();
@@ -313,6 +359,7 @@ export function PaginaRegia() {
       },
       telefoni: setTelefoni,
       configCambiata: () => void ricaricaConfig(),
+      serataCambiata: () => ricaricaSerataRef.current(),
       },
       () => sessione.current,
     );
@@ -377,6 +424,7 @@ export function PaginaRegia() {
       if (base.usi !== usiRef.current) salvaGiornoUsi(oggi);
       aggiornaUsi(incrementaUsi(base.usi, cue));
       proponiBlocco();
+      avvisaSoundcheckSeServe();
     };
     motoreRef.current = m;
     if (new URLSearchParams(location.search).has("prova")) {
@@ -420,6 +468,62 @@ export function PaginaRegia() {
     prendiControllo: () => wsRef.current?.invia({ tipo: "prendi_comando" }),
   };
 
+  /** Al primo suono vero della serata senza soundcheck: UNA finestra, una sola volta
+   *  per serata (qualunque scelta). Il suono è già partito: mai bloccante. */
+  function avvisaSoundcheckSeServe() {
+    const st = serataRef.current;
+    const formatId = liveRef.current.formatId;
+    if (!st || !formatId || soundcheckRef.current) return;
+    if (avvisoMostratoRef.current || st.avvisoMostrato || st.soundcheck[formatId]) return;
+    avvisoMostratoRef.current = true;
+    setAvvisoSoundcheck(true);
+    void api.serata
+      .avviso(formatId, "mostrato")
+      .then(() => ricaricaSerataRef.current())
+      .catch(() => undefined);
+  }
+
+  /** L'esito del soundcheck: quello di questa finestra se c'è, altrimenti i problemi
+   *  scritti nel diario (senza i picchi). */
+  function mostraEsito(format: Format) {
+    if (ultimoEsito && ultimoEsito.formatId === format.id) {
+      setEsitoProvate(undefined);
+      setEsitoLuci(ultimoEsito.luci);
+      setEsitoSoundcheck(ultimoEsito.esiti);
+      return;
+    }
+    const sc: SoundcheckSerata | undefined = serataRef.current?.soundcheck[format.id];
+    if (!sc) return;
+    const esiti: EsitoCasella[] = Object.entries(sc.mancanti).map(([cueId, esito]) => {
+      const trovato = format.fasi.flatMap((f) => f.cue.map((c) => ({ c, fase: f.nome }))).find((x) => x.c.id === cueId);
+      return { cueId, titolo: trovato?.c.titolo ?? "?", fase: trovato?.fase ?? "", esito, piccoDb: null };
+    });
+    setEsitoProvate(sc.caselle);
+    setEsitoLuci(null);
+    setEsitoSoundcheck(esiti);
+  }
+
+  /** "Chiudi serata": STOP TUTTO → luci com'erano → spunte e contatori azzerati →
+   *  orologio fermo → lucchetto spento → fine_serata nel diario → riepilogo. */
+  async function chiudiSerata() {
+    setConfermaChiusura(false);
+    faiStopTutto();
+    if (sonoIlMotoreRef.current) azzeraTutto();
+    else wsRef.current?.invia({ tipo: "comando", comando: "azzeraTutto" });
+    // Un attimo: lo "stop tutto" (e le luci) passano dal WebSocket prima della chiusura.
+    await new Promise((ok) => setTimeout(ok, 150));
+    try {
+      const r = await api.serata.chiudi();
+      await ricaricaConfig();
+      ricaricaSerata();
+      foglioSerataRef.current = null;
+      setUltimoEsito(null);
+      setRiepilogoChiusura({ data: r.data, serata: r.serata, r: r.riepilogo });
+    } catch {
+      /* il server non ha risposto: la serata resta aperta, si può riprovare */
+    }
+  }
+
   /** Suggerisce "Vuoi bloccare le modifiche?" una volta per giornata, se il blocco è spento. */
   function proponiBlocco() {
     if (configRef.current?.impostazioni.bloccoModifiche) return;
@@ -442,6 +546,7 @@ export function PaginaRegia() {
     const passi = sequenzaSoundcheck(format);
     if (passi.length === 0) return;
     m.stopTutto();
+    const inizio = new Date().toISOString();
     const corso = { indice: 0, totale: passi.length, annullato: false };
     soundcheckRef.current = corso;
     setSoundcheck({ indice: 0, totale: passi.length });
@@ -482,6 +587,21 @@ export function PaginaRegia() {
     soundcheckRef.current = null;
     setSoundcheck(null);
     inviaStato();
+    // L'esito va nel diario: è il "soundcheck di oggi" (interrotto con ESC non conta come fatto).
+    const problemi = esiti.filter((e) => e.esito !== "ok");
+    await api.serata
+      .soundcheck({
+        formatId: format.id,
+        inizio,
+        caselle: esiti.length,
+        problemi: problemi.length,
+        mancanti: problemi.map((e) => ({ cueId: e.cueId, titolo: e.titolo, fase: e.fase, esito: e.esito as "mancante" | "nonDecodificabile" })),
+        completo: !corso.annullato,
+      })
+      .catch(() => undefined);
+    ricaricaSerata();
+    if (!corso.annullato) setUltimoEsito({ formatId: format.id, esiti, luci: esitoLuciTesto });
+    setEsitoProvate(undefined);
     setEsitoLuci(esitoLuciTesto);
     setEsitoSoundcheck(esiti);
   }
@@ -652,7 +772,7 @@ export function PaginaRegia() {
   }
   function passaAlive(format: Format) {
     setVista("live");
-    if (format.notaInizio?.trim() && liveRef.current.formatId !== format.id) setFoglioAperto(true);
+    apriFoglioSeServe(format);
     if (sonoIlMotoreRef.current) {
       const primaFase = [...format.fasi].sort((a, b) => a.ordine - b.ordine)[0];
       const faseAttuale =
@@ -675,6 +795,8 @@ export function PaginaRegia() {
     : [];
 
   const motoreOnline = sonoIlMotore || (statoRemoto?.motoreOnline ?? false);
+  const soundcheckDelFormat = formatAperto ? (serata?.soundcheck[formatAperto.id] ?? null) : null;
+  const problemiFile = soundcheckDelFormat?.mancanti;
   const serveSblocco = sonoIlMotore && !audioAttivo && motoreRef.current !== null;
   const bloccato = config.impostazioni.bloccoModifiche === true;
 
@@ -696,22 +818,68 @@ export function PaginaRegia() {
         </div>
       )}
 
-      {/* Foglio "Prima di iniziare" */}
-      {foglioAperto && formatAperto?.notaInizio?.trim() && vista === "live" && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
-          <div className="vetro w-full max-w-md vetro-solido p-6">
-            <div className="etichetta mb-2">Prima di iniziare</div>
-            <p className="whitespace-pre-wrap text-[16px] leading-relaxed text-testo">
-              {formatAperto.notaInizio}
+      {/* Foglio "Prima di iniziare": prima riga il soundcheck di oggi, poi la nota del format. */}
+      {foglioAperto && formatAperto && vista === "live" && (
+        <FoglioInizio
+          format={formatAperto}
+          soundcheck={soundcheckDelFormat}
+          onProva={
+            sonoIlMotore
+              ? () => {
+                  setFoglioAperto(false);
+                  void avviaSoundcheck(formatAperto);
+                }
+              : undefined
+          }
+          onVediEsito={() => {
+            setFoglioAperto(false);
+            mostraEsito(formatAperto);
+          }}
+          onChiudi={() => setFoglioAperto(false)}
+        />
+      )}
+
+      {esitoSoundcheck && (
+        <EsitoSoundcheck esiti={esitoSoundcheck} luci={esitoLuci} provate={esitoProvate} onChiudi={() => setEsitoSoundcheck(null)} />
+      )}
+
+      {avvisoSoundcheck && formatAperto && (
+        <AvvisoSoundcheck
+          onProva={() => {
+            setAvvisoSoundcheck(false);
+            void avviaSoundcheck(formatAperto);
+          }}
+          onAvanti={() => setAvvisoSoundcheck(false)}
+        />
+      )}
+
+      {confermaChiusura && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConfermaChiusura(false)}>
+          <div role="dialog" aria-label="Chiudere la serata?" onClick={(e) => e.stopPropagation()} className="vetro w-full max-w-sm vetro-solido p-6">
+            <p className="text-[20px] font-semibold leading-snug text-testo">Chiudere la serata di oggi?</p>
+            <p className="mt-1 text-[14px] text-testo-2">
+              Silenzio, luci com'erano, spunte e contatori azzerati, lucchetto spento. Poi il riepilogo.
             </p>
-            <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={() => setFoglioAperto(false)}>
-              Ok, pronti
-            </Pulsante>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <Pulsante variante="secondario" misura="lg" onClick={() => setConfermaChiusura(false)} data-chiusura-annulla>
+                Annulla
+              </Pulsante>
+              <Pulsante variante="primario" misura="lg" onClick={() => void chiudiSerata()} data-chiusura-conferma>
+                Chiudi
+              </Pulsante>
+            </div>
           </div>
         </div>
       )}
 
-      {esitoSoundcheck && <EsitoSoundcheck esiti={esitoSoundcheck} luci={esitoLuci} onChiudi={() => setEsitoSoundcheck(null)} />}
+      {riepilogoChiusura && (
+        <FinestraRiepilogo
+          data={riepilogoChiusura.data}
+          serata={riepilogoChiusura.serata}
+          r={riepilogoChiusura.r}
+          onChiudi={() => setRiepilogoChiusura(null)}
+        />
+      )}
 
       {suggerisciBlocco && !bloccato && (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
@@ -792,7 +960,7 @@ export function PaginaRegia() {
           >
             {salvataggi > 0 ? "Salvataggio…" : "Salvato"}
           </span>
-          {formatAperto && vista === "live" && formatAperto.notaInizio?.trim() && (
+          {formatAperto && vista === "live" && (
             <button
               type="button"
               title="Rileggi 'Prima di iniziare'"
@@ -813,6 +981,9 @@ export function PaginaRegia() {
             >
               <ListChecks size={15} strokeWidth={1.75} aria-hidden />
               {soundcheck ? `Ferma ${soundcheck.indice} / ${soundcheck.totale}` : "Prova tutti"}
+              {!soundcheck && !soundcheckDelFormat && (
+                <span aria-label="Soundcheck di oggi non fatto" className="h-2 w-2 rounded-full bg-rosso" data-pallino-soundcheck />
+              )}
             </Pulsante>
           )}
           {formatAperto && vista === "live" && (
@@ -935,6 +1106,8 @@ export function PaginaRegia() {
           fatti={fatti}
           usi={usi}
           luci={luci}
+          problemi={problemiFile}
+          serataId={serata?.id}
           onCambiaFase={cambiaFase}
           onPremi={premiCue}
           onFerma={fermaCue}
@@ -954,6 +1127,7 @@ export function PaginaRegia() {
                 fatti={fatti}
                 usi={usi}
                 luci={luci}
+                problemi={problemiFile}
                 onPremi={premiCue}
                 onFerma={fermaCue}
                 onSfuma={sfumaCueUi}
@@ -974,6 +1148,7 @@ export function PaginaRegia() {
           compatta={vista !== "live"}
           luci={luci}
           onLuciCambiate={ricaricaLuci}
+          onChiudiSerata={vista === "live" ? () => setConfermaChiusura(true) : undefined}
         />
       )}
     </div>

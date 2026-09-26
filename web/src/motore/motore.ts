@@ -391,6 +391,16 @@ export class MotoreAudio {
     if (!cue.file) return { esito: "mancante", picco: null };
     const streaming = (cue.durataSec ?? 0) >= SOGLIA_STREAMING_SEC;
     let buffer: AudioBuffer | undefined = this.cache.get(cue.file);
+    if (buffer) {
+      // Già decodificato (precarico): il file però potrebbe essere sparito dal disco
+      // nel frattempo. Il soundcheck deve dirlo: si controlla che ci sia ancora.
+      try {
+        const r = await fetch(`/audio/${cue.file}`, { method: "HEAD" });
+        if (!r.ok) return { esito: "mancante", picco: null };
+      } catch {
+        return { esito: "mancante", picco: null };
+      }
+    }
     if (!buffer && !streaming) {
       let dati: ArrayBuffer;
       try {

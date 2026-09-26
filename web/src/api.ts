@@ -1,6 +1,32 @@
 // Chiamate al server.
 import type { Config, Cue, Fase, Format, Impostazioni, InfoRete } from "../../shared/tipi";
 import type { Effetto, GruppoRegia, MappaLuci, NomeEffetto, ComandoLuceCue } from "../../shared/luci";
+import type { StatoSerata } from "../../shared/serata";
+
+/** Un evento del diario come lo vede l'interfaccia. */
+export interface EventoDiarioWeb {
+  ora: string;
+  tipo: string;
+  cue?: string;
+  fase?: string;
+  format?: string;
+  origine: string;
+  dettagli?: Record<string, unknown>;
+}
+/** Il riepilogo di una serata (server/src/diario.ts → Riepilogo). */
+export interface RiepilogoWeb {
+  inizio: string | null;
+  fine: string | null;
+  chiusa: boolean;
+  soundcheck: { ora: string; problemi: number; completo: boolean } | null;
+  durataMin: number;
+  fasi: { nome: string; previstiMin: number | null; realiMin: number; scartoMin: number | null }[];
+  stopTutto: number;
+  possibiliErrori: number;
+  comandi: { telefono: number; mac: number };
+}
+/** Lo stato della serata di oggi più i suoi eventi (GET /api/serata). */
+export type SerataOggi = StatoSerata & { eventi: EventoDiarioWeb[] };
 
 export interface LuciLive {
   abbinata: boolean;
@@ -51,6 +77,22 @@ export const api = {
   rete: () => chiama<InfoRete>("GET", "/api/rete"),
   maiUsati: () => chiama<{ serate: string[]; formats: { nome: string; caselle: string[] }[] }>("GET", "/api/statistiche/mai-usati"),
   impostazioni: (dati: Partial<Impostazioni>) => chiama<Impostazioni>("PATCH", "/api/impostazioni", dati),
+
+  serata: {
+    oggi: () => chiama<SerataOggi>("GET", "/api/serata"),
+    /** L'esito di "Prova tutti", a fine giro (anche interrotto: completo=false). */
+    soundcheck: (dati: {
+      formatId: string;
+      inizio: string;
+      caselle: number;
+      problemi: number;
+      mancanti: { cueId: string; titolo: string; fase: string; esito: "mancante" | "nonDecodificabile" }[];
+      completo: boolean;
+    }) => chiama<StatoSerata>("POST", "/api/serata/soundcheck", dati),
+    /** La finestra "Non hai ancora provato i suoni" è comparsa. */
+    avviso: (formatId: string, scelta: string) => chiama<StatoSerata>("POST", "/api/serata/avviso", { formatId, scelta }),
+    chiudi: () => chiama<{ data: string; serata: number; riepilogo: RiepilogoWeb; eventi: EventoDiarioWeb[] }>("POST", "/api/serata/chiudi", {}),
+  },
 
   creaFormat: (nome: string) => chiama<Format>("POST", "/api/formats", { nome }),
   rinominaFormat: (id: string, nome: string) => chiama<Format>("PATCH", `/api/formats/${id}`, { nome }),

@@ -17,6 +17,10 @@ export function Live(props: {
   /** Contatori "già suonato" della serata (cueId → partenze). */
   usi?: Record<string, number>;
   luci?: LuciLive | null;
+  /** I file che il soundcheck di oggi ha trovato mancanti o rotti (cueId → esito). */
+  problemi?: Record<string, "mancante" | "nonDecodificabile">;
+  /** Id della serata: al cambio l'orologio di scaletta rilegge subito. */
+  serataId?: string;
   onCambiaFase: (faseId: string) => void;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
@@ -53,7 +57,7 @@ export function Live(props: {
             valore={fase?.id ?? ""}
             onCambia={props.onCambiaFase}
           />
-          <OrologioScaletta format={props.format} faseId={fase?.id ?? null} className="shrink-0" />
+          <OrologioScaletta format={props.format} faseId={fase?.id ?? null} versione={props.serataId} className="shrink-0" />
           {fase?.nota && notaChiusa && (
             <button
               type="button"
@@ -109,6 +113,7 @@ export function Live(props: {
               fatto={props.fatti?.includes(c.id)}
               usi={props.usi?.[c.id]}
               coloreLuce={coloreLuceDi(c.luce, props.luci)}
+              problemaFile={props.problemi?.[c.id]}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               ritardoEntrataMs={Math.min(i, 9) * 35}

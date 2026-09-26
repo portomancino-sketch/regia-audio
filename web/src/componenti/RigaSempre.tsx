@@ -110,6 +110,8 @@ export function RigaSempre(props: {
   fatti?: string[];
   usi?: Record<string, number>;
   luci?: LuciLive | null;
+  /** I file che il soundcheck di oggi ha trovato mancanti o rotti (cueId → esito). */
+  problemi?: Record<string, "mancante" | "nonDecodificabile">;
   onPremi: (cue: Cue) => void;
   onFerma: (cue: Cue) => void;
   onSfuma: (cue: Cue) => void;
@@ -163,6 +165,7 @@ export function RigaSempre(props: {
               fatto={props.fatti?.includes(c.id)}
               usi={props.usi?.[c.id]}
               coloreLuce={coloreLuceDi(c.luce, props.luci)}
+              problemaFile={props.problemi?.[c.id]}
               disabilitato={props.disabilitato}
               scorciatoia={scorciatoie.get(c.id)}
               onPremi={() => props.onPremi(c)}

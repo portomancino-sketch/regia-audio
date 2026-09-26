@@ -272,6 +272,9 @@ await attendi(400);
 // --- 4b. Foglio "Prima di iniziare" e nota della fase ---
 const foglioMac = await regia.finoA(`document.body.innerText.toLowerCase().includes('prima di iniziare')`);
 foglioMac ? ok("Foglio 'Prima di iniziare' all'apertura del format") : ko("Foglio 'Prima di iniziare'");
+// S14: serata nuova → prima riga grande "Soundcheck di oggi: NON FATTO" in rosso, con "Prova tutti i suoni".
+const rigaRossa = await regia.finoA(`document.querySelector('[data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto' && document.body.innerText.includes('Soundcheck di oggi: NON FATTO') && !!document.querySelector('[data-prova-dal-foglio]')`, 3000);
+rigaRossa ? ok("S14: nel foglio 'Soundcheck di oggi: NON FATTO' (rosso) con 'Prova tutti i suoni'") : ko("S14: riga soundcheck nel foglio");
 await regia.click("Ok, pronti");
 const foglioChiuso = await regia.finoA(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
 foglioChiuso ? ok("'Ok, pronti' chiude il foglio") : ko("Chiusura foglio");
@@ -298,6 +301,16 @@ const idTreno = fase1.cue.find((c) => c.titolo === "Treno in corsa").id;
 await regia.clickCue("Treno in corsa");
 let s = await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno && !a.inPausa));
 s ? ok("Il sottofondo suona (visto dal telecomando)") : ko("Play sottofondo");
+// S14: primo suono vero senza soundcheck → "Non hai ancora provato i suoni di oggi." (il suono è partito lo stesso)
+{
+  const avviso = await regia.finoA(`!!document.querySelector('[role="dialog"][aria-label="Soundcheck non fatto"]') && document.body.innerText.includes('Non hai ancora provato i suoni di oggi') && !!document.querySelector('[data-avviso-prova]') && !!document.querySelector('[data-avviso-avanti]')`, 4000);
+  avviso && osservatore.ultimo?.attivi.length === 1 ? ok("S14: al primo suono senza soundcheck la finestra 'Non hai ancora provato' (il suono va avanti)") : ko("S14: avviso soundcheck", `avviso=${avviso} attivi=${osservatore.ultimo?.attivi.length}`);
+  await regia.js(`document.querySelector('[data-avviso-avanti]')?.click()`);
+  const chiuso = await regia.finoA(`!document.querySelector('[role="dialog"][aria-label="Soundcheck non fatto"]')`, 3000);
+  chiuso ? ok("S14: 'Vado avanti' chiude la finestra") : ko("S14: 'Vado avanti'");
+  const st = await (await fetch(`${BASE}/api/serata`)).json();
+  st.avvisoMostrato === true && st.indice === 0 ? ok("S14: l'avviso è segnato nella serata (mai più stasera)") : ko("S14: avviso nello stato", JSON.stringify(st));
+}
 await attendi(900);
 s = osservatore.ultimo;
 const posTreno1 = s?.attivi.find((a) => a.cueId === idTreno)?.posizioneSec ?? -1;
@@ -307,6 +320,7 @@ posTreno1 > 0 ? ok("La posizione avanza", `${posTreno1}s`) : ko("Posizione", `po
 await regia.clickCue("Campanello");
 s = await osservatore.finoA((x) => x.attivi.length === 2);
 s ? ok("Effetto sovrapposto al sottofondo") : ko("Effetto sovrapposto");
+(await regia.js(`!document.querySelector('[role="dialog"][aria-label="Soundcheck non fatto"]')`)) ? ok("S14: al secondo suono nessuna seconda finestra") : ko("S14: seconda finestra");
 s && !s.attivi.find((a) => a.cueId === idTreno)?.inPausa
   ? ok("Con 'abbassa' il sottofondo NON va in pausa")
   : ko("'abbassa' non deve mettere in pausa");
@@ -717,6 +731,10 @@ const chiudiSuggerimento = async (p) => {
   sc.length === 1 && sc[0].dettagli?.caselle >= 2 && partiti.length === 0
     ? ok("Diario: un solo evento 'soundcheck', nessun 'suono partito' di prova", `caselle=${sc[0].dettagli.caselle}`)
     : ko("Diario soundcheck", `soundcheck=${sc.length} partiti=${partiti.length}`);
+  const stSc = await (await fetch(`${BASE}/api/serata`)).json();
+  sc[0]?.dettagli?.completo === false && !stSc.soundcheck[demo.id] && (await regia3.js(`!!document.querySelector('header [data-pallino-soundcheck]')`))
+    ? ok("S14: un soundcheck interrotto con ESC non conta come fatto (pallino rosso ancora lì)")
+    : ko("S14: soundcheck interrotto", JSON.stringify(stSc.soundcheck));
 }
 
 // --- A2: STOP TUTTO a pressione lunga sul telefono ---
@@ -1248,6 +1266,171 @@ await attendi(300);
   ["casella", "fine", "fase", "stop tutto", "manuale"].every((o) => origini.has(o)) ? ok("Diario: eventi 'luce' con origine casella / fine / fase / stop tutto / manuale") : ko("Diario luci", [...origini].join(", "));
   // via la centralina per i test che seguono
   await fetch(`${BASE}/api/luci/cerca`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ip: "127.0.0.1:1" }) }).catch(() => undefined);
+}
+
+// ================= S14: soundcheck pre-serata ricordato + "Chiudi serata" =================
+{
+  const serataOggi = () => fetch(`${BASE}/api/serata`).then((r) => r.json());
+  const rileggi = (p) => p.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === "Rileggi 'Prima di iniziare'")?.click()`);
+  const statoFoglio = (p) => p.js(`document.querySelector('[role="dialog"][aria-label="Prima di iniziare"] [data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato')`);
+  // 1) Serata nuova: rosso sul foglio (Mac e telefono) e pallini rossi in Live.
+  await rileggi(regia3);
+  const rossoMac = await regia3.finoA(`document.querySelector('[role="dialog"][aria-label="Prima di iniziare"] [data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto'`, 4000);
+  await regia3.click("Ok, pronti");
+  await rileggi(tel);
+  const rossoTel = await tel.finoA(`document.querySelector('[data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto' && document.body.innerText.includes('Fallo dal Mac')`, 4000);
+  await tel.click("Ok, pronti");
+  rossoMac && rossoTel ? ok("S14: foglio rosso 'NON FATTO' sul Mac e sul telefono ('Fallo dal Mac')") : ko("S14: foglio rosso", `mac=${rossoMac} tel=${rossoTel}`);
+  const pallinoMac = await regia3.js(`!!document.querySelector('header [data-pallino-soundcheck]')`);
+  const pallinoTel = await tel.finoA(`!!document.querySelector('[data-pallino-soundcheck]')`, 4000);
+  pallinoMac && pallinoTel ? ok("S14: pallino rosso accanto a 'Prova tutti' (Mac) e sotto il nome della fase (telefono)") : ko("S14: pallini", `mac=${pallinoMac} tel=${pallinoTel}`);
+
+  // 2) Un file sparisce dal disco: "Prova tutti i suoni" dal foglio lo trova; la card lo dice già in Live.
+  const cfgS14 = await (await fetch(`${BASE}/api/config`)).json();
+  const demoS14 = cfgS14.formats.find((f) => f.id === demo.id);
+  const fasiS14 = demoS14.fasi.filter((f) => !f.sempre).sort((a, b) => a.ordine - b.ordine);
+  const ultimaFase = fasiS14[fasiS14.length - 1];
+  const rotta = [...ultimaFase.cue].reverse().find((c) => c.file && c.tipo !== "promemoria");
+  const percorsoRotta = path.join(datiTemp, "audio", rotta.file);
+  fs.renameSync(percorsoRotta, percorsoRotta + ".via");
+  await rileggi(regia3);
+  await regia3.finoA(`!!document.querySelector('[data-prova-dal-foglio]')`, 3000);
+  await regia3.js(`document.querySelector('[data-prova-dal-foglio]')?.click()`);
+  const partito = await regia3.finoA(`/\\b1 \\/ \\d+/.test(document.body.innerText)`, 4000);
+  partito ? ok("S14: 'Prova tutti i suoni' dal foglio fa partire il soundcheck") : ko("S14: prova dal foglio");
+  const totaleSc = await regia3.js(`(document.body.innerText.match(/\\b1 \\/ (\\d+)/) || [])[1]`);
+  log(`Giro completo del soundcheck (${totaleSc} caselle, 3 s l'una)...`);
+  const t0Sc = Date.now();
+  const esitoS14 = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]')`, 240000);
+  log(`...finito in ${Math.round((Date.now() - t0Sc) / 1000)} s`);
+  const testoEsito = esitoS14 ? await regia3.js(`document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]').innerText`) : "";
+  esitoS14 && testoEsito.includes("File mancanti") && testoEsito.includes(rotta.titolo) ? ok("S14: esito completo con il file mancante", rotta.titolo) : ko("S14: esito", testoEsito.slice(0, 120));
+  await regia3.js(`[...document.querySelectorAll('[role="dialog"] button')].find(b => b.textContent.trim() === 'Chiudi')?.click()`);
+  await attendi(300);
+  await chiudiSuggerimento(regia3);
+  const stDopo = await serataOggi();
+  const scDopo = stDopo.soundcheck[demo.id];
+  scDopo?.completo === true && scDopo.problemi === 1 && scDopo.mancanti[rotta.id] === "mancante" ? ok("S14: serata: soundcheck fatto, 1 problema, il file segnato") : ko("S14: stato soundcheck", JSON.stringify(scDopo));
+  await rileggi(regia3);
+  const ambra = await regia3.finoA(`document.querySelector('[role="dialog"][aria-label="Prima di iniziare"] [data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'problemi' && document.body.innerText.includes('1 problema') && !!document.querySelector('[data-vedi-esito]')`, 4000);
+  ambra ? ok("S14: foglio in ambra 'Soundcheck fatto alle … · 1 problema' con 'vedi l'esito'") : ko("S14: foglio ambra", String(await statoFoglio(regia3)));
+  await regia3.js(`document.querySelector('[data-vedi-esito]')?.click()`);
+  const esitoDalFoglio = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Esito soundcheck"]')`, 3000);
+  esitoDalFoglio ? ok("S14: 'vedi l'esito' riapre l'esito") : ko("S14: vedi l'esito");
+  await regia3.js(`[...document.querySelectorAll('[role="dialog"] button')].find(b => b.textContent.trim() === 'Chiudi')?.click()`);
+  await attendi(300);
+  const spariti = !(await regia3.js(`!!document.querySelector('header [data-pallino-soundcheck]')`)) && (await tel.finoA(`!document.querySelector('[data-pallino-soundcheck]')`, 6000));
+  spariti ? ok("S14: dopo la prova i pallini rossi spariscono (Mac e telefono)") : ko("S14: pallini dopo la prova");
+  await rileggi(tel);
+  const verdeTel = await tel.finoA(`document.querySelector('[data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'problemi'`, 4000);
+  await tel.click("Ok, pronti");
+  verdeTel ? ok("S14: il telefono vede 'Soundcheck fatto alle …'") : ko("S14: foglio telefono dopo la prova");
+  await regia3.click(ultimaFase.nome);
+  await attendi(400);
+  const cardMac = await regia3.finoA(`!!document.querySelector('[data-file-mancante="mancante"]')`, 4000);
+  osservatore.comando({ comando: "fase", faseId: ultimaFase.id });
+  const cardTel = await tel.finoA(`!!document.querySelector('[data-file-mancante="mancante"]')`, 6000);
+  cardMac && cardTel ? ok("S14: la card dice 'file mancante' in rosso già in Live (Mac e telefono)") : ko("S14: card file mancante", `mac=${cardMac} tel=${cardTel}`);
+  fs.renameSync(percorsoRotta + ".via", percorsoRotta);
+  await regia3.click(fase1.nome);
+  await attendi(400);
+
+  // 3) "Chiudi serata": lucchetto acceso, una spunta, un suono → tutto azzerato, riepilogo.
+  await regia3.js(`[...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Blocca modifiche')?.click()`);
+  await regia3.finoA(`(await (await fetch('/api/config')).json()).impostazioni.bloccoModifiche === true`, 4000);
+  osservatore.comando({ comando: "spunta", cueId: fase1.cue.find((c) => c.titolo === "Chiudere le porte").id });
+  await osservatore.finoA((x) => (x.fatti ?? []).length > 0, 4000);
+  osservatore.comando({ comando: "play", cueId: idTreno });
+  await osservatore.finoA((x) => x.attivi.some((a) => a.cueId === idTreno) && (x.usi?.[idTreno] ?? 0) > 0, 4000);
+  const orologioPrima = await regia3.js(`!!document.querySelector('[data-orologio]')`);
+  const eventiPrimaChiusura = (await (await fetch(`${BASE}/api/diario/${(await (await fetch(`${BASE}/api/diario`)).json())[0].data}`)).json()).eventi.length;
+  (await regia3.js(`!!document.querySelector('[data-chiudi-serata]')`)) && !(await tel.js(`!!document.querySelector('[data-chiudi-serata]')`))
+    ? ok("S14: 'Chiudi serata' nel dock del Mac, non sul telefono")
+    : ko("S14: pulsante Chiudi serata");
+  await regia3.js(`document.querySelector('[data-chiudi-serata]')?.click()`);
+  const conferma = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Chiudere la serata?"]') && document.body.innerText.includes('Chiudere la serata di oggi?') && !!document.querySelector('[data-chiusura-annulla]')`, 3000);
+  conferma ? ok("S14: conferma 'Chiudere la serata di oggi?' con Chiudi / Annulla") : ko("S14: conferma chiusura");
+  await regia3.js(`document.querySelector('[data-chiusura-annulla]')?.click()`);
+  const annullata = await regia3.finoA(`!document.querySelector('[role="dialog"][aria-label="Chiudere la serata?"]')`, 2000);
+  annullata && (osservatore.ultimo?.attivi.length ?? 0) > 0 ? ok("S14: 'Annulla' non fa nulla (il suono continua)") : ko("S14: annulla chiusura");
+  await regia3.js(`document.querySelector('[data-chiudi-serata]')?.click()`);
+  await regia3.finoA(`!!document.querySelector('[data-chiusura-conferma]')`, 2000);
+  await regia3.js(`document.querySelector('[data-chiusura-conferma]')?.click()`);
+  const riepilogo = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Riepilogo della serata"]') && !!document.querySelector('[data-riepilogo]') && document.body.innerText.includes('Esporta CSV') && !!document.querySelector('[data-riepilogo-chiudi]')`, 6000);
+  riepilogo ? ok("S14: dopo 'Chiudi' si apre il riepilogo della serata con 'Esporta CSV' e 'Chiudi'") : ko("S14: riepilogo dopo chiusura");
+  const rigaSc = await regia3.js(`document.querySelector('[data-riepilogo-soundcheck]')?.innerText ?? ''`);
+  rigaSc.includes("fatto alle") && rigaSc.includes("1 problema") ? ok("S14: riepilogo: 'Soundcheck fatto alle … · 1 problema'") : ko("S14: riga soundcheck nel riepilogo", rigaSc);
+  s = await osservatore.finoA((x) => x.attivi.length === 0 && (x.fatti ?? []).length === 0 && Object.keys(x.usi ?? {}).length === 0, 4000);
+  s ? ok("S14: STOP TUTTO, spunte e contatori 'già suonato' azzerati") : ko("S14: azzeramento", JSON.stringify({ attivi: osservatore.ultimo?.attivi.length, fatti: osservatore.ultimo?.fatti, usi: osservatore.ultimo?.usi }));
+  const cfgChiusa = await (await fetch(`${BASE}/api/config`)).json();
+  cfgChiusa.impostazioni.bloccoModifiche === false ? ok("S14: il lucchetto è spento") : ko("S14: lucchetto ancora acceso");
+  const giorniChiusa = await (await fetch(`${BASE}/api/diario`)).json();
+  const { eventi: eventiChiusa } = await (await fetch(`${BASE}/api/diario/${giorniChiusa[0].data}?serata=0`)).json();
+  const tipiFine = eventiChiusa.slice(eventiPrimaChiusura).map((e) => e.tipo);
+  eventiChiusa.at(-1)?.tipo === "fine_serata" && tipiFine.includes("stop tutto") && tipiFine.includes("blocco_off")
+    ? ok("S14: diario: stop tutto → blocco_off → fine_serata", tipiFine.join(", "))
+    : ko("S14: eventi di chiusura", tipiFine.join(", "));
+  const stNuova = await serataOggi();
+  stNuova.indice === 1 && Object.keys(stNuova.soundcheck).length === 0 && stNuova.avvisoMostrato === false && stNuova.eventi.length === 0
+    ? ok("S14: la serata di oggi è la numero 2, pulita (niente soundcheck, niente avviso)")
+    : ko("S14: serata nuova", JSON.stringify({ indice: stNuova.indice, sc: Object.keys(stNuova.soundcheck), avviso: stNuova.avvisoMostrato }));
+  await regia3.js(`document.querySelector('[data-riepilogo-chiudi]')?.click()`);
+  await attendi(500);
+  const orologioDopo = await regia3.js(`!!document.querySelector('[data-orologio]')`);
+  orologioPrima && !orologioDopo ? ok("S14: l'orologio di scaletta si ferma (sparisce) dopo la chiusura") : ko("S14: orologio", `prima=${orologioPrima} dopo=${orologioDopo}`);
+  const cardPulita = await regia3.finoA(`!document.querySelector('[data-file-mancante]')`, 3000);
+  cardPulita ? ok("S14: le scritte 'file mancante' spariscono con la serata nuova") : ko("S14: file mancante dopo chiusura");
+  // Il telefono: il foglio torna da solo (serata nuova), rosso.
+  const foglioTel2 = await tel.finoA(`!!document.querySelector('[role="dialog"][aria-label="Prima di iniziare"]') && document.querySelector('[data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto'`, 8000);
+  foglioTel2 ? ok("S14: sul telefono il foglio torna da solo, rosso, anche lo stesso giorno") : ko("S14: foglio telefono dopo chiusura");
+  await tel.click("Ok, pronti");
+  // Sul Mac il foglio torna al prossimo avvio: Modifica → Live.
+  await regia3.click("Modifica");
+  await attendi(400);
+  await regia3.click("Live");
+  const foglioMac2 = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Prima di iniziare"]') && document.querySelector('[role="dialog"][aria-label="Prima di iniziare"] [data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto'`, 4000);
+  foglioMac2 ? ok("S14: sul Mac il foglio torna al prossimo avvio (Modifica → Live), rosso") : ko("S14: foglio Mac dopo chiusura");
+  await regia3.click("Ok, pronti");
+  await attendi(300);
+  // 4) Serata nuova: primo suono → l'avviso torna, una volta.
+  await regia3.click(fase1.nome);
+  await attendi(300);
+  osservatore.comando({ comando: "play", cueId: idTreno });
+  const avviso2 = await regia3.finoA(`!!document.querySelector('[role="dialog"][aria-label="Soundcheck non fatto"]')`, 5000);
+  avviso2 ? ok("S14: nella serata nuova l'avviso 'Non hai ancora provato' torna al primo suono") : ko("S14: avviso nella serata nuova");
+  await regia3.js(`document.querySelector('[data-avviso-avanti]')?.click()`);
+  await attendi(300);
+  osservatore.comando({ comando: "play", cueId: fase1.cue.find((c) => c.titolo === "Campanello").id });
+  await attendi(700);
+  (await regia3.js(`!document.querySelector('[role="dialog"][aria-label="Soundcheck non fatto"]')`)) ? ok("S14: ...e una volta sola") : ko("S14: avviso ripetuto");
+  await osservatore.finoA((x) => (x.usi?.[idTreno] ?? 0) === 1, 3000);
+  // 5) Seconda chiusura: due serate nello stesso giorno, righe distinte, contatori azzerati tra le due.
+  await regia3.js(`document.querySelector('[data-chiudi-serata]')?.click()`);
+  await regia3.finoA(`!!document.querySelector('[data-chiusura-conferma]')`, 2000);
+  await regia3.js(`document.querySelector('[data-chiusura-conferma]')?.click()`);
+  await regia3.finoA(`!!document.querySelector('[data-riepilogo-chiudi]')`, 6000);
+  await regia3.js(`document.querySelector('[data-riepilogo-chiudi]')?.click()`);
+  const righe = await (await fetch(`${BASE}/api/diario`)).json();
+  const oggiRighe = righe.filter((r) => r.data === righe[0].data);
+  oggiRighe.length === 2 && oggiRighe[0].serata === 1 && oggiRighe[1].serata === 0 && oggiRighe.every((r) => r.chiusa) && oggiRighe[0].suoni === 2 && oggiRighe[1].suoni > 2
+    ? ok("S14: due serate lo stesso giorno → due righe distinte nel Diario, ognuna coi suoi suoni", `${oggiRighe[1].suoni} + ${oggiRighe[0].suoni}`)
+    : ko("S14: due righe", JSON.stringify(oggiRighe.map((r) => ({ serata: r.serata, chiusa: r.chiusa, suoni: r.suoni }))));
+  const stat = await (await fetch(`${BASE}/api/statistiche/mai-usati`)).json();
+  stat.serate.length === 2 && stat.senzaSoundcheck === 1 ? ok("S14: statistiche: 1 serata su 2 senza soundcheck") : ko("S14: senza soundcheck", JSON.stringify({ serate: stat.serate, senza: stat.senzaSoundcheck }));
+  await regia3.js(`[...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Diario di serata')?.click()`);
+  const dueRighe = await regia3.finoA(`document.querySelectorAll('[data-serata^="${righe[0].data}#"]').length === 2 && document.body.innerText.includes('2ª serata') && !!document.querySelector('[data-senza-soundcheck]')`, 4000);
+  dueRighe ? ok("S14: pagina Diario: due righe per oggi ('1ª serata', '2ª serata') e 'Senza soundcheck'") : ko("S14: Diario due righe");
+  await regia3.js(`document.querySelector('[data-serata="${righe[0].data}#0"]')?.click()`);
+  const dettaglio = await regia3.finoA(`document.body.innerText.toLowerCase().includes('cronologia') && document.body.innerText.includes('chiudi serata') && (document.querySelector('[data-riepilogo-soundcheck]')?.innerText ?? '').includes('fatto alle')`, 4000);
+  dettaglio ? ok("S14: la 1ª serata aperta dal Diario: riepilogo col soundcheck, 'chiudi serata' in cronologia") : ko("S14: dettaglio serata");
+  // Si torna in Live per il test che segue.
+  await regia3.cmd("Page.navigate", { url: `${BASE}/format/${demo.id}` });
+  await attendi(1500);
+  await regia3.click("Live");
+  await attendi(500);
+  await regia3.click("Ok, pronti");
+  await tel.click("Ok, pronti");
+  await attendi(300);
 }
 
 // --- Tab congelata: senza battito il comando passa all'altra finestra ---

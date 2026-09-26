@@ -51,6 +51,8 @@ export function PulsanteCue(props: {
   coloreLuce?: string;
   /** Ritardo dell'entrata a cascata, in ms. */
   ritardoEntrataMs?: number;
+  /** Il soundcheck di oggi ha trovato il file mancante o rotto: si dice già in Live. */
+  problemaFile?: "mancante" | "nonDecodificabile";
 }) {
   const { cue } = props;
   const istanze = props.attivi.filter((a) => a.cueId === cue.id);
@@ -187,6 +189,11 @@ export function PulsanteCue(props: {
   const spento = props.disabilitato || !cue.file;
   // "Già suonato": usato 1/3, esaurito (attenuata ma SEMPRE premibile), ✓ già suonato.
   const su = statoUsi(cue, props.usi === undefined ? undefined : { [cue.id]: props.usi });
+  const rigaProblema = props.problemaFile ? (
+    <div className="mt-0.5 text-[12px] font-semibold text-rosso" data-file-mancante={props.problemaFile}>
+      {props.problemaFile === "mancante" ? "file mancante" : "file non leggibile"}
+    </div>
+  ) : null;
   const pallinoLuce = props.coloreLuce ? (
     <span aria-label="con luci" title="Questa casella cambia le luci" className="h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.coloreLuce }} data-pallino-luce />
   ) : null;
@@ -278,6 +285,7 @@ export function PulsanteCue(props: {
             </div>
             {cue.nota && <div className="mt-0.5 truncate text-[14px] text-testo-2">{cue.nota}</div>}
             {!cue.file && <div className="mt-0.5 text-[12px] text-testo-3">manca il file</div>}
+            {cue.file && rigaProblema}
           </div>
         </div>
       ) : (
@@ -301,6 +309,7 @@ export function PulsanteCue(props: {
             <div className={`line-clamp-2 font-semibold leading-tight text-testo ${props.compatto ? "text-[17px]" : "text-[20px]"}`}>{cue.titolo}</div>
             {cue.nota && <div className="mt-1 line-clamp-2 text-[14px] text-testo-2">{cue.nota}</div>}
             {!cue.file && <div className="mt-1 text-[12px] text-testo-3">manca il file</div>}
+            {cue.file && rigaProblema}
           </div>
         </>
       )}
