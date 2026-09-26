@@ -44,10 +44,15 @@ nuova non tocca suoni e serate: vivono in `~/Regia-dati`.
 
 ## Luci in un locale nuovo (per Jacopo, una volta)
 
+Per provare le luci da casa, senza centralina: Impostazioni → Luci →
+**Prova con luci simulate** (6 lampadine finte in "Sala" e "Palco", tre effetti
+pronti; si vedono come pallini colorati in fondo alla pagina). "Torna alle luci
+vere" le spegne; non restano accese al riavvio e non toccano `luci.json`.
+
 1. Centralina Philips Hue collegata al router del locale con il cavo, lampadine
    già aggiunte alla centralina con l'app Philips Hue (quella serve solo la prima
    volta: dopo la Regia parla direttamente con la centralina, senza internet).
-2. Sul Mac, in alto: sole/luna → **Impostazioni luci…**. Premi **Cerca sulla
+2. Sul Mac, in alto: **Impostazioni → Luci**. Premi **Cerca sulla
    rete**; se non la trova, scrivi l'indirizzo IP della centralina (lo trovi
    nell'app Philips Hue o nel router) e premi **Prova questo IP**.
 3. Premi **Abbina** e, entro 30 secondi, il pulsante rotondo sulla centralina.

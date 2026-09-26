@@ -201,6 +201,10 @@ const chrome = spawn(
     "--no-first-run",
     "--autoplay-policy=no-user-gesture-required",
     "--mute-audio",
+    // Le schede in secondo piano non devono rallentare i timer (il suggerimento
+    // che sparisce dopo 8 s si misura davvero).
+    "--disable-background-timer-throttling",
+    "--disable-renderer-backgrounding",
     "about:blank",
   ],
   { stdio: "ignore" },

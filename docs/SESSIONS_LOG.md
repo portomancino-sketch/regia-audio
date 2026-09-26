@@ -704,3 +704,73 @@ DECISIONI PRESE DA SOLO (S14)
 - Il suono che fa scattare l'avviso parte comunque ("mai bloccante").
 - Dopo "Chiudi serata" il Mac resta in Live sullo stesso format: il foglio
   torna passando da Modifica a Live o ricaricando (il "prossimo avvio").
+
+## S14-bis — 26 settembre 2026 — v1.5.0: ordine nell'interfaccia
+
+Nessuna regola audio o luci toccata: si spostano e si chiariscono le cose.
+
+- **A — Impostazioni** (`/impostazioni`, solo Mac; `/luci` resta un alias):
+  dalla Home con la card "Impostazioni" in fondo ai format e dalla barra con
+  l'ingranaggio con etichetta. Sezioni in ordine: **Serata** (volume del suono
+  base quando parlo, passaggio tra sottofondi di default per i format nuovi →
+  nuovo campo `crossfadeDefault` nelle impostazioni, usato da `POST
+  /api/formats`; PIN del telecomando), **Luci** (tutta la vecchia pagina
+  /luci, incorporata), **Aspetto** (tema, intensità sfondo: gli stessi hook
+  del sole/luna), **Dati** (esporta zip, importa zip, cartella dati con "Apri
+  nel Finder" → `POST /api/dati/apri`, versione → `GET /api/versione`, che
+  nel pacchetto arriva da esbuild `define`). Il popover sole/luna ha SOLO
+  tema e intensità: via "Volume quando parlo" e "Impostazioni luci…".
+- **B — Barra di Live**: sinistra "‹ Serate" (via la freccia muta e
+  l'"Indietro" in Modifica; "‹ Indietro" resta per Diario e Impostazioni) e
+  titolo; centro Modifica/Live; destra "Prova tutti", "Blocca"/"Bloccato",
+  "Diario" con etichetta, sole/luna (solo icona), "Impostazioni",
+  "Telecomando". L'icona libro non c'è più: "Rileggi 'Prima di iniziare'" sta
+  nel menu ⋯ accanto alle fasi (con "Mostra la nota della fase"); sul
+  telefono l'icona resta. Sotto 1200 px le etichette tornano a icona col
+  tooltip (anche "Impostazioni", per lasciare spazio al titolo); ogni
+  pulsante della barra è alto almeno 44 px (i segmenti Modifica/Live sono un
+  controllo unico). Il pallino rosso del soundcheck resta dentro "Prova tutti".
+- **C — Pannello Telecomando**: si chiude con ESC (in cattura: non arriva a
+  STOP TUTTO), con un click fuori e cambiando pagina o vista (prop `chiave`).
+- **D — "Vuoi bloccare le modifiche?"**: sparisce da solo dopo 8 s e al primo
+  click altrove (hook `useSuggerimentoCheSparisce`); il popover sole/luna si
+  chiude anche lui a un click fuori.
+- **E — Luci a vuoto e simulate**: sotto "Centralina non trovata" il testo
+  "Serve essere sulla rete WiFi del locale dove c'è la centralina Philips. Da
+  un'altra rete non si può fare niente." e "Prova con luci simulate". Le luci
+  simulate sono una centralina finta in memoria dentro il server
+  (server/src/luci-finte.ts, porta libera su 127.0.0.1): 6 lampadine in
+  "Sala" e "Palco" (coi gemelli), tre effetti pronti (Buio / Rosso / Caldo).
+  Accese: riquadro giallo "Luci simulate: niente lampadine vere", tutto il
+  mondo di Valerio funziona (menu Luci su caselle e fasi, pannello nel dock su
+  Mac e telefono, soundcheck con riga Luci), i sei pallini colorati in fondo
+  a Impostazioni → Luci seguono le lampadine (ogni secondo,
+  `coloreDiStatoHue`). "Torna alle luci vere" le spegne. Mai attive di
+  default, non sopravvivono al riavvio, non scrivono in luci.json (i dati
+  veri restano da parte e tornano). Mac e telefono rileggono le luci al
+  messaggio `configCambiata`.
+- Verifica: shared/luci.test.ts (+1: colore a schermo), server/test/
+  luci-simulate.test.ts (6: mai di default, accese con gruppi/effetti/Live,
+  un effetto cambia le lampadine finte e torna, niente luci.json, spente,
+  versione/cartella/crossfade di default). **154 test** + typecheck;
+  **209/209 end-to-end** (barra nuova coi nomi e i 44 px, pannello Telecomando
+  chiuso nei 3 modi senza STOP TUTTO, suggerimento che sparisce dopo 8 s e al
+  click, popover ridotto, Impostazioni dalla barra e dalla Home, alias /luci,
+  luci a vuoto, simulate accese → pallini che cambiano con "Prova", menu Luci
+  in Modifica e pannello nel dock su Mac e telefono, spente → tutto sparisce,
+  niente luci.json). Screenshot in docs/screenshots/s14bis/
+  (scripts/screenshot-s14bis.mjs): Home con la card, barra a 1440 e 1100,
+  popover, Impostazioni, Luci a vuoto, simulate coi pallini, pannello nel dock.
+- Guida: nomi dei pulsanti della barra; README: "Luci simulate" per provare da casa.
+- **v1.5.0** → dist-pacchetti/Regia-v1.5.0.zip.
+
+DECISIONI PRESE DA SOLO (S14-bis)
+- Sotto 1200 px anche "Impostazioni" torna a icona quando un format è aperto:
+  altrimenti il titolo del format sparisce.
+- I segmenti Modifica/Live restano alti come prima (sono un controllo unico,
+  non pulsanti della barra).
+- "‹ Serate" vale in Modifica e in Live; "‹ Indietro" resta per Diario e
+  Impostazioni (dove la pagina precedente può essere una serata).
+- Le luci simulate hanno un pulsante "Prova con luci simulate" solo quando la
+  centralina è "non trovata": con una centralina vera abbinata o da abbinare
+  non si propone.

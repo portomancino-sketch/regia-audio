@@ -44,6 +44,9 @@
     non vede il Mac». Metti il blocco schermo del telefono su **Mai**.
 12. Il **sole/luna** in alto cambia i colori: chiaro, scuro, o automatico.
     Ognuno sceglie il suo (Mac e telefono separati).
+13. **Impostazioni** (in alto a destra, o la card in fondo alla Home): Serata
+    (volume quando parlo, passaggio tra sottofondi, PIN), Luci, Aspetto, Dati
+    (esporta/importa, cartella dei dati, versione).
 
 ## Durante la serata
 
@@ -64,8 +67,10 @@
 - **FADE OUT**: sfuma tutto dolcemente. **STOP TUTTO** (rosso): silenzio immediato.
   Sul telefono STOP TUTTO parte solo **tenendo premuto** per un attimo (il
   pulsante si riempie): un tocco per sbaglio non fa nulla.
-- Il **lucchetto** in alto (Mac) blocca le modifiche per la serata: nessuno
-  può cambiare niente per sbaglio. Si sblocca dalla pagina Modifica.
+- **Blocca** in alto (Mac, il lucchetto) blocca le modifiche per la serata: nessuno
+  può cambiare niente per sbaglio; diventa "Bloccato". Si sblocca dalla pagina Modifica.
+- In alto a sinistra **‹ Serate** torna all'elenco. Per rileggere "Prima di
+  iniziare": menu ⋯ accanto alle fasi (sul telefono l'icona libro).
 - In alto vedi **"Fase 12:40 / 15:00"** e se sei in anticipo o in ritardo sulla
   scaletta (verde, ambra, rosso). Sul telefono, sotto il nome della fase.
 - Sulle caselle: **"usato 1/3"** e **"✓ già suonato"**. Una casella che ha finito
@@ -96,7 +101,7 @@
   azzera spunte e contatori, spegne il lucchetto e ti mostra il riepilogo (con
   "Esporta CSV"). Se lo dimentichi, la serata si chiude da sola a mezzanotte.
   Se fai due serate lo stesso giorno, nel Diario sono due righe.
-- Il **Diario** (icona calendario in alto, solo sul Mac) ricorda tutto da solo:
+- Il **Diario** (in alto, solo sul Mac) ricorda tutto da solo:
   quando è partito ogni suono, i cambi di fase, chi ha premuto cosa.
   Si può scaricare la serata in CSV per riguardarla con calma.
 - In cima a ogni serata c'è il **riepilogo**: inizio, fine, durata, tempo per
