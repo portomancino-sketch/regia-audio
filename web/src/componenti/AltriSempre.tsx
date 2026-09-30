@@ -122,7 +122,7 @@ export function AltriSempre(props: {
 
   const pannello = props.telefono ? (
     // ---- Telefono: foglio dal basso ----
-    <div className="fixed inset-0 z-50 flex items-end bg-black/45" onClick={props.onChiudi}>
+    <div className="fixed inset-0 flex items-end bg-black/45" data-velo style={{ zIndex: "var(--z-modale)" }} onClick={props.onChiudi}>
       <div
         role="dialog"
         aria-label="Altri suoni"
@@ -132,7 +132,7 @@ export function AltriSempre(props: {
       >
         <div className="mb-2 flex items-center justify-between">
           <div className="text-[17px] font-semibold tracking-[-0.01em]">Altri suoni</div>
-          <Pulsante variante="secondario" misura="sm" onClick={props.onChiudi}>
+          <Pulsante variante="secondario" misura="sm" onClick={props.onChiudi} data-modale-x>
             Chiudi
           </Pulsante>
         </div>
@@ -142,7 +142,7 @@ export function AltriSempre(props: {
     </div>
   ) : (
     // ---- Mac: pannello sopra il dock ----
-    <div className="fixed inset-0 z-50" onClick={props.onChiudi}>
+    <div className="fixed inset-0" data-velo style={{ zIndex: "var(--z-modale)" }} onClick={props.onChiudi}>
       <div
         role="dialog"
         aria-label="Altri suoni"
@@ -155,6 +155,7 @@ export function AltriSempre(props: {
           <button
             type="button"
             aria-label="Chiudi"
+            data-modale-x
             onClick={props.onChiudi}
             className="tocco rounded-[10px] p-1.5 text-testo-3 hover:bg-velo hover:text-testo"
           >

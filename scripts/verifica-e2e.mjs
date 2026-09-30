@@ -84,6 +84,9 @@ class Pagina {
   }
   /** Clicca il primo bottone il cui testo contiene `testo`. */
   click(testo) {
+    // Il pulsante principale del foglio "Prima di iniziare" cambia nome (Ok, pronti /
+    // Salta il controllo / Vai lo stesso): lo si trova dal suo segno.
+    if (testo === "Ok, pronti") return this.js(`(() => { const b = document.querySelector('[data-foglio-ok]'); if (b) { b.click(); return true; } return false; })()`);
     const t = testo.replace(/'/g, "\\'");
     return this.js(
       `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,
@@ -280,7 +283,7 @@ foglioMac ? ok("Foglio 'Prima di iniziare' all'apertura del format") : ko("Fogli
 const rigaRossa = await regia.finoA(`document.querySelector('[data-soundcheck-stato]')?.getAttribute('data-soundcheck-stato') === 'nonFatto' && document.body.innerText.includes('Soundcheck di oggi: NON FATTO') && !!document.querySelector('[data-prova-dal-foglio]')`, 3000);
 rigaRossa ? ok("S14: nel foglio 'Soundcheck di oggi: NON FATTO' (rosso) con 'Prova tutti i suoni'") : ko("S14: riga soundcheck nel foglio");
 await regia.click("Ok, pronti");
-const foglioChiuso = await regia.finoA(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
+const foglioChiuso = await regia.finoA(`!!!document.querySelector('[data-foglio-ok]')`);
 foglioChiuso ? ok("'Ok, pronti' chiude il foglio") : ko("Chiusura foglio");
 // S14-bis: si riapre dal menu ⋯ della fase (l'icona libro non sta più nella barra)
 const rileggiMac = async (p) => {
@@ -289,7 +292,7 @@ const rileggiMac = async (p) => {
   return p.click("Rileggi 'Prima di iniziare'");
 };
 await rileggiMac(regia);
-const foglioRiaperto = await regia.finoA(`document.body.innerText.toLowerCase().includes('ok, pronti')`);
+const foglioRiaperto = await regia.finoA(`!!document.querySelector('[data-foglio-ok]')`);
 foglioRiaperto ? ok("Il foglio si riapre dal menu ⋯ della fase") : ko("Riapertura foglio");
 await regia.click("Ok, pronti");
 await attendi(300);
@@ -527,10 +530,10 @@ await tel.cmd("Page.navigate", { url: `${BASE}/telecomando?prova` });
 await attendi(1800);
 const dentroSubito = await tel.finoA(`document.body.innerText.toLowerCase().includes('sta suonando')`, 6000);
 dentroSubito ? ok("Dopo la ricarica il PIN resta: dentro senza richieste") : ko("PIN dopo ricarica");
-const foglioNo = await tel.js(`!document.body.innerText.toLowerCase().includes('ok, pronti')`);
+const foglioNo = await tel.js(`!!!document.querySelector('[data-foglio-ok]')`);
 foglioNo ? ok("Il foglio non ricompare a ogni ricaricamento") : ko("Foglio ricomparso");
 await tel.js(`(() => { const b = [...document.querySelectorAll('button')].find(x => (x.getAttribute('aria-label') || '') === "Rileggi 'Prima di iniziare'"); if (b) b.click(); })()`);
-const foglioRiaperto2 = await tel.finoA(`document.body.innerText.toLowerCase().includes('ok, pronti')`, 3000);
+const foglioRiaperto2 = await tel.finoA(`!!document.querySelector('[data-foglio-ok]')`, 3000);
 foglioRiaperto2 ? ok("...ma l'icona libro lo riapre") : ko("Riapertura dal libro");
 await tel.click("Ok, pronti");
 await attendi(300);
@@ -1228,6 +1231,8 @@ await attendi(300);
   await regia3.js(`document.querySelector('[data-impostazioni]').click()`);
   const impostazioniBarra = await regia3.finoA(`location.pathname === '/impostazioni' && ['serata','luci','aspetto','dati'].every(s => !!document.querySelector('[data-sezione-impostazioni="' + s + '"]')) && !!document.querySelector('[data-indietro]')`, 4000);
   impostazioniBarra ? ok("S14-bis: Impostazioni dalla barra: Serata, Luci, Aspetto, Dati (e '‹ Indietro')") : ko("S14-bis: Impostazioni dalla barra");
+  // La versione arriva da /api/versione: si aspetta che ci sia (sotto carico può tardare).
+  await regia3.finoA(`/versione \\d+\\.\\d+\\.\\d+/.test(document.querySelector('[data-versione]')?.innerText ?? '')`, 5000);
   const versione = await regia3.js(`document.querySelector('[data-versione]')?.innerText ?? ''`);
   /versione \d+\.\d+\.\d+/.test(versione) && (await regia3.js(`(document.querySelector('[data-cartella-dati]')?.innerText ?? '').length > 3`)) ? ok("S14-bis: Dati: versione della Regia e cartella dei dati", versione) : ko("S14-bis: Dati", versione);
   await regia3.js(`document.querySelector('[data-logo]').click()`);

@@ -55,7 +55,7 @@ export function Live(props: {
         <div className="mb-4 flex items-center gap-2">
           <ControlloSegmentato
             grande
-            className="flex-1"
+            className="min-w-0 flex-1"
             segmenti={fasi.map((f) => ({ id: f.id, testo: f.nome }))}
             valore={fase?.id ?? ""}
             onCambia={props.onCambiaFase}

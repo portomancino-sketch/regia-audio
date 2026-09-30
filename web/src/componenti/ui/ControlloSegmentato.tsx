@@ -41,7 +41,7 @@ export function ControlloSegmentato(props: {
           role="tab"
           aria-selected={s.id === valore}
           onClick={() => props.onCambia(s.id)}
-          className={`relative z-10 flex-1 truncate rounded-[10px] text-center font-medium transition-colors duration-[var(--durata)] ${
+          className={`relative z-10 min-w-0 flex-1 truncate rounded-[10px] text-center font-medium transition-colors duration-[var(--durata)] ${
             props.grande ? "px-4 py-2.5 text-[15px]" : "px-3 py-1.5 text-[13px]"
           } ${s.id === valore ? "text-testo" : "text-testo-2 hover:text-testo"}`}
         >

@@ -11,6 +11,7 @@ import { MotoreAudio } from "../motore/motore";
 import { CalendarClock, ChevronLeft, ListChecks, Lock, LockOpen, Settings, Volume2 } from "lucide-react";
 import { EsitoSoundcheck } from "../componenti/EsitoSoundcheck";
 import { FoglioInizio } from "../componenti/FoglioInizio";
+import { Modale, modaleAperto } from "../componenti/ui/Modale";
 import { AvvisoSoundcheck } from "../componenti/AvvisoSoundcheck";
 import { FinestraRiepilogo } from "../componenti/RiepilogoSerata";
 import { Home } from "./Home";
@@ -712,6 +713,9 @@ export function PaginaRegia() {
         return;
       }
       if (vistaRef.current !== "live") return;
+      // Con un modale aperto (foglio, esito, conferma…) i tasti di Live non valgono:
+      // niente suoni che partono dietro al velo.
+      if (modaleAperto() || e.defaultPrevented) return;
       const bersaglio = e.target as HTMLElement;
       if (bersaglio.tagName === "INPUT" || bersaglio.tagName === "TEXTAREA") return;
       if (e.key === "Escape") {
@@ -822,18 +826,19 @@ export function PaginaRegia() {
     <div className="min-h-full">
       {/* Overlay per sbloccare l'audio al primo caricamento. */}
       {serveSblocco && (
-        <div className="vetro fixed inset-0 z-50 flex items-center justify-center rounded-none border-0 bg-black/60">
+        <Modale etichetta="Attiva audio" bloccante className="flex max-w-sm justify-center border-0 bg-transparent p-2 shadow-none">
           <Pulsante
             variante="primario"
             misura="lg"
             className="px-10 py-6 text-[22px] shadow-2xl"
+            data-modale-primario
             onClick={() => {
               void motoreRef.current?.sblocca().then(() => setAudioAttivo(true));
             }}
           >
             <Volume2 size={24} strokeWidth={1.75} aria-hidden /> Attiva audio
           </Pulsante>
-        </div>
+        </Modale>
       )}
 
       {/* Foglio "Prima di iniziare": prima riga il soundcheck di oggi, poi la nota del format. */}
@@ -872,22 +877,21 @@ export function PaginaRegia() {
       )}
 
       {confermaChiusura && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConfermaChiusura(false)}>
-          <div role="dialog" aria-label="Chiudere la serata?" onClick={(e) => e.stopPropagation()} className="vetro w-full max-w-sm vetro-solido p-6">
-            <p className="text-[20px] font-semibold leading-snug text-testo">Chiudere la serata di oggi?</p>
+        // Conferma distruttiva: si chiude con X, ESC o Annulla, NON col clic sul velo.
+        <Modale etichetta="Chiudere la serata?" onChiudi={() => setConfermaChiusura(false)} chiudiSulVelo={false} className="max-w-sm p-6">
+            <p className="pr-10 text-[20px] font-semibold leading-snug text-testo">Chiudere la serata di oggi?</p>
             <p className="mt-1 text-[14px] text-testo-2">
               Silenzio, luci com'erano, spunte e contatori azzerati, lucchetto spento. Poi il riepilogo.
             </p>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <Pulsante variante="secondario" misura="lg" onClick={() => setConfermaChiusura(false)} data-chiusura-annulla>
+              <Pulsante variante="secondario" misura="lg" onClick={() => setConfermaChiusura(false)} data-chiusura-annulla data-modale-primario>
                 Annulla
               </Pulsante>
               <Pulsante variante="primario" misura="lg" onClick={() => void chiudiSerata()} data-chiusura-conferma>
                 Chiudi
               </Pulsante>
             </div>
-          </div>
-        </div>
+        </Modale>
       )}
 
       {riepilogoChiusura && (
@@ -900,7 +904,7 @@ export function PaginaRegia() {
       )}
 
       {suggerisciBlocco && !bloccato && (
-        <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
+        <div className="fixed inset-x-0 top-16 flex justify-center px-4" style={{ zIndex: "var(--z-toast)" }}>
           <div ref={bannerBloccoRef} className="vetro vetro-solido flex flex-wrap items-center gap-3 px-4 py-3" role="status" data-suggerimento-blocco>
             <Lock size={16} strokeWidth={1.75} className="text-brand-chiaro" aria-hidden />
             <span className="text-[14px] text-testo">Vuoi bloccare le modifiche per la serata?</span>
@@ -923,8 +927,10 @@ export function PaginaRegia() {
 
       {/* Barra superiore: a sinistra "‹ Serate" e il titolo, al centro Modifica/Live,
           a destra Prova tutti, Blocca, Diario, sole/luna, Impostazioni, Telecomando. */}
-      <header className="vetro-barra sticky top-0 z-30 border-b border-[var(--hairline-barra)] px-4 py-3 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-2">
+      <header style={{ zIndex: "var(--z-barra)" }} className="vetro-barra sticky top-0 border-b border-[var(--hairline-barra)] px-4 py-3 backdrop-blur-xl">
+        {/* Sotto i 900 px (finestra stretta, iPad in verticale) i comandi vanno a capo
+            invece di finire uno sopra l'altro o fuori schermo. */}
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 min-[900px]:flex-nowrap">
           {/* Il logo è un link alla Home (stesso stile, cursore a manina). */}
           <a
             href="/"
@@ -963,7 +969,7 @@ export function PaginaRegia() {
                 <ChevronLeft size={18} strokeWidth={1.75} aria-hidden /> Serate
               </button>
               {/* Il titolo: almeno 180 px, ellissi solo oltre i 320. */}
-              <div className="min-w-[180px] max-w-[320px] flex-1 text-[17px] font-semibold tracking-[-0.01em]" data-titolo-format>
+              <div className="min-w-[140px] max-w-[320px] flex-1 text-[17px] font-semibold tracking-[-0.01em] min-[900px]:min-w-[180px]" data-titolo-format>
                 <InputInline
                   valore={formatAperto.nome}
                   onCambia={(v) => void api.rinominaFormat(formatAperto.id, v).then(() => void ricaricaConfig())}

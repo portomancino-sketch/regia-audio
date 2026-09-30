@@ -87,7 +87,7 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
       </button>
       {aperto && (
         <Vetro
-          className={`vetro-solido absolute right-0 z-50 w-64 p-4 ${props.sopra ? "bottom-11" : "top-11"}`}
+          className={`vetro-solido absolute right-0 z-[var(--z-popover)] w-64 p-4 ${props.sopra ? "bottom-11" : "top-11"}`}
         >
           <div className="etichetta mb-2">Tema</div>
           <ControlloSegmentato

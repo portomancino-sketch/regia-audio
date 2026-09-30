@@ -89,7 +89,7 @@ export function BarraLive(props: {
       </div>
       {/* Sul telefono i pulsanti possono andare a capo (STOP TUTTO prende la riga):
           il dock cresce e la pagina lo misura, niente finisce sotto. */}
-      <div className={`flex items-center gap-2 ${props.telefono ? "basis-full flex-wrap" : ""}`}>
+      <div className={`flex items-center gap-2 ${props.telefono ? "basis-full flex-wrap" : "max-[700px]:basis-full max-[700px]:flex-wrap"}`}>
         {!props.compatta && props.extra}
         {!props.compatta && props.luci?.abbinata && (
           <PulsanteLuci luci={props.luci} telefono={props.telefono} onCambiato={props.onLuciCambiate} />
@@ -111,13 +111,14 @@ export function BarraLive(props: {
           misura={props.telefono ? "md" : "lg"}
           disabled={props.disabilitata}
           onClick={props.onFade}
+          className="whitespace-nowrap"
         >
           FADE OUT
         </Pulsante>
         {props.telefono ? (
           <StopTuttoLungo disabilitato={props.disabilitata} onStop={props.onStop} />
         ) : (
-          <Pulsante variante="pericolo" misura="lg" disabled={props.disabilitata} onClick={props.onStop} className="px-8">
+          <Pulsante variante="pericolo" misura="lg" disabled={props.disabilitata} onClick={props.onStop} className="whitespace-nowrap px-8 max-[700px]:flex-1">
             STOP TUTTO
           </Pulsante>
         )}

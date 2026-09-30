@@ -65,7 +65,7 @@ export function PannelloTelecomando(props: {
         Telecomando{props.telefoni.length > 0 && ` (${props.telefoni.length})`}
       </Pulsante>
       {aperto && (
-        <Vetro className="absolute right-0 top-14 z-50 w-80 vetro-solido p-5" role="dialog" aria-label="Telecomando" data-pannello-telecomando>
+        <Vetro className="absolute right-0 top-14 z-[var(--z-popover)] w-80 vetro-solido p-5" role="dialog" aria-label="Telecomando" data-pannello-telecomando>
           {!rete ? (
             <p className="text-testo-2">Un attimo…</p>
           ) : (

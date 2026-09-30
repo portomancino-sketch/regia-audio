@@ -26,13 +26,18 @@ export function Dock(props: { children: ReactNode; fisso?: boolean; sopra?: Reac
   return (
     <div
       ref={ref}
-      className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4"
-      style={{ paddingBottom: props.fisso ? "max(16px, env(safe-area-inset-bottom))" : 16 }}
+      className="fixed inset-x-0 bottom-0 px-4 pb-4"
+      style={{ zIndex: "var(--z-dock)", paddingBottom: props.fisso ? "max(16px, env(safe-area-inset-bottom))" : 16 }}
     >
       <Vetro raggio="dock" className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-5 py-3">
         {/* La riga "Sempre" sta DENTRO il vetro (prima riga a tutta larghezza,
             riga sottile sotto): le card che scorrono sotto non ci passano più attraverso. */}
-        {props.sopra && <div className="min-w-0 basis-full border-b border-vetro-bordo pb-3">{props.sopra}</div>}
+        {/* Riga Sempre compatta: mai più di 96 px, le caselle in più scorrono in orizzontale. */}
+        {props.sopra && (
+          <div className="max-h-[96px] min-w-0 basis-full overflow-hidden border-b border-vetro-bordo pb-3" data-riga-sempre>
+            {props.sopra}
+          </div>
+        )}
         {props.children}
       </Vetro>
     </div>

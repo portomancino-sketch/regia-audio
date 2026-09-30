@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { oraBreve } from "../../../shared/serata";
 import type { RiepilogoWeb } from "../api";
 import { Vetro } from "./ui/Vetro";
+import { Modale } from "./ui/Modale";
 import { Pulsante } from "./ui/Pulsante";
 
 export const minuti = (n: number) => (n < 60 ? `${n} min` : `${Math.floor(n / 60)} h ${n % 60} min`);
@@ -103,18 +104,12 @@ export function RiquadroRiepilogo(props: { r: RiepilogoWeb; className?: string }
  *  con "Esporta CSV" e "Chiudi". */
 export function FinestraRiepilogo(props: { data: string; serata: number; r: RiepilogoWeb; onChiudi: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={props.onChiudi}>
-      <div
-        role="dialog"
-        aria-label="Riepilogo della serata"
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-lg flex-col gap-3"
-      >
-        <div className="vetro vetro-solido px-5 py-3 text-[15px] text-testo">
+    <Modale etichetta="Riepilogo della serata" onChiudi={props.onChiudi} className="flex max-h-[90vh] max-w-lg flex-col gap-3 p-4">
+        <div className="px-1 pr-10 text-[15px] text-testo">
           Serata chiusa. Le spunte e i contatori sono azzerati, le luci sono tornate com'erano.
         </div>
         <div className="min-h-0 overflow-y-auto">
-          <RiquadroRiepilogo r={props.r} className="vetro-solido" />
+          <RiquadroRiepilogo r={props.r} />
         </div>
         <div className="flex gap-3">
           <a href={`/api/diario/${props.data}/csv?serata=${props.serata}`} download className="flex-1">
@@ -122,11 +117,10 @@ export function FinestraRiepilogo(props: { data: string; serata: number; r: Riep
               <Download size={16} strokeWidth={1.75} aria-hidden /> Esporta CSV
             </Pulsante>
           </a>
-          <Pulsante variante="primario" misura="lg" className="flex-1" onClick={props.onChiudi} data-riepilogo-chiudi>
+          <Pulsante variante="primario" misura="lg" className="flex-1" onClick={props.onChiudi} data-riepilogo-chiudi data-modale-primario>
             Chiudi
           </Pulsante>
         </div>
-      </div>
-    </div>
+    </Modale>
   );
 }

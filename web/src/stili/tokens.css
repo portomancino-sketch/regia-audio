@@ -5,6 +5,18 @@
 :root {
   color-scheme: dark;
 
+  /* Livelli (z-index): l'UNICO posto dove si decidono. Dal basso:
+     sfondo < contenuto < riga Sempre < dock < barra superiore < popover della barra
+     < fogli/modali (velo scuro a tutto schermo, copre anche dock e barra) < toast. */
+  --z-sfondo: -1;
+  --z-contenuto: 0;
+  --z-sempre: 10;
+  --z-dock: 20;
+  --z-barra: 30;
+  --z-popover: 40;
+  --z-modale: 100;
+  --z-toast: 200;
+
   /* Sfondo e testo */
   --sfondo: #0a0c10;
   /* Macchie dello sfondo mesh. --sfondo-intensita (0–1) le regola tutte. */

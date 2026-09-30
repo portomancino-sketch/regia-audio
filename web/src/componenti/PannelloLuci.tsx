@@ -49,7 +49,7 @@ export function PulsanteLuci(props: { luci: LuciLive; telefono?: boolean; disabi
   }
 
   const pannello = (
-    <div className={`fixed inset-0 z-50 ${props.telefono ? "flex items-end bg-black/45" : ""}`} onClick={() => setAperto(false)}>
+    <div className={`fixed inset-0 ${props.telefono ? "flex items-end bg-black/45" : ""}`} data-velo style={{ zIndex: "var(--z-modale)" }} onClick={() => setAperto(false)}>
       <div
         role="dialog"
         aria-label="Luci"
@@ -64,11 +64,11 @@ export function PulsanteLuci(props: { luci: LuciLive; telefono?: boolean; disabi
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[17px] font-semibold tracking-[-0.01em]">Luci</div>
           {props.telefono ? (
-            <Pulsante variante="secondario" misura="sm" onClick={() => setAperto(false)}>
+            <Pulsante variante="secondario" misura="sm" onClick={() => setAperto(false)} data-modale-x>
               Chiudi
             </Pulsante>
           ) : (
-            <button type="button" aria-label="Chiudi" onClick={() => setAperto(false)} className="tocco rounded-[10px] p-1.5 text-testo-3 hover:bg-velo hover:text-testo">
+            <button type="button" aria-label="Chiudi" data-modale-x onClick={() => setAperto(false)} className="tocco rounded-[10px] p-1.5 text-testo-3 hover:bg-velo hover:text-testo">
               <X size={16} strokeWidth={1.75} />
             </button>
           )}

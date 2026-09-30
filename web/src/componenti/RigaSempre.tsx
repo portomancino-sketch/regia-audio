@@ -1,6 +1,6 @@
 // La riga "Sempre": le caselle visibili in ogni fase, sopra il dock.
-// Sul Mac sono card compatte; sul telefono diventano pillole da 44px
-// (solo icona del tipo + titolo) in una striscia scorrevole senza barra.
+// Mac e telefono: pillole da 44px (icona del tipo + titolo; sul Mac anche il tasto)
+// in una striscia scorrevole senza barra: la riga non supera mai i 96 px.
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, CircleCheck } from "lucide-react";
 import type { Cue, CueAttivo } from "../../../shared/tipi";
@@ -8,7 +8,7 @@ import { altriSempre, inEvidenza } from "../../../shared/sempre";
 import { coloreCue, coloreLuceDi } from "../util";
 import type { LuciLive } from "../api";
 import { AltriSempre } from "./AltriSempre";
-import { ICONE_TIPO, PulsanteCue } from "./PulsanteCue";
+import { ICONE_TIPO } from "./PulsanteCue";
 import { Equalizzatore } from "./ui/Equalizzatore";
 
 const TASTI_SEMPRE = ["Q", "W", "E", "R", "T"];
@@ -21,6 +21,10 @@ function PillolaSempre(props: {
   attivi: CueAttivo[];
   fatto?: boolean;
   disabilitato?: boolean;
+  /** Solo Mac: il tasto (Q W E R T) e i segnali che sulla card grande erano scritti. */
+  scorciatoia?: string;
+  problemaFile?: "mancante" | "nonDecodificabile";
+  coloreLuce?: string;
   onPremi: () => void;
   onSpunta: () => void;
 }) {
@@ -72,7 +76,7 @@ function PillolaSempre(props: {
         borderColor: suona || inPausa ? colore : bordo,
         boxShadow: suona ? `0 0 0 3px ${anello}` : undefined,
       }}
-      className={`tocco relative inline-flex h-11 min-w-11 max-w-[60vw] shrink-0 select-none items-center gap-2 overflow-hidden rounded-full border px-3.5 text-left text-[15px] font-semibold text-testo ${
+      className={`tocco relative inline-flex h-11 min-w-11 max-w-[60vw] min-[700px]:max-w-[200px] shrink-0 select-none items-center gap-2 overflow-hidden rounded-full border px-3.5 text-left text-[15px] font-semibold text-testo ${
         scatta ? "scatto" : ""
       } ${spento ? "cursor-default opacity-40" : ""} ${fatto ? "opacity-75" : ""}`}
     >
@@ -100,6 +104,22 @@ function PillolaSempre(props: {
         )}
       </span>
       <span className={`relative min-w-0 truncate ${fatto ? "text-testo-3 line-through" : ""}`}>{cue.titolo}</span>
+      {props.problemaFile && (
+        <span
+          className="relative h-2.5 w-2.5 shrink-0 rounded-full bg-rosso"
+          aria-label={props.problemaFile === "mancante" ? "file mancante" : "file non leggibile"}
+          title={props.problemaFile === "mancante" ? "file mancante" : "file non leggibile"}
+          data-file-mancante={props.problemaFile}
+        />
+      )}
+      {props.coloreLuce && (
+        <span aria-label="con luci" className="relative h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-[var(--vetro-bordo)]" style={{ backgroundColor: props.coloreLuce }} data-pallino-luce />
+      )}
+      {props.scorciatoia && (
+        <span className="relative shrink-0 rounded-full border border-vetro-bordo bg-velo px-1.5 text-[11px] font-normal tabular-nums text-testo-3">
+          {props.scorciatoia}
+        </span>
+      )}
     </button>
   );
 }
@@ -145,37 +165,22 @@ export function RigaSempre(props: {
   // scorrere le caselle fino al bordo del vetro senza tagliarle a metà.
   return (
     <div className="striscia-senza-barra -mx-5 flex min-w-0 items-center gap-2 overflow-x-auto px-5 py-1" aria-label="Sempre">
-      {evidenza.map((c) =>
-        props.telefono ? (
-          <PillolaSempre
-            key={c.id}
-            cue={c}
-            attivi={props.attivi}
-            fatto={props.fatti?.includes(c.id)}
-            disabilitato={props.disabilitato}
-            onPremi={() => props.onPremi(c)}
-            onSpunta={() => props.onSpunta(c)}
-          />
-        ) : (
-          <div key={c.id} className="w-64 shrink-0">
-            <PulsanteCue
-              cue={c}
-              compatto
-              attivi={props.attivi}
-              fatto={props.fatti?.includes(c.id)}
-              usi={props.usi?.[c.id]}
-              coloreLuce={coloreLuceDi(c.luce, props.luci)}
-              problemaFile={props.problemi?.[c.id]}
-              disabilitato={props.disabilitato}
-              scorciatoia={scorciatoie.get(c.id)}
-              onPremi={() => props.onPremi(c)}
-              onFerma={() => props.onFerma(c)}
-              onSfuma={() => props.onSfuma(c)}
-              onSpunta={() => props.onSpunta(c)}
-            />
-          </div>
-        ),
-      )}
+      {/* Mac e telefono: pillole da 44 px (la riga resta compatta, sotto i 96 px).
+          Sul Mac la pillola porta anche il tasto Q W E R T e i pallini file/luci. */}
+      {evidenza.map((c) => (
+        <PillolaSempre
+          key={c.id}
+          cue={c}
+          attivi={props.attivi}
+          fatto={props.fatti?.includes(c.id)}
+          disabilitato={props.disabilitato}
+          scorciatoia={props.telefono ? undefined : scorciatoie.get(c.id)}
+          problemaFile={props.problemi?.[c.id]}
+          coloreLuce={coloreLuceDi(c.luce, props.luci)}
+          onPremi={() => props.onPremi(c)}
+          onSpunta={() => props.onSpunta(c)}
+        />
+      ))}
       {altri.length > 0 && (
         <button
           type="button"

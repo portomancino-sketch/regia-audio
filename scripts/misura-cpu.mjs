@@ -59,7 +59,7 @@ await js(`(()=>{const c=[...document.querySelectorAll('div.vetro.tocco')].find(d
 await attendi(800);
 await js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Live');b?.click()})()`);
 await attendi(500);
-await js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Ok, pronti'));b?.click()})()`);
+await js(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.hasAttribute('data-foglio-ok'));b?.click()})()`);
 console.log("Live aperta, ferma. Misuro per ~12 s...");
 await attendi(3000);
 

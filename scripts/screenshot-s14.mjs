@@ -61,6 +61,9 @@ class Pagina {
     return false;
   }
   click(testo) {
+    // Il pulsante principale del foglio "Prima di iniziare" cambia nome (Ok, pronti /
+    // Salta il controllo / Vai lo stesso): lo si trova dal suo segno.
+    if (testo === "Ok, pronti") return this.js(`(() => { const b = document.querySelector('[data-foglio-ok]'); if (b) { b.click(); return true; } return false; })()`);
     const t = testo.replace(/'/g, "\\'");
     return this.js(
       `(() => { const b = [...document.querySelectorAll('button, [role=button]')].find(b => b.textContent.trim().includes('${t}')); if (b) { b.click(); return true; } return false; })()`,

@@ -31,6 +31,14 @@
     vero senza averlo fatto, una finestra te lo chiede una volta sola ("Prova tutti"
     o "Vado avanti"). Dopo la prova il foglio diventa verde con l'ora, e se un file
     manca la casella lo dice in rosso già in Live.
+    **Il soundcheck non blocca mai la serata.** Se non l'hai fatto, nel foglio c'è
+    **Salta il controllo**; se ha trovato problemi, c'è **Vai lo stesso** (più
+    "vedi l'esito" e **Rifai il controllo**). Si parte sempre.
+    **Ogni finestra si chiude**: con la **X** in alto a destra, col tasto **ESC**
+    o cliccando fuori, sulla parte scura (tranne "Chiudere la serata?", che si
+    chiude solo con X, ESC o Annulla). Con una finestra aperta ESC la chiude e
+    basta: non fa STOP TUTTO. Per tornare indietro c'è sempre **‹ Serate** o
+    **‹ Indietro** in alto a sinistra.
 10b. Quando importi un file, la Regia misura da sola quanto è forte e lo porta a
     un livello uguale agli altri ("auto +4 dB"). Se vuoi ritoccare a orecchio:
     cursore **Volume** (−12…+12 dB) sulla casella e **Ascolta** per sentire.

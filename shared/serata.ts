@@ -137,3 +137,12 @@ export function rigaSoundcheck(sc: SoundcheckSerata | null | undefined): {
   if (sc.problemi === 0) return { stato: "ok", testo: `${quando} · tutto ok` };
   return { stato: "problemi", testo: `${quando} · ${sc.problemi} ${sc.problemi === 1 ? "problema" : "problemi"}` };
 }
+
+/** Il pulsante principale del foglio "Prima di iniziare". Il soundcheck avvisa e
+ *  basta: il pulsante c'è SEMPRE e chiude sempre il foglio (mai disattivato).
+ *  `puoProvare` = questa finestra può lanciare "Prova tutti" (Mac che comanda). */
+export function pulsanteFoglio(stato: "nonFatto" | "ok" | "problemi", puoProvare: boolean): string {
+  if (stato === "problemi") return "Vai lo stesso";
+  if (stato === "nonFatto" && puoProvare) return "Salta il controllo";
+  return "Ok, pronti";
+}

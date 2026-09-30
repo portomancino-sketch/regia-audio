@@ -203,7 +203,7 @@ function CasellaCue(props: {
               valore={cue.titolo}
               placeholder="Titolo"
               onCambia={(v) => salva(() => api.modificaCue(cue.id, { titolo: v }))}
-              className="w-full rounded-[10px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-semibold transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
+              className="w-full min-w-0 text-ellipsis rounded-[10px] border border-transparent bg-transparent px-1 py-0.5 text-[15px] font-semibold transition-colors hover:border-vetro-bordo focus:border-brand-chiaro focus:outline-none"
             />
             {inSempre && (
               <button

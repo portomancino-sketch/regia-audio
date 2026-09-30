@@ -1,5 +1,6 @@
 // Il riquadro "Esito soundcheck": file mancanti, file rotti, picchi in dB.
 import { ordinaEsito, type EsitoCasella } from "../../../shared/soundcheck";
+import { Modale } from "./ui/Modale";
 import { Pulsante } from "./ui/Pulsante";
 
 export function EsitoSoundcheck(props: {
@@ -13,14 +14,8 @@ export function EsitoSoundcheck(props: {
   const problemi = mancanti.length + nonDecodificabili.length;
   const provate = props.provate ?? props.esiti.length;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={props.onChiudi}>
-      <div
-        role="dialog"
-        aria-label="Esito soundcheck"
-        onClick={(e) => e.stopPropagation()}
-        className="vetro vetro-solido flex max-h-[85vh] w-full max-w-lg flex-col p-6"
-      >
-        <div className="etichetta mb-1">Esito soundcheck</div>
+    <Modale etichetta="Esito soundcheck" onChiudi={props.onChiudi} className="flex max-h-[85vh] max-w-lg flex-col p-6">
+        <div className="etichetta mb-1 pr-10">Esito soundcheck</div>
         <p className="mb-4 text-[15px] text-testo-2">
           {provate} caselle provate
           {problemi === 0 ? ", nessun problema." : `, ${problemi} con problemi.`}
@@ -74,10 +69,9 @@ export function EsitoSoundcheck(props: {
             </div>
           )}
         </div>
-        <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={props.onChiudi}>
+        <Pulsante variante="primario" misura="lg" className="mt-5 w-full" onClick={props.onChiudi} data-modale-primario>
           Chiudi
         </Pulsante>
-      </div>
-    </div>
+    </Modale>
   );
 }
