@@ -790,3 +790,19 @@ DECISIONI PRESE DA SOLO (S14-bis)
   atteso. e2e: a 1440 il titolo è largo più di 150 px e non è tagliato.
   Screenshot in docs/screenshots/s14ter/ (scripts/screenshot-s14ter.mjs).
 - **v1.5.1** → dist-pacchetti/Regia-v1.5.1.zip.
+
+## S-FIX — 30 settembre 2026 — v1.5.2: bug di consegna + collaudo completo
+- **Sovrapposizioni**: foglio "Prima di iniziare" e dock avevano lo stesso livello
+  (z-40), il dock copriva "Ok, pronti". Livelli ora solo in tokens.css (`--z-*`,
+  sfondo < contenuto < Sempre < dock < barra < popover < modali < toast); riga
+  Sempre a pillole anche sul Mac (max 96 px, scorre in orizzontale).
+- **Soundcheck mai bloccante**: "Salta il controllo" / "Vai lo stesso" sempre
+  cliccabili, "vedi l'esito" e "Rifai il controllo" col soundcheck in errore.
+- **Uscite**: componente `Modale` unico (X, ESC, velo; niente velo per "Chiudere
+  la serata?"), tasti di Live bloccati sotto il velo (il tasto 1 suonava dietro
+  al foglio). 390 px: barra a capo, fasi e dock dentro lo schermo.
+- **Collaudo**: `scripts/collaudo/collaudo.mjs` (Playwright, clic veri, Mac +
+  telefono col PIN + due finestre + rete giù + export/import + 4 misure):
+  124/124. Inventario e esito in docs/collaudo/, screenshot in
+  docs/screenshots/sfix/. vitest 162, e2e 210/210, tsc pulito.
+- **v1.5.2** → dist-pacchetti/Regia-v1.5.2.zip.

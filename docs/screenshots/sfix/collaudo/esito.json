@@ -1,0 +1,622 @@
+[
+  {
+    "nome": "Home: 'Le tue serate' e la card del format",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Home: tema (sole/luna) apre il popover e ESC lo chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Home: card Impostazioni apre Impostazioni",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Impostazioni: '‹ Indietro' col mouse torna alla Home",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Barra: Diario si apre e '‹ Indietro' torna alla Home",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Diario: ESC torna indietro",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Home: 'Nuovo format' crea un format",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Dal format nuovo '‹ Serate' torna alla Home",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Home: menu ⋯ della card → Archivia e poi Ripristina",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Logo 'Regia' porta alla Home",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Modifica: '‹ Serate' visibile e cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Live: si entra col controllo Modifica/Live",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio: pulsante principale in cima (niente dock sopra)",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio: soundcheck non fatto → 'Salta il controllo' sempre cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio: i tasti di Live non passano sotto il velo (tasto 1 non suona)",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio: 'Salta il controllo' chiude il foglio",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio 'Prima di iniziare': si apre",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio 'Prima di iniziare': X visibile e in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio 'Prima di iniziare': ESC chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio 'Prima di iniziare': X chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Foglio 'Prima di iniziare': clic sul velo chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre: alta al massimo 96 px",
+    "ok": true,
+    "dett": "65 px"
+  },
+  {
+    "nome": "Griglia: nessun pulsante coperto dal dock (ogni casella in cima dopo lo scorrimento)",
+    "ok": true,
+    "dett": "3 caselle"
+  },
+  {
+    "nome": "Casella: clic la fa suonare (dock 'Sta suonando')",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Primo suono senza soundcheck: avviso (una volta) con X, 'Vado avanti' chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "PARLA: si accende e si spegne",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Tasto P: PARLA",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Volume principale: lo slider cambia il numero",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "FADE OUT: silenzio dopo la sfumatura",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Tasto 1: suona la prima casella; ESC = STOP TUTTO",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "STOP TUTTO: ferma tutto",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Casella che suona: 'Ferma subito' e 'Sfuma' sulla card",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre: la pillola suona col clic e col tasto Q",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre: promemoria si spunta",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Promemoria nella griglia: si spunta",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre 'Altri (2)': si apre",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre 'Altri (2)': X visibile e in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre 'Altri (2)': ESC chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre 'Altri (2)': X chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Riga Sempre 'Altri (2)': clic sul velo chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Fasi: clic e frecce ← → cambiano fase",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Nota della fase: si chiude e si riapre",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Prova tutti: parte, contatore nel dock, ESC lo interrompe (non ferma altro)",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Soundcheck con problemi: 'Vai lo stesso' cliccabile e chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Soundcheck con problemi: 'vedi l'esito' apre l'esito (che ha X/ESC)",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Soundcheck con problemi: 'Rifai il controllo' fa ripartire la prova",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Blocca: si accende; in Modifica il banner permette di sbloccare",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telecomando: il pannello mostra PIN e si chiude con ESC",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Impostazioni da Live: si apre e '‹ Indietro' torna a Live",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: PIN col tastierino ed 'Entra'",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: foglio col pulsante principale in cima e che chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: tocco su una casella → suona sul Mac → stato torna al telefono",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: PARLA agisce sul Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: STOP TUTTO con pressione breve NON ferma (mostra 'Tieni premuto')",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: STOP TUTTO tenuto premuto ferma il Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: FADE OUT agisce sul Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: fase successiva/precedente cambia la fase sul Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: riga Sempre (pillola) suona sul Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: promemoria spuntato arriva al Mac",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: 'Altri' si apre come foglio e si chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: 'Rileggi Prima di iniziare' apre il foglio con X",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: blocco schermo simulato (rete giù) e ricollegamento",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Telefono: ricaricata la pagina il PIN è ricordato",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Mac: il pannello Telecomando vede il telefono collegato",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Seconda finestra: dice che un'altra finestra comanda",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Seconda finestra: 'Prendi il controllo' → ora comanda lei, la prima lo sa",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Il telefono comanda la finestra nuova",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Prima finestra riprende il controllo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Conferma 'Chiudi serata': si apre",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Conferma 'Chiudi serata': X visibile e in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Conferma 'Chiudi serata': ESC chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Conferma 'Chiudi serata': X chiude",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Conferma 'Chiudi serata': clic sul velo NON chiude (conferma distruttiva)",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Chiudi serata: 'Annulla' non chiude niente",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Chiudi serata: conferma → riepilogo (con X) → Chiudi",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Diario: la serata chiusa c'è, si apre e si torna all'elenco",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Impostazioni → Esporta tutto (zip) scarica uno zip",
+    "ok": true,
+    "dett": "3651 KB"
+  },
+  {
+    "nome": "Impostazioni → Importa uno zip… rimette i format",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Impostazioni: versione e cartella dati mostrate",
+    "ok": true,
+    "dett": "Regia versione 1.5.2"
+  },
+  {
+    "nome": "Impostazioni: '‹ Indietro' torna",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 home: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 modifica: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 impostazioni: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 diario: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: pulsante del foglio in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: comandi del dock dentro lo schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: '‹ Serate' cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: riga Sempre ≤ 96 px",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1280×800 live: l'ultima casella non sta sotto il dock",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 home: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 modifica: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 impostazioni: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 diario: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: pulsante del foglio in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: comandi del dock dentro lo schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: '‹ Serate' cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: riga Sempre ≤ 96 px",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1440×900 live: l'ultima casella non sta sotto il dock",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 home: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 modifica: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 impostazioni: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 diario: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: pulsante del foglio in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: comandi del dock dentro lo schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: '‹ Serate' cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: riga Sempre ≤ 96 px",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "1920×1080 live: l'ultima casella non sta sotto il dock",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 home: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 modifica: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 impostazioni: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 diario: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: pulsante del foglio in cima",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: comandi del dock dentro lo schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: '‹ Serate' cliccabile",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: riga Sempre ≤ 96 px",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 live: l'ultima casella non sta sotto il dock",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "390×844 telefono (PIN): niente fuori schermo",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Nessun errore in console",
+    "ok": true,
+    "dett": ""
+  },
+  {
+    "nome": "Nessuna richiesta di rete esterna",
+    "ok": true,
+    "dett": ""
+  }
+]
