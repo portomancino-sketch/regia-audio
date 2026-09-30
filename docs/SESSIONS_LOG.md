@@ -828,3 +828,14 @@ DECISIONI PRESE DA SOLO (S14-bis)
   Impostazioni nella barra: 183/183. Screenshot in docs/screenshots/fix153/.
   vitest 164, e2e 210/210, tsc pulito.
 - **v1.5.3** → dist-pacchetti/Regia-v1.5.3.zip.
+- **v1.5.4 (fix Intel)**: "Avvia Regia.command" sceglie node/arm64 se `uname -m`
+  = arm64 o se il Terminale gira sotto Rosetta (`sysctl.proc_translated` = 1),
+  node/x64 se x86_64. Non cancella più nulla prima di aver provato
+  `node --version`; solo dopo toglie l'altra architettura. node/ vuota →
+  "Cartella incompleta: scompatta di nuovo lo zip"; binario mancante o che non
+  parte (serve macOS 13.5+) → messaggio chiaro, nessuna cancellazione.
+  Prova sullo zip scompattato con uname finto: x86_64 → resta x64, server su
+  (x64 eseguito davvero via Rosetta); arm64 → arm64; Rosetta → arm64; node/
+  vuota, x64 mancante, x64 rotto, arm64 mancante, architettura ignota: tutti
+  fermi col messaggio giusto e l'altra cartella intatta.
+  → dist-pacchetti/Regia-v1.5.4.zip.

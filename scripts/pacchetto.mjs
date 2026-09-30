@@ -137,19 +137,40 @@ cd "$DIR"
 # Toglie l'avviso di sicurezza di macOS dai file di questa cartella.
 xattr -dr com.apple.quarantine "$DIR" 2>/dev/null || true
 
-# Sceglie il Node giusto per questo Mac e libera spazio dall'altro.
-ARCH="$(uname -m)"
-if [ "$ARCH" = "arm64" ]; then
-  NODO="$DIR/node/arm64/node"; ALTRO="$DIR/node/x64"
-else
-  NODO="$DIR/node/x64/node"; ALTRO="$DIR/node/arm64"
-fi
-[ -d "$ALTRO" ] && rm -rf "$ALTRO"
-if [ ! -x "$NODO" ]; then
-  echo "Manca il programma nella cartella node/. Riscarica il pacchetto."
+fermati() {
+  echo ""
+  echo "  $1"
+  echo ""
   read -r -p "Premi Invio per chiudere." _
   exit 1
+}
+
+# Sceglie il Node giusto per questo Mac: arm64 (Apple Silicon) o x64 (Intel).
+# uname -m dice "x86_64" sugli Intel, ma la cartella si chiama "x64".
+# Un Terminale sotto Rosetta dice "x86_64" anche su Apple Silicon: lì usiamo arm64.
+ARCH="$(uname -m)"
+ROSETTA="$(sysctl -n sysctl.proc_translated 2>/dev/null)"
+if [ "$ARCH" = "arm64" ] || [ "$ROSETTA" = "1" ]; then
+  SCELTA="arm64"; ALTRO="x64"
+elif [ "$ARCH" = "x86_64" ]; then
+  SCELTA="x64"; ALTRO="arm64"
+else
+  fermati "Questo Mac non è riconosciuto (architettura: $ARCH)."
 fi
+NODO="$DIR/node/$SCELTA/node"
+
+if [ -z "$(ls -A "$DIR/node" 2>/dev/null)" ]; then
+  fermati "Cartella incompleta: scompatta di nuovo lo zip."
+fi
+if [ ! -f "$NODO" ]; then
+  fermati "Cartella incompleta: manca node/$SCELTA per questo Mac. Scompatta di nuovo lo zip."
+fi
+[ -x "$NODO" ] || chmod +x "$NODO" 2>/dev/null
+if ! "$NODO" --version >/dev/null 2>&1; then
+  fermati "Il programma node/$SCELTA non parte su questo Mac. Serve macOS 13.5 o più recente (menu Mela → Informazioni su questo Mac)."
+fi
+# Solo ora che il Node giusto funziona, libera spazio dall'altro.
+if [ -d "$DIR/node/$ALTRO" ]; then rm -rf "$DIR/node/$ALTRO"; fi
 
 apri_finestra() {
   CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
