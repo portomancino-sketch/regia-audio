@@ -839,3 +839,9 @@ DECISIONI PRESE DA SOLO (S14-bis)
   vuota, x64 mancante, x64 rotto, arm64 mancante, architettura ignota: tutti
   fermi col messaggio giusto e l'altra cartella intatta.
   → dist-pacchetti/Regia-v1.5.4.zip.
+- **v1.5.5 (Node 22 LTS)**: il pacchetto usa Node v22.23.3 invece di v24:
+  minos 11.0 su arm64 e x64 (Node 24 voleva macOS 13.5), messaggio di errore
+  aggiornato a "Serve macOS 11". Stessa prova sullo zip: x86_64 → x64 (via
+  Rosetta), arm64 → arm64, Rosetta → arm64, server su in tutti e tre; node/
+  vuota, x64 mancante, x64 rotto fermi col messaggio, nulla cancellato.
+  → dist-pacchetti/Regia-v1.5.5.zip, release GitHub v1.5.5.

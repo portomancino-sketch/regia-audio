@@ -107,7 +107,8 @@ fs.cpSync(path.join(radice, "dist"), path.join(P, "app/dist"), { recursive: true
 // ---- 4. Node ufficiale per macOS (arm64 + x64) ----
 passo("Binari di Node LTS (nodejs.org)");
 const indice = await (await fetch("https://nodejs.org/dist/index.json")).json();
-const lts = indice.find((v) => v.lts);
+// Node 22 LTS: gira da macOS 11 in su (Node 24 vuole macOS 13.5, troppo per i Mac vecchi).
+const lts = indice.find((v) => v.lts && v.version.startsWith("v22."));
 console.log(`  versione scelta: ${lts.version} (${lts.lts})`);
 const cache = path.join(radice, ".cache-node");
 fs.mkdirSync(cache, { recursive: true });
@@ -167,7 +168,7 @@ if [ ! -f "$NODO" ]; then
 fi
 [ -x "$NODO" ] || chmod +x "$NODO" 2>/dev/null
 if ! "$NODO" --version >/dev/null 2>&1; then
-  fermati "Il programma node/$SCELTA non parte su questo Mac. Serve macOS 13.5 o più recente (menu Mela → Informazioni su questo Mac)."
+  fermati "Il programma node/$SCELTA non parte su questo Mac. Serve macOS 11 o più recente (menu Mela → Informazioni su questo Mac)."
 fi
 # Solo ora che il Node giusto funziona, libera spazio dall'altro.
 if [ -d "$DIR/node/$ALTRO" ]; then rm -rf "$DIR/node/$ALTRO"; fi
