@@ -806,3 +806,25 @@ DECISIONI PRESE DA SOLO (S14-bis)
   124/124. Inventario e esito in docs/collaudo/, screenshot in
   docs/screenshots/sfix/. vitest 162, e2e 210/210, tsc pulito.
 - **v1.5.2** → dist-pacchetti/Regia-v1.5.2.zip.
+
+## FIX 1.5.3 — 30 settembre 2026 — v1.5.3: pannello del sole e tutti i popover
+- **Bug**: sul telefono il pannello del sole (tema/intensità) si apriva ancorato
+  all'icona nel dock, usciva dal bordo sinistro e restava schiacciato dentro il
+  dock; sul Mac, dentro la barra (backdrop-filter), non si vedeva affatto.
+- **Fix**: nuovo `componenti/ui/Popover.tsx`, sempre in un portal su
+  document.body al livello `--z-popover` (ora 110, sopra i modali). Sotto 640 px
+  è un foglio dal basso a tutta larghezza (velo, maniglia, titolo, X, tocco sul
+  velo, safe-area); sul Mac è un popover sotto l'icona, allineato a destra,
+  tenuto dentro la finestra a 12 px dai bordi (sopra l'icona se sotto non c'è
+  posto); X, ESC (senza STOP TUTTO), clic fuori. Fondo pieno (`--menu-pieno`):
+  dietro non traspare il dock. Stesso Popover per il sole ("Aspetto", 320 px),
+  i menu ⋯ (fase, format, Modifica) e il pannello Telecomando; Luci con altezza
+  massima sopra il dock.
+- **Verifica**: `scripts/collaudo/fix153.mjs` (Playwright, clic veri): 390×844
+  (telecomando col PIN e Regia), 1280×800, 1440×900, 1920×1080, chiaro e scuro:
+  box dentro la finestra, elementFromPoint = pannello, Chiaro/Scuro e intensità
+  salvati e riletti dopo il ricaricamento; Telecomando, menu della fase, Luci,
+  Altri suoni, menu del format e di Modifica, Prova tutti/Blocca/Diario/
+  Impostazioni nella barra: 183/183. Screenshot in docs/screenshots/fix153/.
+  vitest 164, e2e 210/210, tsc pulito.
+- **v1.5.3** → dist-pacchetti/Regia-v1.5.3.zip.

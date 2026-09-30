@@ -57,9 +57,9 @@ export function PulsanteLuci(props: { luci: LuciLive; telefono?: boolean; disabi
         className={
           props.telefono
             ? "vetro vetro-solido flex w-full flex-col rounded-b-none rounded-t-[24px] p-4"
-            : "vetro vetro-solido fixed left-1/2 flex w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2 flex-col p-4"
+            : "vetro vetro-solido fixed left-1/2 flex w-[440px] max-w-[calc(100vw-32px)] -translate-x-1/2 flex-col overflow-y-auto p-4"
         }
-        style={props.telefono ? { paddingBottom: "max(16px, env(safe-area-inset-bottom))" } : { bottom: "calc(var(--altezza-dock, 200px) + 8px)" }}
+        style={props.telefono ? { paddingBottom: "max(16px, env(safe-area-inset-bottom))" } : { bottom: "calc(var(--altezza-dock, 200px) + 8px)", maxHeight: "calc(100dvh - var(--altezza-dock, 200px) - 20px)" }}
       >
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[17px] font-semibold tracking-[-0.01em]">Luci</div>

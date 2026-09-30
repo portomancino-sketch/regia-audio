@@ -6,15 +6,17 @@
   color-scheme: dark;
 
   /* Livelli (z-index): l'UNICO posto dove si decidono. Dal basso:
-     sfondo < contenuto < riga Sempre < dock < barra superiore < popover della barra
-     < fogli/modali (velo scuro a tutto schermo, copre anche dock e barra) < toast. */
+     sfondo < contenuto < riga Sempre < dock < barra superiore
+     < fogli/modali (velo scuro a tutto schermo, copre anche dock e barra)
+     < popover e fogli apribili (tema, menu ⋯, telecomando: sempre in un portal
+       su body, anche aperti da dentro un modale) < toast. */
   --z-sfondo: -1;
   --z-contenuto: 0;
   --z-sempre: 10;
   --z-dock: 20;
   --z-barra: 30;
-  --z-popover: 40;
   --z-modale: 100;
+  --z-popover: 110;
   --z-toast: 200;
 
   /* Sfondo e testo */
@@ -62,6 +64,8 @@
   /* Superfici e comandi */
   --velo: rgba(255, 255, 255, 0.05);
   --menu-fondo: rgba(24, 28, 34, 0.95);
+  /* Popover e fogli apribili: fondo pieno, dietro non traspare niente (dock, barra). */
+  --menu-pieno: rgb(24, 28, 34);
   --seg-traccia: rgba(255, 255, 255, 0.06);
   --seg-selezione: rgba(255, 255, 255, 0.12);
   --seg-ombra: inset 0 1px 0 var(--vetro-luce);
@@ -119,6 +123,7 @@
 
   --velo: rgba(0, 0, 0, 0.04);
   --menu-fondo: rgba(255, 255, 255, 0.96);
+  --menu-pieno: rgb(255, 255, 255);
   --seg-traccia: rgba(0, 0, 0, 0.06);
   --seg-selezione: #ffffff;
   --seg-ombra: 0 1px 4px rgba(20, 30, 40, 0.18);
@@ -174,6 +179,9 @@
    (Le utility bg-* di Tailwind non vincono su .vetro: serve questa classe.) */
 .vetro-solido {
   background: var(--menu-fondo);
+}
+.vetro-pieno {
+  background: var(--menu-pieno);
 }
 /* Barra superiore e controllo segmentato: velo denso, restano bianchi/neutri. */
 .vetro-barra {

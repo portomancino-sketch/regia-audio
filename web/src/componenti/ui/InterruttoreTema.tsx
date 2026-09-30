@@ -1,8 +1,8 @@
-// Il popover del tema: Chiaro / Scuro / Automatico + intensità dello sfondo.
+// Il pannello "Aspetto" (il sole): Chiaro / Scuro / Automatico + intensità dello sfondo.
 // Scelte salvate per dispositivo (localStorage), separate tra Regia e telecomando.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Moon, Sun, SunMoon } from "lucide-react";
-import { Vetro } from "./Vetro";
+import { Popover } from "./Popover";
 import { ControlloSegmentato } from "./ControlloSegmentato";
 import { Slider } from "./Slider";
 
@@ -50,45 +50,33 @@ export function useIntensita(chiave: string): [number, (v: number) => void] {
   return [valore, setValore];
 }
 
-export function InterruttoreTema(props: { chiave: string; className?: string; sopra?: boolean }) {
+export function InterruttoreTema(props: { chiave: string; className?: string }) {
   const [scelta, imposta] = useTema(props.chiave);
   const [intensita, setIntensita] = useIntensita(props.chiave);
   const [aperto, setAperto] = useState(false);
-  const contenitore = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!aperto) return;
-    const fuori = (e: MouseEvent) => {
-      if (!contenitore.current?.contains(e.target as Node)) setAperto(false);
-    };
-    document.addEventListener("mousedown", fuori);
-    document.addEventListener("click", fuori);
-    return () => {
-      document.removeEventListener("mousedown", fuori);
-      document.removeEventListener("click", fuori);
-    };
-  }, [aperto]);
+  const pulsante = useRef<HTMLButtonElement | null>(null);
 
   const Icona = scelta === "chiaro" ? Sun : scelta === "scuro" ? Moon : SunMoon;
   const cambia = useCallback((id: string) => imposta(id as Scelta), [imposta]);
+  const chiudi = useCallback(() => setAperto(false), []);
 
   return (
-    <div ref={contenitore} className={`relative ${props.className ?? ""}`}>
+    <div className={`relative ${props.className ?? ""}`}>
       <button
+        ref={pulsante}
         type="button"
         onClick={() => setAperto(!aperto)}
-        title={`Tema: ${NOMI[scelta]}`}
-        aria-label={`Tema: ${NOMI[scelta]}`}
+        title={`Aspetto: tema ${NOMI[scelta]}`}
+        aria-label={`Aspetto: tema ${NOMI[scelta]}`}
         aria-expanded={aperto}
+        aria-haspopup="dialog"
         className="tocco min-h-11 min-w-11 rounded-[10px] border border-transparent p-2 text-testo-2 hover:bg-velo hover:text-testo"
         data-tema-pulsante
       >
         <Icona size={18} strokeWidth={1.75} />
       </button>
       {aperto && (
-        <Vetro
-          className={`vetro-solido absolute right-0 z-[var(--z-popover)] w-64 p-4 ${props.sopra ? "bottom-11" : "top-11"}`}
-        >
+        <Popover ancora={pulsante} onChiudi={chiudi} titolo="Aspetto" larghezza={320} intestazione className="p-4" data-pannello-tema>
           <div className="etichetta mb-2">Tema</div>
           <ControlloSegmentato
             segmenti={[
@@ -100,16 +88,18 @@ export function InterruttoreTema(props: { chiave: string; className?: string; so
             onCambia={cambia}
           />
           <div className="etichetta mb-1.5 mt-4">Intensità sfondo</div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pb-1">
             <Slider
               valore={intensita / 100}
               onCambia={(v) => setIntensita(Math.round(v * 100))}
               className="flex-1"
               aria-label="Intensità dello sfondo"
             />
-            <span className="w-8 text-right text-[13px] tabular-nums text-testo-2">{intensita}</span>
+            <span className="w-8 text-right text-[13px] tabular-nums text-testo-2" data-intensita-valore>
+              {intensita}
+            </span>
           </div>
-        </Vetro>
+        </Popover>
       )}
     </div>
   );

@@ -1224,7 +1224,7 @@ await attendi(300);
   // 4) Popover sole/luna: solo tema e intensità.
   await regia3.js(`document.querySelector('[data-tema-pulsante]').click()`);
   await attendi(300);
-  const popover = await regia3.js(`(() => { const p = document.querySelector('[data-tema-pulsante]')?.parentElement; const t = p?.innerText ?? ''; const u = t.toLowerCase(); return { tema: u.includes('tema') && u.includes('intensità sfondo'), extra: u.includes('parlo') || u.includes('impostazioni luci') }; })()`);
+  const popover = await regia3.js(`(() => { const p = document.querySelector('[data-pannello-tema]'); const t = p?.innerText ?? ''; const u = t.toLowerCase(); return { tema: u.includes('tema') && u.includes('intensità sfondo'), extra: u.includes('parlo') || u.includes('impostazioni luci') }; })()`);
   popover.tema && !popover.extra ? ok("S14-bis: il popover sole/luna ha solo Tema e Intensità sfondo") : ko("S14-bis: popover sole/luna", JSON.stringify(popover));
   await regia3.js(`document.body.click()`);
   // 5) Impostazioni: dalla barra e dalla Home, quattro sezioni; /luci resta un alias.

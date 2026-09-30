@@ -164,7 +164,7 @@ await attendi(300);
 // ---- Popover sole/luna ridotto ----
 await mac.clickSel("[data-tema-pulsante]");
 await attendi(300);
-const popover = await mac.js(`(() => { const t = document.querySelector('[data-tema-pulsante]')?.parentElement?.innerText ?? ''; const u = t.toLowerCase(); return u.includes('tema') && u.includes('intensità') && !u.includes('parlo') && !u.includes('luci'); })()`);
+const popover = await mac.js(`(() => { const t = document.querySelector('[data-pannello-tema]')?.innerText ?? ''; const u = t.toLowerCase(); return u.includes('tema') && u.includes('intensità') && !u.includes('parlo') && !u.includes('luci'); })()`);
 esito(popover, "Popover sole/luna: solo Tema e Intensità sfondo");
 await mac.scatta("04-mac-popover-tema");
 await mac.js(`document.body.click()`);

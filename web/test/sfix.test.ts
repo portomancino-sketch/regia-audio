@@ -19,8 +19,10 @@ describe("livelli (z-index)", () => {
   const tokens = fs.readFileSync(path.join(SRC, "stili/tokens.css"), "utf8");
   const z = (nome: string) => Number(tokens.match(new RegExp(`--z-${nome}:\\s*(-?\\d+)`))?.[1]);
 
-  it("ordine unico: sfondo < contenuto < Sempre < dock < barra < popover < modali < toast", () => {
-    const ordine = ["sfondo", "contenuto", "sempre", "dock", "barra", "popover", "modale", "toast"].map(z);
+  // v1.5.3: i popover (tema, menu ⋯, telecomando) stanno in un portal su body SOPRA i
+  // modali: un menu aperto da dentro un modale resta visibile.
+  it("ordine unico: sfondo < contenuto < Sempre < dock < barra < modali < popover < toast", () => {
+    const ordine = ["sfondo", "contenuto", "sempre", "dock", "barra", "modale", "popover", "toast"].map(z);
     expect(ordine.every((v) => Number.isFinite(v))).toBe(true);
     for (let i = 1; i < ordine.length; i++) expect(ordine[i]).toBeGreaterThan(ordine[i - 1]!);
   });
@@ -40,7 +42,7 @@ describe("livelli (z-index)", () => {
 
   it("i modali a tutto schermo usano il componente Modale (X, ESC, velo)", () => {
     const fuori = fileTsx(SRC).filter((f) => {
-      if (f.endsWith("Modale.tsx") || f.endsWith("AltriSempre.tsx") || f.endsWith("PannelloLuci.tsx")) return false;
+      if (f.endsWith("Modale.tsx") || f.endsWith("AltriSempre.tsx") || f.endsWith("PannelloLuci.tsx") || f.endsWith("Popover.tsx")) return false;
       return /fixed inset-0[^"]*bg-black/.test(fs.readFileSync(f, "utf8"));
     });
     expect(fuori.map((f) => path.relative(SRC, f))).toEqual([]);
@@ -73,5 +75,23 @@ describe("riga Sempre compatta", () => {
   it("il dock limita la riga Sempre a 96 px", () => {
     const src = fs.readFileSync(path.join(SRC, "componenti/ui/Dock.tsx"), "utf8");
     expect(src).toContain("max-h-[96px]");
+  });
+});
+
+describe("popover e menu (v1.5.3): mai tagliati, mai nascosti", () => {
+  const leggi = (f: string) => fs.readFileSync(path.join(SRC, f), "utf8");
+  it("il Popover va in un portal su document.body e tiene il box dentro la finestra", () => {
+    const src = leggi("componenti/ui/Popover.tsx");
+    expect(src).toContain("createPortal(");
+    expect(src).toContain("document.body");
+    expect(src).toMatch(/MARGINE = 12/);
+    expect(src).toMatch(/innerWidth < 640/);
+  });
+  it("sole, menu ⋯ e Telecomando usano il Popover (niente pannelli absolute dentro barra o dock)", () => {
+    for (const f of ["componenti/ui/InterruttoreTema.tsx", "componenti/ui/Menu.tsx", "pagine/PannelloTelecomando.tsx"]) {
+      const src = leggi(f);
+      expect(src, f).toContain("<Popover");
+      expect(src, f).not.toMatch(/absolute[^"]*z-\[var\(--z-popover\)\]/);
+    }
   });
 });

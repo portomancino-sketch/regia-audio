@@ -502,7 +502,7 @@ export function PaginaTelecomando() {
             />
           ) : undefined
         }
-        extra={<InterruttoreTema chiave="tema-telecomando" sopra />}
+        extra={<InterruttoreTema chiave="tema-telecomando" />}
         attivi={attiviFluidi}
         master={stato?.master ?? 0.8}
         onMaster={(v) => invia({ tipo: "comando", comando: "master", valore: v })}

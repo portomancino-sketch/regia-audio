@@ -1,7 +1,7 @@
 // Il menu "⋯": piccolo elenco di azioni in un pannello di vetro.
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
-import { Vetro } from "./Vetro";
+import { Popover } from "./Popover";
 
 export interface VoceMenu {
   testo: string;
@@ -15,24 +15,19 @@ export interface VoceMenu {
 export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
   const [aperto, setAperto] = useState(false);
   const [daConfermare, setDaConfermare] = useState<number | null>(null);
-  const contenitore = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!aperto) return;
-    const fuori = (e: MouseEvent) => {
-      if (!contenitore.current?.contains(e.target as Node)) {
-        setAperto(false);
-        setDaConfermare(null);
-      }
-    };
-    document.addEventListener("mousedown", fuori);
-    return () => document.removeEventListener("mousedown", fuori);
-  }, [aperto]);
+  const pulsante = useRef<HTMLButtonElement | null>(null);
+  const chiudi = useCallback(() => {
+    setAperto(false);
+    setDaConfermare(null);
+  }, []);
 
   return (
-    <div ref={contenitore} className="relative">
+    <div className="relative">
       <button
+        ref={pulsante}
         type="button"
+        aria-haspopup="menu"
+        aria-expanded={aperto}
         aria-label={props.etichetta ?? "Altre azioni"}
         onClick={(e) => {
           e.stopPropagation();
@@ -44,10 +39,7 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
         <MoreHorizontal size={18} strokeWidth={1.75} />
       </button>
       {aperto && (
-        <Vetro
-          raggio="campo"
-          className="absolute right-0 top-9 z-[var(--z-popover)] min-w-40 overflow-hidden vetro-solido py-1"
-        >
+        <Popover ancora={pulsante} onChiudi={chiudi} titolo={props.etichetta ?? "Altre azioni"} className="min-w-40 py-1" data-menu>
           {props.voci.map((v, i) => (
             <button
               key={i}
@@ -62,7 +54,7 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
                 setDaConfermare(null);
                 v.onScelta();
               }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] transition-colors ${
+              className={`flex min-h-11 w-full items-center sm:min-h-0 gap-2 rounded-[10px] px-3 py-2 text-left text-[14px] transition-colors ${
                 v.pericolosa
                   ? daConfermare === i
                     ? "bg-rosso/20 text-rosso"
@@ -74,7 +66,7 @@ export function Menu(props: { voci: VoceMenu[]; etichetta?: string }) {
               {v.conferma && daConfermare === i ? "Sicuro?" : v.testo}
             </button>
           ))}
-        </Vetro>
+        </Popover>
       )}
     </div>
   );

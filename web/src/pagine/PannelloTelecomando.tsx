@@ -1,10 +1,10 @@
 // Il pannello apribile con QR, indirizzo, PIN e telefoni collegati.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import type { InfoRete } from "../../../shared/tipi";
 import { api } from "../api";
-import { Vetro } from "../componenti/ui/Vetro";
+import { Popover } from "../componenti/ui/Popover";
 import { Pulsante } from "../componenti/ui/Pulsante";
 
 export function PannelloTelecomando(props: {
@@ -13,32 +13,12 @@ export function PannelloTelecomando(props: {
   chiave?: string;
 }) {
   const [aperto, setAperto] = useState(false);
-  const contenitore = useRef<HTMLDivElement | null>(null);
+  const pulsante = useRef<HTMLSpanElement | null>(null);
+  const chiudi = useCallback(() => setAperto(false), []);
 
   // Cambio di pagina o vista (Modifica/Live/Diario/Impostazioni): chiuso.
+  // ESC (senza arrivare a STOP TUTTO) e click fuori li gestisce il Popover.
   useEffect(() => setAperto(false), [props.chiave]);
-  // ESC (senza arrivare a STOP TUTTO) e click fuori: chiuso.
-  useEffect(() => {
-    if (!aperto) return;
-    const fuori = (e: MouseEvent) => {
-      if (!contenitore.current?.contains(e.target as Node)) setAperto(false);
-    };
-    const tasto = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        e.preventDefault();
-        setAperto(false);
-      }
-    };
-    document.addEventListener("mousedown", fuori);
-    document.addEventListener("click", fuori);
-    window.addEventListener("keydown", tasto, { capture: true });
-    return () => {
-      document.removeEventListener("mousedown", fuori);
-      document.removeEventListener("click", fuori);
-      window.removeEventListener("keydown", tasto, { capture: true });
-    };
-  }, [aperto]);
   const [rete, setRete] = useState<InfoRete | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [pinBozza, setPinBozza] = useState("");
@@ -59,13 +39,13 @@ export function PannelloTelecomando(props: {
   }
 
   return (
-    <div className="relative" ref={contenitore}>
-      <Pulsante variante="secondario" onClick={() => setAperto(!aperto)} aria-expanded={aperto} className="min-h-11" data-telecomando>
+    <span ref={pulsante} className="relative inline-flex">
+      <Pulsante variante="secondario" aria-haspopup="dialog" onClick={() => setAperto(!aperto)} aria-expanded={aperto} className="min-h-11" data-telecomando>
         <Smartphone size={16} strokeWidth={1.75} aria-hidden />
         Telecomando{props.telefoni.length > 0 && ` (${props.telefoni.length})`}
       </Pulsante>
       {aperto && (
-        <Vetro className="absolute right-0 top-14 z-[var(--z-popover)] w-80 vetro-solido p-5" role="dialog" aria-label="Telecomando" data-pannello-telecomando>
+        <Popover ancora={pulsante} onChiudi={chiudi} titolo="Telecomando" larghezza={320} className="p-5" data-pannello-telecomando>
           {!rete ? (
             <p className="text-testo-2">Un attimo…</p>
           ) : (
@@ -109,8 +89,8 @@ export function PannelloTelecomando(props: {
               </div>
             </div>
           )}
-        </Vetro>
+        </Popover>
       )}
-    </div>
+    </span>
   );
 }
