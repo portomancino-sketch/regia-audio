@@ -16,7 +16,7 @@ export async function avviaServer({ porta, nodo, entry } = {}) {
   const dati = fs.mkdtempSync(path.join(os.tmpdir(), "regia-collaudo-"));
   const env = { ...process.env, PORT: String(porta), REGIA_DIR: dati, REGIA_HUE_MDNS: "0" };
   const proc = entry
-    ? spawn(nodo ?? process.execPath, [entry], { stdio: "ignore", env, cwd: path.dirname(path.dirname(path.dirname(entry))) })
+    ? spawn(nodo ?? process.execPath, [entry], { stdio: "ignore", env, cwd: path.resolve(path.dirname(entry), "../../..") })
     : spawn("npx", ["tsx", "server/src/index.ts"], { stdio: "ignore", env });
   const base = `http://127.0.0.1:${porta}`;
   for (let i = 0; i < 100; i++) {
