@@ -11,7 +11,7 @@ import { attendi, avviaBrowser, avviaServer, nuovaPagina, preparaSempre, registr
 const CARTELLA = "docs/screenshots/fix153";
 fs.mkdirSync(CARTELLA, { recursive: true });
 const R = registro();
-const srv = await avviaServer({ porta: Number(process.env.PORTA_COLLAUDO ?? 4974) });
+const srv = await avviaServer({ porta: Number(process.env.PORTA_COLLAUDO ?? 4974), entry: process.env.SERVER_PACCHETTO, nodo: process.env.NODO_PACCHETTO });
 const browser = await avviaBrowser();
 const pagine = [];
 const foto = (p, nome) => p.screenshot({ path: `${CARTELLA}/${nome}.png` });
